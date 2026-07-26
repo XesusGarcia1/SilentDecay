@@ -45,11 +45,23 @@ Assets/TutorialInfo/
 Assets/RunemarkStudio/
 
 # Ignore heavy 3D assets/models/textures while keeping C# code
-Assets/Dnk_Dev/HospitalHorrorPack/*.fbx
-Assets/Dnk_Dev/HospitalHorrorPack/*.png
-Assets/Dnk_Dev/HospitalHorrorPack/*.jpg
-Assets/Monsters/BookHeadMonster/*.fbx
-Assets/Monsters/BookHeadMonster/*.png
-Assets/nappin/House Props Softpack/
+Assets/Dnk_Dev/
+Assets/Monsters/
+Assets/nappin/
+Assets/ThePhenomenon/
+Assets/TunnelsMap/
+Assets/RunemarkStudio/
+Assets/StarterAssets/Environment/
+Assets/StarterAssets/FirstPersonController/Scenes/
+Assets/StarterAssets/TutorialInfo/
+Assets/TextMesh Pro/
+
+# Ignore folder meta files for ignored directories
+Assets/*.meta
+Assets/StarterAssets/*.meta
+Assets/StarterAssets/FirstPersonController/*.meta
+Assets/StarterAssets/Mobile/*.meta
+
+
 
 
