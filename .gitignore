@@ -38,3 +38,9 @@ HospitalMazeGenerator_CLEAN_BACKUP.cs
 original_raw.cs
 recover.cs
 restored_original.cs
+
+# Unnecessary Unity sample/example assets
+Assets/TextMesh Pro/Examples & Extras/
+Assets/TutorialInfo/
+Assets/RunemarkStudio/
+
