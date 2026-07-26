@@ -44,3 +44,12 @@ Assets/TextMesh Pro/Examples & Extras/
 Assets/TutorialInfo/
 Assets/RunemarkStudio/
 
+# Ignore heavy 3D assets/models/textures while keeping C# code
+Assets/Dnk_Dev/HospitalHorrorPack/*.fbx
+Assets/Dnk_Dev/HospitalHorrorPack/*.png
+Assets/Dnk_Dev/HospitalHorrorPack/*.jpg
+Assets/Monsters/BookHeadMonster/*.fbx
+Assets/Monsters/BookHeadMonster/*.png
+Assets/nappin/House Props Softpack/
+
+
