@@ -57,10 +57,14 @@ Assets/StarterAssets/TutorialInfo/
 Assets/TextMesh Pro/
 
 # Ignore folder meta files for ignored directories
+.vsconfig
 Assets/*.meta
 Assets/StarterAssets/*.meta
 Assets/StarterAssets/FirstPersonController/*.meta
-Assets/StarterAssets/Mobile/*.meta
+Assets/StarterAssets/Mobile/
+Assets/StarterAssets/*.pdf
+Assets/StarterAssets/*.pdf.meta
+
 
 
 
