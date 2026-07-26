@@ -1,0 +1,40 @@
+# Unity temporal & cache folders
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/.utmp/
+/.vs/
+/Silent Decay Game/
+
+
+# Visual Studio / IDE generated files
+.idea/
+/*.csproj
+/*.unityproj
+/*.sln
+/*.suo
+/*.user
+/*.userprefs
+/*.pidb
+/*.booproj
+/*.svd
+/*.pdb
+/*.opendb
+/*.VC.db
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Diagnostic & script backups created outside Assets
+*.py
+*.txt
+HospitalMazeGenerator_CLEAN_BACKUP.cs
+original_raw.cs
+recover.cs
+restored_original.cs
