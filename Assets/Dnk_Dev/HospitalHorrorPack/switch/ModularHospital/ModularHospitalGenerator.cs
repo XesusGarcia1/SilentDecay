@@ -153,23 +153,23 @@ namespace ModularHospital
                 return;
             }
 
-            // Leer tamaño de mapa de PlayerPrefs (Chico = 15x15, Mediano = 20x20, Grande = 25x25)
-            int mapDim = PlayerPrefs.GetInt("SelectedMapSize", 15);
-            if (mapDim < 10) mapDim = 15;
-            else mapDim = Mathf.Clamp(mapDim, 15, 30);
+            // Leer tamaño de mapa de PlayerPrefs (Chico = 11x11, Mediano = 16x16, Grande = 22x22)
+            int mapDim = PlayerPrefs.GetInt("SelectedMapSize", 11);
+            if (mapDim < 8) mapDim = 11;
+            else mapDim = Mathf.Clamp(mapDim, 11, 25);
 
             smallMapGridSize = new Vector2Int(mapDim, mapDim);
 
-            // Leer dificultad seleccionada
+            // Leer dificultad seleccionada (Default "NORMAL" al ejecutar directamente desde la escena de prueba)
             string diffStr = PlayerPrefs.GetString("SelectedDifficulty", "NORMAL");
-            int baseRooms = 5;
-            if (diffStr == "FACIL") baseRooms = 4;
-            else if (diffStr == "DIFICIL") baseRooms = 7;
+            int baseRooms = 4;
+            if (diffStr == "FACIL") baseRooms = 3;
+            else if (diffStr == "DIFICIL") baseRooms = 5;
 
-            // Escalar habitaciones según el tamaño del mapa para poblar bien el mapa
-            if (mapDim >= 25) targetRoomCount = baseRooms + 4; // 8 - 11 habitaciones
-            else if (mapDim >= 20) targetRoomCount = baseRooms + 2; // 6 - 9 habitaciones
-            else targetRoomCount = baseRooms; // 4 - 7 habitaciones
+            // Escalar habitaciones según el tamaño del mapa
+            if (mapDim >= 22) targetRoomCount = baseRooms + 3; // 6 - 8 habitaciones
+            else if (mapDim >= 16) targetRoomCount = baseRooms + 2; // 5 - 7 habitaciones
+            else targetRoomCount = baseRooms; // 3 - 5 habitaciones
 
             int sizeX = Mathf.Clamp(smallMapGridSize.x, 8, 30);
             int sizeZ = Mathf.Clamp(smallMapGridSize.y, 8, 30);
@@ -2389,9 +2389,9 @@ namespace ModularHospital
 #endif
             }
 
-            int batteriesNeeded = Random.Range(10, 15); // Aumentar a 10-14 baterías en el mapa
             string diff = PlayerPrefs.GetString("SelectedDifficulty", "NORMAL");
-            if (diff == "FACIL") batteriesNeeded = 14;
+            int batteriesNeeded = 12; // 12 baterías en Normal por defecto
+            if (diff == "FACIL") batteriesNeeded = 16;
             else if (diff == "DIFICIL") batteriesNeeded = 8;
 
             // 1. Spawning de Baterías abundantes utilizando objetos de habitación e instanciación procedural

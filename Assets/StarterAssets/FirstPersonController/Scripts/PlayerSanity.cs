@@ -111,6 +111,11 @@ public class PlayerSanity : MonoBehaviour
         }
     }
 
+    public void TakeSanityDamage(float amount)
+    {
+        sanity = Mathf.Clamp(sanity - amount, 0f, maxSanity);
+    }
+
     // Camara inestable / Mareo por locura en LateUpdate (para ejecutarse despues del movimiento de camara principal)
     void LateUpdate()
     {
