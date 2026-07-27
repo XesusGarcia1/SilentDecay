@@ -12,7 +12,7 @@ public class MainMenuManager : MonoBehaviour
     private string[] difficulties = { "FÁCIL", "NORMAL", "DIFÍCIL" };
     private int selectedDifficultyIndex = 1; // Normal por defecto
 
-    private string[] mapSizes = { "CHICO (10x10)", "MEDIANO (12x12)", "GRANDE (14x14)" };
+    private string[] mapSizes = { "CHICO (15x15)", "MEDIANO (20x20)", "GRANDE (25x25)" };
     private int selectedMapSizeIndex = 0; // Chico por defecto
 
     private enum MenuState { Main, LevelSelect, PlayOptions, Settings }
@@ -201,13 +201,37 @@ public class MainMenuManager : MonoBehaviour
         if (modGen != null && modGen.isMenuMode)
         {
             if (startYaw == -999f) startYaw = 90f;
-            float swayAngle = Mathf.Sin(Time.time * 0.25f) * 12f;
-            float slowWalk = Mathf.Sin(Time.time * 0.12f) * 1.5f;
+            float swayAngle = Mathf.Sin(Time.time * 0.25f) * 10f; // Balanceo cinemático amplio
+            float slowWalk = Mathf.Sin(Time.time * 0.12f) * 1.2f; // Movimiento amplio de caminata
             if (Camera.main != null)
             {
-                // Cámara viva: avanza y retrocede suavemente por el pasillo del hospital modular
-                Camera.main.transform.position = modGen.transform.position + new Vector3(2.0f + slowWalk, 1.35f, 2.0f);
-                Camera.main.transform.rotation = Quaternion.Euler(1.5f, startYaw + swayAngle, 0f);
+                Vector3 centerPos = modGen.transform.position + new Vector3(2.0f, 1.35f, 2.0f);
+                Vector3 desiredPos = centerPos + new Vector3(slowWalk, 0f, 0f);
+
+                // Anti-atravieso absoluto: Raycast en abanico para proteger la frustum de la cámara (margen de 0.85m)
+                Vector3 moveDir = (desiredPos - centerPos);
+                if (moveDir.sqrMagnitude > 0.001f)
+                {
+                    RaycastHit wallHit;
+                    // Raycast directo desde el centro hacia la posición deseada
+                    if (Physics.Raycast(centerPos, moveDir.normalized, out wallHit, moveDir.magnitude + 0.85f))
+                    {
+                        float safeDist = Mathf.Max(0f, wallHit.distance - 0.85f);
+                        desiredPos = centerPos + moveDir.normalized * safeDist;
+                    }
+                }
+
+                // También verificar si la rotación del balanceo aproxima el plano de visión a una pared
+                Quaternion desiredRot = Quaternion.Euler(1.5f, startYaw + swayAngle, 0f);
+                RaycastHit lookHit;
+                if (Physics.Raycast(desiredPos, desiredRot * Vector3.forward, out lookHit, 0.90f))
+                {
+                    // Si la pared está muy cerca de la cara de la cámara, recortar suavemente la posición hacia atrás
+                    desiredPos -= (desiredRot * Vector3.forward) * (0.90f - lookHit.distance);
+                }
+
+                Camera.main.transform.position = desiredPos;
+                Camera.main.transform.rotation = desiredRot;
 
                 // Linterna potente en la cámara del menú con parpadeo atmosférico realista
                 if (menuFlashlight == null)
@@ -667,9 +691,9 @@ public class MainMenuManager : MonoBehaviour
             if (GUILayout.Button(startBtnText, buttonStyle, GUILayout.Height(60)))
             {
                 PlayClickSound();
-                int finalWidth = 10;
-                if (selectedMapSizeIndex == 1) finalWidth = 12;
-                else if (selectedMapSizeIndex == 2) finalWidth = 14;
+                int finalWidth = 15;
+                if (selectedMapSizeIndex == 1) finalWidth = 20;
+                else if (selectedMapSizeIndex == 2) finalWidth = 25;
 
                 string diffStr = "NORMAL";
                 if (selectedDifficultyIndex == 0) diffStr = "FACIL";

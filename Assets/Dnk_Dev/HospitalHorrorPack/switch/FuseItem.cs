@@ -15,29 +15,35 @@ public class FuseItem : MonoBehaviour
 
     void Start()
     {
-        if (interactDistance < 3.2f) interactDistance = 3.2f;
+        interactDistance = 4.5f; // Rango amplio y cómodo (4.5 metros)
         FindPlayer();
+
+        // Eliminar cualquier BoxCollider gigante hijo en Mesh_node
+        Transform meshChild = transform.Find("Mesh_node");
+        if (meshChild != null)
+        {
+            BoxCollider childBox = meshChild.GetComponent<BoxCollider>();
+            if (childBox != null)
+            {
+                if (Application.isPlaying) Destroy(childBox);
+                else DestroyImmediate(childBox);
+            }
+        }
 
         BoxCollider box = GetComponent<BoxCollider>();
         if (box == null)
         {
             box = gameObject.AddComponent<BoxCollider>();
-            box.isTrigger = true;
         }
+
+        box.isTrigger = true;
+        Vector3 lossy = transform.lossyScale;
+        float sx = lossy.x > 0.001f ? 0.45f / lossy.x : 0.45f;
+        float sy = lossy.y > 0.001f ? 0.35f / lossy.y : 0.35f;
+        float sz = lossy.z > 0.001f ? 0.45f / lossy.z : 0.45f;
 
         box.center = Vector3.zero;
-        box.size = new Vector3(0.8f, 0.8f, 0.8f);
-
-        // Si el prefab tiene una malla hija (Mesh_node), asegurarle también su collider para que el Raycast de la mirilla impacte 100% directo
-        Transform meshChild = transform.Find("Mesh_node");
-        if (meshChild != null)
-        {
-            BoxCollider childBox = meshChild.GetComponent<BoxCollider>();
-            if (childBox == null) childBox = meshChild.gameObject.AddComponent<BoxCollider>();
-            childBox.isTrigger = true;
-            childBox.center = Vector3.zero;
-            childBox.size = new Vector3(0.8f, 0.8f, 0.8f);
-        }
+        box.size = new Vector3(sx, sy, sz); // 45 cm constantes en espacio de mundo
 
         if (pickupSound == null)
             pickupSound = Resources.Load<AudioClip>("Interruptor");
@@ -79,13 +85,54 @@ public class FuseItem : MonoBehaviour
             FindPlayer();
         }
 
-        playerNear = InteractionFocusManager.IsFocused(gameObject, interactDistance);
+        if (playerTransform == null)
+        {
+            playerNear = false;
+            return;
+        }
+
+        Camera cam = Camera.main;
+        Vector3 eyePos = cam != null ? cam.transform.position : playerTransform.position + Vector3.up * 1.5f;
+        Vector3 fuseTargetPos = transform.position + Vector3.up * 0.1f;
+
+        float dist = Vector3.Distance(fuseTargetPos, eyePos);
+        if (dist > interactDistance)
+        {
+            playerNear = false;
+            return;
+        }
+
+        // Permitir recogida si la mirilla (FocusManager) apunta al fusible, si el jugador lo mira o si está cerca
+        bool isFocused = InteractionFocusManager.IsFocused(gameObject, interactDistance);
+        bool isLooking = false;
+
+        if (cam != null)
+        {
+            Vector3 dirToFuse = (transform.position - cam.transform.position).normalized;
+            float dot = Vector3.Dot(cam.transform.forward, dirToFuse);
+            if (dot > 0.50f) // El jugador está mirando hacia el fusible en el suelo
+            {
+                // Verificar que no haya paredes macizas directamente intermedias entre la cámara y el fusible
+                RaycastHit hit;
+                if (Physics.Raycast(eyePos, dirToFuse, out hit, dist))
+                {
+                    string hName = hit.collider.name.ToLower();
+                    if (hit.transform != transform && !hit.transform.IsChildOf(transform) && (hName.Contains("wall") || hName.Contains("solid_wall") || hName.Contains("pillar")))
+                    {
+                        playerNear = false;
+                        return;
+                    }
+                }
+                isLooking = true;
+            }
+        }
+
+        playerNear = isFocused || isLooking || (dist <= 3.8f);
     }
 
     void LateUpdate()
     {
-        bool isTarget = playerNear && InteractionFocusManager.IsFocused(gameObject, interactDistance);
-        if (isTarget && MobileInput.GetKeyDown(KeyCode.E))
+        if (playerNear && MobileInput.GetKeyDown(KeyCode.E))
         {
             CollectFuse();
         }

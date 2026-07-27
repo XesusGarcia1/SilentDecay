@@ -153,23 +153,26 @@ namespace ModularHospital
                 return;
             }
 
-            // Leer tamaño de mapa de PlayerPrefs (Chico = 10x10, Mediano = 12x12, Grande = 14x14)
-            int mapDim = PlayerPrefs.GetInt("SelectedMapSize", 10);
-            if (mapDim == 15) mapDim = 10;
-            else if (mapDim == 25) mapDim = 12;
-            else if (mapDim == 35) mapDim = 14;
-            else mapDim = Mathf.Clamp(mapDim, 8, 16);
+            // Leer tamaño de mapa de PlayerPrefs (Chico = 15x15, Mediano = 20x20, Grande = 25x25)
+            int mapDim = PlayerPrefs.GetInt("SelectedMapSize", 15);
+            if (mapDim < 10) mapDim = 15;
+            else mapDim = Mathf.Clamp(mapDim, 15, 30);
 
             smallMapGridSize = new Vector2Int(mapDim, mapDim);
 
             // Leer dificultad seleccionada
             string diffStr = PlayerPrefs.GetString("SelectedDifficulty", "NORMAL");
-            if (diffStr == "FACIL") targetRoomCount = 4;
-            else if (diffStr == "DIFICIL") targetRoomCount = 6;
-            else targetRoomCount = 5;
+            int baseRooms = 5;
+            if (diffStr == "FACIL") baseRooms = 4;
+            else if (diffStr == "DIFICIL") baseRooms = 7;
 
-            int sizeX = Mathf.Clamp(smallMapGridSize.x, 6, 20);
-            int sizeZ = Mathf.Clamp(smallMapGridSize.y, 6, 20);
+            // Escalar habitaciones según el tamaño del mapa para poblar bien el mapa
+            if (mapDim >= 25) targetRoomCount = baseRooms + 4; // 8 - 11 habitaciones
+            else if (mapDim >= 20) targetRoomCount = baseRooms + 2; // 6 - 9 habitaciones
+            else targetRoomCount = baseRooms; // 4 - 7 habitaciones
+
+            int sizeX = Mathf.Clamp(smallMapGridSize.x, 8, 30);
+            int sizeZ = Mathf.Clamp(smallMapGridSize.y, 8, 30);
 
             float width = sizeX * 4.0f;
             float depth = sizeZ * 4.0f;
@@ -181,25 +184,51 @@ namespace ModularHospital
 
             Transform parent = mapParentContainer != null ? mapParentContainer : transform;
 
-            // 1. CARVAR PASILLOS PRINCIPALES ALEATORIOS EN LA MATRIZ DE 10x10
-            int mainAxisX = Random.Range(3, sizeX - 3);
-            int mainAxisZ = Random.Range(3, sizeZ - 3);
+            // 1. GENERACIÓN DE LABERINTO ORGANICO TIPO BACKROOMS DE HOSPITAL (PASILLOS ESTRECHOS Y PAREDES DENSAS)
+            // Empezar con la matriz totalmente llena de paredes (0) y carvar canales de pasillo (1)
+            int startX = sizeX / 2;
+            int startZ = sizeZ / 2;
+            gridMatrix[startX, startZ] = 1;
 
-            for (int z = 1; z < sizeZ - 1; z++) gridMatrix[mainAxisX, z] = 1;
-            for (int x = 1; x < sizeX - 1; x++) gridMatrix[x, mainAxisZ] = 1;
+            List<Vector2Int> frontier = new List<Vector2Int>();
+            AddFrontierNeighbors(startX, startZ, sizeX, sizeZ, frontier);
 
-            int subAxisX = (mainAxisX > sizeX / 2) ? 2 : sizeX - 3;
-            int subAxisZ = (mainAxisZ > sizeZ / 2) ? 2 : sizeZ - 3;
-            for (int z = 2; z < sizeZ - 2; z++) gridMatrix[subAxisX, z] = 1;
-            for (int x = 2; x < sizeX - 2; x++) gridMatrix[x, subAxisZ] = 1;
+            while (frontier.Count > 0)
+            {
+                int rIdx = Random.Range(0, frontier.Count);
+                Vector2Int current = frontier[rIdx];
+                frontier.RemoveAt(rIdx);
 
-            // 2. ASIGNAR HABITACIONES EN CELDAS LIBRES ALEATORIAS SEPARADAS
+                if (gridMatrix[current.x, current.y] != 0) continue;
+
+                // Contar pasillos adyacentes
+                List<Vector2Int> corridorNeighbors = GetCorridorNeighbors(current.x, current.y, sizeX, sizeZ);
+                if (corridorNeighbors.Count == 1 || (corridorNeighbors.Count == 2 && Random.value < 0.25f))
+                {
+                    gridMatrix[current.x, current.y] = 1;
+                    AddFrontierNeighbors(current.x, current.y, sizeX, sizeZ, frontier);
+                }
+            }
+
+            // Permitir tallado orgánico y cerrado de bordes
+            for (int x = 0; x < sizeX; x++)
+            {
+                gridMatrix[x, 0] = 0;
+                gridMatrix[x, sizeZ - 1] = 0;
+            }
+            for (int z = 0; z < sizeZ; z++)
+            {
+                gridMatrix[0, z] = 0;
+                gridMatrix[sizeX - 1, z] = 0;
+            }
+
+            // 2. ASIGNAR HABITACIONES EN CELDAS LIBRES CONECTADAS
             List<Vector2Int> availableCells = new List<Vector2Int>();
             for (int x = 1; x < sizeX - 1; x++)
             {
                 for (int z = 1; z < sizeZ - 1; z++)
                 {
-                    if (gridMatrix[x, z] == 0) availableCells.Add(new Vector2Int(x, z));
+                    if (gridMatrix[x, z] == 0 && HasAdjacentCorridor(x, z, sizeX, sizeZ)) availableCells.Add(new Vector2Int(x, z));
                 }
             }
 
@@ -214,7 +243,6 @@ namespace ModularHospital
             List<Vector2Int> roomCells = new List<Vector2Int>();
 
             // ── PRE-RESERVAR CELDA DEL ASCENSOR ANTES DE COLOCAR HABITACIONES ──────────
-            // Seleccionar la mejor celda de callejón ciego ahora para bloquearla
             Vector2Int preElevCell = new Vector2Int(1, 1);
             float preElevMaxScore = -1f;
             for (int x = 1; x < sizeX - 1; x++)
@@ -227,43 +255,41 @@ namespace ModularHospital
                     if (z - 1 >= 0 && gridMatrix[x, z - 1] == 1) corr++;
                     if (x + 1 < sizeX && gridMatrix[x + 1, z] == 1) corr++;
                     if (x - 1 >= 0 && gridMatrix[x - 1, z] == 1) corr++;
-                    if (corr != 1) continue; // solo callejones ciegos
+                    if (corr != 1) continue;
                     float dist = Vector2.Distance(new Vector2(1, 1), new Vector2(x, z));
                     if (dist > preElevMaxScore) { preElevMaxScore = dist; preElevCell = new Vector2Int(x, z); }
                 }
             }
-            // Marcar celda del ascensor y zona de exclusión de 3 celdas como "reservado para ascensor" (valor 4)
             gridMatrix[preElevCell.x, preElevCell.y] = 4;
             for (int rx = Mathf.Max(0, preElevCell.x - 3); rx <= Mathf.Min(sizeX - 1, preElevCell.x + 3); rx++)
                 for (int rz = Mathf.Max(0, preElevCell.y - 3); rz <= Mathf.Min(sizeZ - 1, preElevCell.y + 3); rz++)
-                    if (gridMatrix[rx, rz] == 0) gridMatrix[rx, rz] = 4; // bloquear paredes vecinas para habitaciones
+                    if (gridMatrix[rx, rz] == 0) gridMatrix[rx, rz] = 4;
             // ─────────────────────────────────────────────────────────────────────────────
 
-            // Asignar Oficina del Director en una celda perimetral aleatoria con pasillo garantizado y aislada de otras habitaciones
+            // Asignar Oficina del Director
             foreach (Vector2Int cell in availableCells)
             {
                 if (gridMatrix[cell.x, cell.y] == 0 && HasAdjacentCorridor(cell.x, cell.y, sizeX, sizeZ))
                 {
-                    gridMatrix[cell.x, cell.y] = 2; // 2 = DirectorOffice
+                    gridMatrix[cell.x, cell.y] = 2; // DirectorOffice
                     roomCells.Add(cell);
                     EnsureDoorwayCorridor(cell.x, cell.y, sizeX, sizeZ);
                     break;
                 }
             }
 
-            // Asignar Habitaciones Normales en celdas aleatorias totalmente aisladas
-            int maxAllowedRooms = Mathf.Min(targetRoomCount, 5);
+            // Asignar Habitaciones Normales
             int roomsPlaced = 0;
             foreach (Vector2Int cell in availableCells)
             {
-                if (roomsPlaced >= maxAllowedRooms) break;
+                if (roomsPlaced >= targetRoomCount) break;
                 if (gridMatrix[cell.x, cell.y] != 0) continue;
 
-                // REGLA DE AISLAMIENTO ABSOLUTO STRICT: Ninguna otra habitación puede estar a menos de 2 celdas
+                int minSeparation = 2; // Garantizar que NINGUNA habitación esté pegada o detrás de otra (mínimo 2 celdas de distancia)
                 bool isTooClose = false;
                 foreach (Vector2Int rCell in roomCells)
                 {
-                    if (Mathf.Abs(rCell.x - cell.x) <= 2 && Mathf.Abs(rCell.y - cell.y) <= 2)
+                    if (Mathf.Abs(rCell.x - cell.x) < minSeparation && Mathf.Abs(rCell.y - cell.y) < minSeparation)
                     {
                         isTooClose = true;
                         break;
@@ -324,22 +350,37 @@ namespace ModularHospital
                 }
             }
 
-            // 3.5 Preservar los pisos y techos propios de los prefabs modulares para renderizado completo y hermético
-            // (Los prefabs contienen mallas de techo, piso y luces integradas)
+            // 3.5 Ocultar mallas individuales de piso y techo en prefabs modulares (Usamos Unified Floor and Ceiling Slabs)
+            foreach (HospitalModule mod in placedModules)
+            {
+                if (mod == null) continue;
+                Transform[] subChildren = mod.GetComponentsInChildren<Transform>(true);
+                foreach (Transform child in subChildren)
+                {
+                    if (child == null) continue;
+                    string nameLower = child.name.ToLower();
+                    if (nameLower.Contains("floor") || nameLower.Contains("piso") || nameLower.Contains("ceiling") || nameLower.Contains("techo") || nameLower.Contains("slab"))
+                    {
+                        Renderer r = child.GetComponent<Renderer>();
+                        if (r != null) r.enabled = false;
+                    }
+                }
+            }
 
             // 3.6 AUTO-CONFIGURAR PIVOTE DE BISAGRA Y PUERTAS EN HABITACIONES
             foreach (HospitalModule mod in placedModules)
             {
                 if (mod == null) continue;
                 
-                // Buscar la puerta en el módulo
+                // Buscar únicamente el objeto de hoja de puerta (evitando marcos duplicados)
                 Transform doorObj = null;
                 Transform[] allTransforms = mod.GetComponentsInChildren<Transform>(true);
                 foreach (Transform t in allTransforms)
                 {
                     if (t == null) continue;
                     string n = t.name.ToLower();
-                    if ((n.Contains("p_door_01_") || n.Contains("puerta") || n.Contains("door")) && !n.Contains("base") && !n.Contains("frame") && !n.Contains("hinge"))
+                    if ((n.Contains("p_door_01_") || n.Contains("puerta") || n.Contains("door")) && 
+                        !n.Contains("base") && !n.Contains("frame") && !n.Contains("marco") && !n.Contains("hinge"))
                     {
                         doorObj = t;
                         break;
@@ -411,17 +452,10 @@ namespace ModularHospital
             {
                 ElevatorController.foundNotes[i] = -1;
             }
-            foreach (HospitalModule mod in placedModules)
-            {
-                if (mod == null) continue;
-                List<ModuleConnector> conns = mod.GetUnconnectedConnectors();
-                foreach (ModuleConnector mc in conns)
-                {
-                    ClearBlockingWallAtConnector(mc);
-                }
-            }
+            // 4. MANTENER PAREDES INTEGRAS DE PISO A TECHO (Sin borrado de paneles ni huecos flotantes)
+            // ClearBlockingWallAtConnector se desactiva para evitar cortar mallas o crear vacíos verticales
 
-            // 4.5 SELLAR ESQUINAS DE INTERSECCIÓN PARA EVITAR CUALQUIER HUECO
+            // 4.5 SELLAR ESQUINAS DE INTERSECCIÓN CON PILARES Y SOPORTES ESTRUCTURALES
             SealGridCornerGaps(parent, sizeX, sizeZ, halfW, halfD);
 
             // 5. TECHO, PISO Y PAREDES PERIMETRALES UNIFICADAS
@@ -451,6 +485,9 @@ namespace ModularHospital
 
             // 11. REPARTIR BATERÍAS DE LINTERNA RECOLECTABLES
             BuildBatteries(parent, sizeX, sizeZ, halfW, halfD);
+
+            // 10.5 ELIMINAR CUALQUIER PARED O MURO QUE SE HAYA COLADO DENTRO DEL INTERIOR DE LAS HABITACIONES
+            CleanInternalRoomBlockingWalls(parent);
 
             // 11.2 CONFIGURAR CAMAS PARA PERMITIR AL JUGADOR ESCONDERSE DEBAJO DE ELLAS
             SetupHideBeds();
@@ -606,6 +643,30 @@ namespace ModularHospital
                    (z - 1 >= 0 && gridMatrix[x, z - 1] == 1);
         }
 
+        private void AddFrontierNeighbors(int x, int z, int sizeX, int sizeZ, List<Vector2Int> frontier)
+        {
+            Vector2Int[] dirs = new Vector2Int[] { new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1) };
+            foreach (Vector2Int d in dirs)
+            {
+                int nx = x + d.x;
+                int nz = z + d.y;
+                if (nx >= 2 && nx < sizeX - 2 && nz >= 2 && nz < sizeZ - 2 && gridMatrix[nx, nz] == 0)
+                {
+                    frontier.Add(new Vector2Int(nx, nz));
+                }
+            }
+        }
+
+        private List<Vector2Int> GetCorridorNeighbors(int x, int z, int sizeX, int sizeZ)
+        {
+            List<Vector2Int> list = new List<Vector2Int>();
+            if (x + 1 < sizeX && gridMatrix[x + 1, z] == 1) list.Add(new Vector2Int(x + 1, z));
+            if (x - 1 >= 0 && gridMatrix[x - 1, z] == 1) list.Add(new Vector2Int(x - 1, z));
+            if (z + 1 < sizeZ && gridMatrix[x, z + 1] == 1) list.Add(new Vector2Int(x, z + 1));
+            if (z - 1 >= 0 && gridMatrix[x, z - 1] == 1) list.Add(new Vector2Int(x, z - 1));
+            return list;
+        }
+
         private void EnsureDoorwayCorridor(int x, int z, int sizeX, int sizeZ)
         {
             if (z - 1 >= 0 && gridMatrix[x, z - 1] == 1) return;
@@ -647,9 +708,9 @@ namespace ModularHospital
             bool hasAdjacentRoom = n_isRoom || s_isRoom || e_isRoom || w_isRoom;
             int count = (n ? 1 : 0) + (s ? 1 : 0) + (e ? 1 : 0) + (w ? 1 : 0);
 
-            // Si la celda está frente a una habitación, colocar obligatoriamente un Cruce de 4 Vías para garantizar salida abierta
-            if (hasAdjacentRoom || count == 4)
+            if (count == 4)
             {
+                rot = Quaternion.identity;
                 return GetPrefab(database.cross4WayPrefabs);
             }
 
@@ -674,7 +735,16 @@ namespace ModularHospital
                 return GetPrefab(database.curve90Prefabs);
             }
 
-            return GetPrefab(database.straightCorridorPrefabs);
+            if (count == 1)
+            {
+                if (n) rot = Quaternion.Euler(0, 0, 0);
+                else if (s) rot = Quaternion.Euler(0, 180, 0);
+                else if (e) rot = Quaternion.Euler(0, 90, 0);
+                else if (w) rot = Quaternion.Euler(0, 270, 0);
+                return GetPrefab(database.straightCorridorPrefabs);
+            }
+
+            return GetPrefab(database.cross4WayPrefabs);
         }
 
         private HospitalModule GetPrefab(List<HospitalModule> list)
@@ -712,7 +782,7 @@ namespace ModularHospital
                     else if (rend != null) objPos = rend.bounds.center;
 
                     float dist = Vector3.Distance(objPos, connPos);
-                    if (dist <= 2.2f)
+                    if (dist <= 1.3f)
                     {
                         if (col != null) col.enabled = false;
                         t.gameObject.SetActive(false);
@@ -721,7 +791,7 @@ namespace ModularHospital
             }
 
             // 2. Limpieza de seguridad por OverlapSphere de cualquier Collider invisible remanente
-            Collider[] hits = Physics.OverlapSphere(connPos, 2.0f);
+            Collider[] hits = Physics.OverlapSphere(connPos, 1.2f);
             foreach (Collider c in hits)
             {
                 if (c == null) continue;
@@ -742,6 +812,39 @@ namespace ModularHospital
 
                 c.enabled = false;
                 t.gameObject.SetActive(false);
+            }
+        }
+
+        private void BuildSolidWallBlock(Transform parent, Vector3 cellPos)
+        {
+            Material wallMat = customWallMaterial;
+            if (wallMat == null)
+            {
+#if UNITY_EDITOR
+                wallMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Dnk_Dev/HospitalHorrorPack/Materials/T_HospitalWall_New.mat");
+#endif
+            }
+
+            GameObject wallBlock = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wallBlock.name = $"[Solid_Wall_Block_{cellPos.x}_{cellPos.z}]";
+            wallBlock.transform.SetParent(parent);
+            wallBlock.transform.position = new Vector3(cellPos.x, 2.0f, cellPos.z);
+            wallBlock.transform.localScale = new Vector3(4.0f, 4.0f, 4.0f);
+
+            BoxCollider col = wallBlock.GetComponent<BoxCollider>();
+            if (col != null)
+            {
+                col.isTrigger = false;
+                col.size = Vector3.one;
+            }
+
+            if (wallMat != null)
+            {
+                MeshRenderer mr = wallBlock.GetComponent<MeshRenderer>();
+                Material instMat = new Material(wallMat);
+                instMat.mainTextureScale = new Vector2(1.0f, 1.0f);
+                if (instMat.HasProperty("_BaseMap")) instMat.SetTextureScale("_BaseMap", new Vector2(1.0f, 1.0f));
+                mr.sharedMaterial = instMat;
             }
         }
 
@@ -879,8 +982,8 @@ namespace ModularHospital
                         }
                     }
 
-                    // Colocar pilar solo si la esquina une al menos una pared Y un pasillo (evita pilares en cruces abiertos)
-                    if (wallCount > 0 && openCount > 0 && openCount < 4)
+                    // Colocar pilares estructurales en intersecciones y esquinas amplias para dar soporte y ambiente hospitalario
+                    if (wallCount >= 1 && openCount >= 1 && openCount <= 3)
                     {
                         float cornerX = (x * 4.0f) - halfW;
                         float cornerZ = (z * 4.0f) - halfD;
@@ -890,7 +993,7 @@ namespace ModularHospital
                         pillar.name = $"[Grid_Corner_Pillar_{x}_{z}]";
                         pillar.transform.SetParent(parent);
                         pillar.transform.position = pillarPos;
-                        pillar.transform.localScale = new Vector3(0.30f, 4.0f, 0.30f);
+                        pillar.transform.localScale = new Vector3(0.55f, 4.0f, 0.55f); // Grosor de 55cm para sellar 100% cualquier ranura de junta de pared
 
                         // BoxCollider físico sólido para que los pilares NO se puedan traspasar
                         BoxCollider boxCol = pillar.GetComponent<BoxCollider>();
@@ -935,13 +1038,13 @@ namespace ModularHospital
                 Vector3 pos = mod.transform.position;
                 Vector2Int cellPos = PositionToGridCell(pos);
 
-                // En pasillos: Lámparas esparcidas (cada 3 celdas) y 45% de luces quemadas/rotas por ambiente de hospital abandonado
+                // En pasillos: Lámparas cada 2 celdas para iluminación óptima y uniforme en todo el laberinto (20% quemadas)
                 if (!isRoom)
                 {
                     bool tooClose = false;
                     foreach (Vector2Int existing in corridorLampCells)
                     {
-                        if (Mathf.Abs(existing.x - cellPos.x) < 3 && Mathf.Abs(existing.y - cellPos.y) < 3)
+                        if (Mathf.Abs(existing.x - cellPos.x) < 2 && Mathf.Abs(existing.y - cellPos.y) < 2)
                         {
                             tooClose = true;
                             break;
@@ -949,13 +1052,13 @@ namespace ModularHospital
                     }
                     if (tooClose) continue;
 
-                    if (Random.value < 0.45f) continue; // Luz rota/quemada
+                    if (Random.value < 0.20f) continue; // 20% luz rota para mantener buena iluminación en pasillos
 
                     corridorLampCells.Add(cellPos);
                 }
                 else
                 {
-                    if (Random.value < 0.50f) continue; // 50% fundidas en habitaciones
+                    if (Random.value < 0.25f) continue; // 25% fundidas en habitaciones
                 }
 
                 Vector3 lampPos = new Vector3(pos.x, 3.82f, pos.z);
@@ -980,13 +1083,13 @@ namespace ModularHospital
 
                 Light ptLight = lightChild.AddComponent<Light>();
                 ptLight.type = LightType.Point;
-                ptLight.color = new Color(0.35f, 0.92f, 0.70f); // Luz cian-verde esmeralda neón
-                ptLight.intensity = 2.2f; // Brillo nítido que proyecta luz hasta el suelo y paredes
-                ptLight.range = 5.8f; // Alcance de 5.8m para bañar el piso y paredes debajo de la lámpara
-                ptLight.shadows = LightShadows.None; // Permite proyectar el haz de luz directamente sobre el suelo
+                ptLight.color = new Color(0.40f, 0.95f, 0.75f); // Luz cian-verde esmeralda brillante
+                ptLight.intensity = 3.5f; // Potente haz de luz de techo a suelo
+                ptLight.range = 8.5f; // Alcance de 8.5m para iluminar completamente pasillos y cruces
+                ptLight.shadows = LightShadows.None;
 
                 FlickerLamp flicker = lightChild.AddComponent<FlickerLamp>();
-                flicker.baseIntensity = 2.2f;
+                flicker.baseIntensity = 3.5f;
             }
         }
 
@@ -1178,13 +1281,11 @@ namespace ModularHospital
             ctrl.doorSpeed = 0.22f;
             if (startWithKeycard) ElevatorController.hasKeycard = true;
 
-            // ELIMINAR CUALQUIER PARED QUE BLOQUEE LA ENTRADA DEL ELEVADOR
-            // La dirección del frente del elevador es rot * Vector3.forward (hacia donde mira la puerta)
+            // ELIMINAR CUALQUIER PARED Y BLOQUE MACIZO QUE BLOQUEE LA ENTRADA DEL ELEVADOR
             Vector3 doorFacing = rot * Vector3.forward;
-            Vector3 doorFront = alignedPos + doorFacing * 1.5f; // Punto 1.5m frente a la puerta
+            Vector3 doorFront = alignedPos + doorFacing * 2.0f; // Punto 2.0m frente a la puerta del ascensor
 
-            // Desactivar SOLO paredes y marcos que bloqueen la entrada del elevador (JAMÁS módulos de habitación o suelos)
-            Collider[] nearColliders = Physics.OverlapSphere(doorFront, 2.8f);
+            Collider[] nearColliders = Physics.OverlapSphere(doorFront, 2.5f);
             foreach (Collider col in nearColliders)
             {
                 if (col == null || col.gameObject == elevObj || col.transform.IsChildOf(elevObj.transform)) continue;
@@ -1192,22 +1293,15 @@ namespace ModularHospital
                 string cName = col.gameObject.name.ToLower();
                 string rName = col.transform.root.name.ToLower();
 
-                // Nunca tocar módulos de habitación, suelos, techos, el jugador, lámparas o el elevador
+                // NUNCA borrar el ascensor, jugador, suelo unificado, techo unificado o lámparas
                 bool isProtected = rName.Contains("elevator") || rName.Contains("ascensor") ||
-                                   rName.Contains("module") || rName.Contains("smallroom") || rName.Contains("director") ||
-                                   cName.Contains("floor") || cName.Contains("suelo") || cName.Contains("ceiling") ||
-                                   cName.Contains("player") || cName.Contains("lamp") || cName.Contains("door");
+                                   cName.Contains("unified_floor") || cName.Contains("unified_ceiling") ||
+                                   cName.Contains("player") || cName.Contains("lamp");
 
-                // Solo desactivar piezas de pared / marco de pasillo
-                bool isWallPiece = cName.Contains("wall") || cName.Contains("marco") || cName.Contains("frame") ||
-                                   cName.Contains("blocker") || cName.Contains("outer") || cName.Contains("perimeter");
-
-                if (isWallPiece && !isProtected)
+                if (!isProtected)
                 {
-                    // Solo si está claramente enfrente
-                    Vector3 toObj = col.transform.position - alignedPos;
-                    if (Vector3.Dot(toObj.normalized, doorFacing) > 0.4f)
-                        col.gameObject.SetActive(false);
+                    col.enabled = false;
+                    col.gameObject.SetActive(false);
                 }
             }
 
@@ -1277,18 +1371,18 @@ namespace ModularHospital
                     Vector3 localWallPos = new Vector3(sideX, 1.25f, 0f);
                     finalFbPos = targetModule.transform.TransformPoint(localWallPos);
 
-                    // Raycast corto desde el centro del módulo hacia la pared lateral para obtener el punto exacto de la pared lisa
+                    // Raycast desde el centro del pasillo hacia la pared lateral para adosar perfectamente la caja de fusibles
                     Vector3 moduleCenter = targetModule.transform.position + Vector3.up * 1.25f;
                     Vector3 rayDir = (finalFbPos - moduleCenter).normalized;
                     RaycastHit wallHit;
                     if (Physics.Raycast(moduleCenter, rayDir, out wallHit, 2.5f))
                     {
-                        finalFbPos = wallHit.point + wallHit.normal * 0.42f; // Desfasar 42cm hacia el pasillo abierto para que 100% flote fuera de muros
-                        finalFbRot = Quaternion.LookRotation(wallHit.normal, Vector3.up); // Mirar de frente hacia el pasillo libre
+                        finalFbPos = wallHit.point + wallHit.normal * 0.12f; // Adosar la base a la pared lisa
+                        finalFbRot = Quaternion.LookRotation(wallHit.normal, Vector3.up); // La puerta y frente miran 100% hacia el centro del pasillo
                     }
                     else
                     {
-                        finalFbRot = targetModule.transform.rotation * Quaternion.Euler(0f, sideX < 0f ? 270f : 90f, 0f);
+                        finalFbRot = targetModule.transform.rotation * Quaternion.Euler(0f, sideX < 0f ? 90f : 270f, 0f);
                     }
                 }
 
@@ -1436,19 +1530,33 @@ namespace ModularHospital
                     // Habilitar visuales y ajustar base al ras del suelo
                     ActivateItemFully(fObj);
 
-                    MeshRenderer mrFuse = fObj.GetComponentInChildren<MeshRenderer>();
-                    if (mrFuse != null)
+                    RaycastHit fuseHit;
+                    if (Physics.Raycast(spawnPos + Vector3.up * 1.5f, Vector3.down, out fuseHit, 3.0f))
                     {
-                        float meshMinY = mrFuse.bounds.min.y;
-                        float surfaceY = spawnPos.y;
-                        float correction = surfaceY - meshMinY;
-                        if (Mathf.Abs(correction) > 0.001f)
-                            fObj.transform.position += new Vector3(0, correction, 0);
+                        fObj.transform.position = fuseHit.point;
+                        MeshRenderer mrF = fObj.GetComponentInChildren<MeshRenderer>();
+                        if (mrF != null)
+                        {
+                            float bottomY = mrF.bounds.min.y;
+                            float diffY = fuseHit.point.y - bottomY;
+                            fObj.transform.position += new Vector3(0, diffY, 0);
+                        }
+                    }
+                    else
+                    {
+                        MeshRenderer mrFuse = fObj.GetComponentInChildren<MeshRenderer>();
+                        if (mrFuse != null)
+                        {
+                            float meshMinY = mrFuse.bounds.min.y;
+                            float surfaceY = spawnPos.y;
+                            float correction = surfaceY - meshMinY;
+                            fObj.transform.position += new Vector3(0, correction + 0.002f, 0);
+                        }
                     }
 
                     FuseItem fuseComp = fObj.GetComponent<FuseItem>();
                     if (fuseComp == null) fuseComp = fObj.AddComponent<FuseItem>();
-                    fuseComp.interactDistance = 3.2f;
+                    fuseComp.interactDistance = 2.5f;
                 }
             }
         }
@@ -1516,6 +1624,25 @@ namespace ModularHospital
 
                 // Posicionar exactamente en el centro de la celda de pasillo (100% libre de invasión a paredes)
                 Vector3 genPos = baseCellPos;
+
+                // ELIMINAR CUALQUIER PARED Y BLOQUE MACIZO QUE BLOQUEE EL GENERADOR
+                Collider[] nearGenCols = Physics.OverlapSphere(genPos, 3.0f);
+                foreach (Collider col in nearGenCols)
+                {
+                    if (col == null) continue;
+                    string cName = col.gameObject.name.ToLower();
+                    string rName = col.transform.root.name.ToLower();
+
+                    bool isProtected = rName.Contains("generator") || rName.Contains("subgenerator") ||
+                                       cName.Contains("unified_floor") || cName.Contains("unified_ceiling") ||
+                                       cName.Contains("player") || cName.Contains("lamp");
+
+                    if (!isProtected && (cName.Contains("solid_wall") || cName.Contains("pillar") || cName.Contains("wall")))
+                    {
+                        col.enabled = false;
+                        col.gameObject.SetActive(false);
+                    }
+                }
 
                 GameObject genObj = Instantiate(generatorPrefab, genPos, rot, parent);
                 genObj.name = $"[Hospital_SubGenerator_{genNames[i]}]";
@@ -1856,12 +1983,18 @@ namespace ModularHospital
 #endif
             }
 
-            // 3. Spawning aleatorio de las 7 Notas del Código utilizando los papeles pre-colocados en las habitaciones
-            // 3. Spawning aleatorio de las 7 Notas del Código (Habitaciones Abiertas y Pasillos)
-            // Primero: Desactivar todos los objetos de papel principales pre-colocados por defecto (solo objetos raíz de item, no sub-meshes)
+            // 3. Spawning aleatorio de las 7 Notas del Código
+            // Destruir cualquier componente NoteItem residual pre-existente en los prefabs antes de la asignación
             foreach (HospitalModule mod in placedModules)
             {
-                if (mod == null || mod.moduleType == ModuleType.DirectorOffice) continue;
+                if (mod == null) continue;
+                NoteItem[] oldNotes = mod.GetComponentsInChildren<NoteItem>(true);
+                foreach (NoteItem oldN in oldNotes)
+                {
+                    if (oldN != null) DestroyImmediate(oldN);
+                }
+
+                if (mod.moduleType == ModuleType.DirectorOffice) continue;
                 Transform[] allT = mod.GetComponentsInChildren<Transform>(true);
                 foreach (Transform t in allT)
                 {
@@ -1869,7 +2002,6 @@ namespace ModularHospital
                     string cName = t.name.ToLower();
                     if ((cName.StartsWith("papel") || cName.StartsWith("p_note") || cName.StartsWith("note")) && !cName.Contains("canvas") && !cName.Contains("ui"))
                     {
-                        // Desactivar el GameObject principal (padre) para ocultarlo limpiamente
                         if (t.parent == null || !t.parent.name.ToLower().Contains("papel"))
                         {
                             t.gameObject.SetActive(false);
@@ -1884,7 +2016,26 @@ namespace ModularHospital
             {
                 if (mod != null && mod.moduleType == ModuleType.SmallRoom && mod.moduleType != ModuleType.DirectorOffice)
                 {
-                    smallRoomsForNotes.Add(mod);
+                    // Verificar que la entrada de la habitación esté 100% abierta a un pasillo (no bloqueada por otra habitación)
+                    Vector3 doorFront = mod.transform.position + mod.transform.forward * (-2.0f) + Vector3.up * 1.0f;
+                    Collider[] frontCols = Physics.OverlapSphere(doorFront, 0.5f);
+                    bool hasBlockingWall = false;
+                    foreach (Collider c in frontCols)
+                    {
+                        if (c != null && !c.transform.IsChildOf(mod.transform))
+                        {
+                            string cn = c.name.ToLower();
+                            if (cn.Contains("solid_wall") || cn.Contains("outer_wall"))
+                            {
+                                hasBlockingWall = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!hasBlockingWall)
+                    {
+                        smallRoomsForNotes.Add(mod);
+                    }
                 }
             }
 
@@ -1895,7 +2046,6 @@ namespace ModularHospital
                 HospitalModule chosenRoom = smallRoomsForNotes[rIdx];
                 smallRoomsForNotes.RemoveAt(rIdx);
 
-                // Buscar el objeto PADRE principal del papel en la habitación (ej. Papel (2))
                 GameObject targetPaper = null;
                 Transform[] roomTransforms = chosenRoom.GetComponentsInChildren<Transform>(true);
                 foreach (Transform t in roomTransforms)
@@ -1914,35 +2064,33 @@ namespace ModularHospital
 
                 if (targetPaper != null)
                 {
-                    // Activar el papel pre-colocado exactamente en su posición original del prefab
                     ActivateItemFully(targetPaper);
                     targetPaper.name = $"[Hospital_Note_Digit_{assignedNotes + 1}]";
 
-                    // Centrar perfectamente el BoxCollider según el MeshRenderer del hijo (Nota)
+                    // Encontrar el objeto hijo real de la nota que tiene la malla (MeshRenderer)
+                    GameObject meshChildObj = targetPaper;
                     MeshRenderer mr = targetPaper.GetComponentInChildren<MeshRenderer>(true);
-                    BoxCollider bc = targetPaper.GetComponent<BoxCollider>();
-                    if (bc == null) bc = targetPaper.AddComponent<BoxCollider>();
-                    bc.isTrigger = true;
+                    if (mr != null) meshChildObj = mr.gameObject;
 
-                    if (mr != null)
-                    {
-                        // Convertir el centro del MeshRenderer de coordenadas mundiales a locales de targetPaper
-                        Vector3 localMeshCenter = targetPaper.transform.InverseTransformPoint(mr.bounds.center);
-                        Vector3 localMeshSize = targetPaper.transform.InverseTransformVector(mr.bounds.size);
-                        bc.center = localMeshCenter;
-                        bc.size = new Vector3(Mathf.Max(0.4f, Mathf.Abs(localMeshSize.x)), Mathf.Max(0.2f, Mathf.Abs(localMeshSize.y)), Mathf.Max(0.4f, Mathf.Abs(localMeshSize.z)));
-                    }
-                    else
-                    {
-                        bc.center = Vector3.zero;
-                        bc.size = new Vector3(0.5f, 0.2f, 0.5f);
-                    }
+                    BoxCollider bc = meshChildObj.GetComponent<BoxCollider>();
+                    if (bc == null) bc = meshChildObj.AddComponent<BoxCollider>();
+                    Vector3 lossy = meshChildObj.transform.lossyScale;
+                    bc.center = Vector3.zero;
+                    bc.size = new Vector3(
+                        lossy.x > 0.001f ? 0.35f / lossy.x : 0.35f,
+                        lossy.y > 0.001f ? 0.25f / lossy.y : 0.25f,
+                        lossy.z > 0.001f ? 0.35f / lossy.z : 0.35f
+                    );
 
-                    NoteItem nComp = targetPaper.GetComponent<NoteItem>();
-                    if (nComp == null) nComp = targetPaper.AddComponent<NoteItem>();
+                    NoteItem oldN = meshChildObj.GetComponent<NoteItem>();
+                    if (oldN != null) DestroyImmediate(oldN);
+
+                    NoteItem nComp = meshChildObj.AddComponent<NoteItem>();
                     nComp.digitPosition = assignedNotes + 1;
                     nComp.digitValue = int.Parse(correctKeypadCode[assignedNotes].ToString());
-                    nComp.interactDistance = 3.2f;
+                    nComp.interactDistance = 2.5f;
+
+                    Debug.Log($"[Note] Asignada en habitación en objeto malla '{meshChildObj.name}': Posición {nComp.digitPosition} = Valor '{nComp.digitValue}'");
                 }
                 else if (notePrefab != null)
                 {
@@ -1958,8 +2106,9 @@ namespace ModularHospital
                         noteObj.transform.position += new Vector3(0, yOffset + 0.002f, 0);
                     }
 
-                    NoteItem nComp = noteObj.GetComponent<NoteItem>();
-                    if (nComp == null) nComp = noteObj.AddComponent<NoteItem>();
+                    NoteItem oldN = noteObj.GetComponent<NoteItem>();
+                    if (oldN != null) DestroyImmediate(oldN);
+                    NoteItem nComp = noteObj.AddComponent<NoteItem>();
                     nComp.digitPosition = assignedNotes + 1;
                     nComp.digitValue = int.Parse(correctKeypadCode[assignedNotes].ToString());
                     nComp.interactDistance = 3.2f;
@@ -1982,7 +2131,6 @@ namespace ModularHospital
                             float cz = (z * 4.0f) - halfD + 2.0f;
                             Vector3 cPos = new Vector3(cx, transform.position.y, cz);
 
-                            // REGLA ESTRICTA: NUNCA EN LA CASILLA DEL ELEVADOR NI A MENOS DE 6 METROS
                             if (lastElevatorPos.x > -900f && Vector3.Distance(cPos, lastElevatorPos) < 6.0f) continue;
 
                             corridorCenters.Add(new Vector3(cx, transform.position.y + 1.3f, cz));
@@ -2014,12 +2162,11 @@ namespace ModularHospital
                                 string parentName = hit.collider.transform.parent != null ? hit.collider.transform.parent.name.ToLower() : "";
                                 string rootName = hit.collider.transform.root != null ? hit.collider.transform.root.name.ToLower() : "";
 
-                                // EXCLUIR ABSOLUTAMENTE GENERADORES, FUSEBOX, ELEVADORES, LÁMPARAS, PUERTAS, MARCOS, PILARES Y PROPS
                                 bool isNonWallProp = n.Contains("fuse") || n.Contains("box") || n.Contains("caja") || n.Contains("elevator") || n.Contains("ascensor") ||
-                                                     n.Contains("generator") || n.Contains("gen") || n.Contains("lamp") || n.Contains("luz") || n.Contains("door") ||
+                                                     n.Contains("generator") || n.Contains("gen") || n.Contains("subgenerator") || n.Contains("lamp") || n.Contains("luz") || n.Contains("door") ||
                                                      n.Contains("puerta") || n.Contains("marco") || n.Contains("frame") || n.Contains("window") || n.Contains("glass") ||
-                                                     n.Contains("hinge") || n.Contains("connector") || n.Contains("player") || n.Contains("pillar") || n.Contains("columna") ||
-                                                     parentName.Contains("fuse") || parentName.Contains("elevator") || parentName.Contains("gen") || parentName.Contains("door") || parentName.Contains("box") ||
+                                                     n.Contains("hinge") || n.Contains("connector") || n.Contains("player") || n.Contains("pillar") || n.Contains("columna") || n.Contains("machinery") || n.Contains("motor") || n.Contains("pipe") || n.Contains("tubo") ||
+                                                     parentName.Contains("fuse") || parentName.Contains("elevator") || parentName.Contains("gen") || parentName.Contains("door") || parentName.Contains("box") || parentName.Contains("generator") || parentName.Contains("subgenerator") ||
                                                      rootName.Contains("generator") || rootName.Contains("subgenerator") || rootName.Contains("fusebox") || rootName.Contains("elevator") || rootName.Contains("ascensor") || rootName.Contains("lamp");
 
                                 if (isNonWallProp) continue;
@@ -2027,8 +2174,8 @@ namespace ModularHospital
                                 if (hit.distance < minDistance)
                                 {
                                     minDistance = hit.distance;
-                                    wallPos = hit.point + hit.normal * 0.035f; // Desfasar 3.5 cm hacia el pasillo libre (0% devorado por muros)
-                                    wallRot = Quaternion.LookRotation(hit.normal, Vector3.up); // Cara escrita mirando directamente al jugador en el pasillo
+                                    wallPos = hit.point + hit.normal * 0.035f;
+                                    wallRot = Quaternion.LookRotation(hit.normal, Vector3.up);
                                     foundWall = true;
                                 }
                             }
@@ -2037,7 +2184,6 @@ namespace ModularHospital
 
                     if (!foundWall)
                     {
-                        // Si no hay pared limpia cercana, colocar sobre el suelo del pasillo pero verificando 4.5m de distancia de fusibles e ítems
                         Vector3 floorPos = GetItemSpawnPosition(baseCenter);
                         bool tooClose = false;
                         foreach (Vector3 existingP in spawnedItemPositions)
@@ -2048,28 +2194,46 @@ namespace ModularHospital
                                 break;
                             }
                         }
-                        if (tooClose) continue; // Buscar otra casilla libre
+                        if (tooClose) continue;
 
                         wallPos = floorPos;
-                        wallRot = Quaternion.Euler(90f, Random.Range(0f, 360f), 0f); // Tumbada al ras del suelo
+                        wallRot = Quaternion.Euler(90f, Random.Range(0f, 360f), 0f);
                     }
 
-                    spawnedItemPositions.Add(wallPos); // Registrar posición de la nota en pasillo
+                    spawnedItemPositions.Add(wallPos);
 
                     GameObject noteObj = Instantiate(notePrefab, wallPos, wallRot, parent);
                     noteObj.name = $"[Hospital_Note_Digit_{assignedNotes + 1}]";
 
-                    // ASENTAR LA NOTA 100% PLANA AL RAS DE LA SUPERFICIE
-                    MeshRenderer mrNote = noteObj.GetComponentInChildren<MeshRenderer>();
-                    if (mrNote != null)
+                    if (!foundWall)
                     {
-                        float minY = mrNote.bounds.min.y;
-                        float yOffset = wallPos.y - minY;
-                        noteObj.transform.position += new Vector3(0, yOffset + 0.002f, 0);
+                        RaycastHit noteHit;
+                        if (Physics.Raycast(wallPos + Vector3.up * 1.5f, Vector3.down, out noteHit, 3.0f))
+                        {
+                            noteObj.transform.position = noteHit.point;
+                            MeshRenderer mrN = noteObj.GetComponentInChildren<MeshRenderer>();
+                            if (mrN != null)
+                            {
+                                float bottomY = mrN.bounds.min.y;
+                                float diffY = noteHit.point.y - bottomY;
+                                noteObj.transform.position += new Vector3(0, diffY, 0);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        MeshRenderer mrNote = noteObj.GetComponentInChildren<MeshRenderer>();
+                        if (mrNote != null)
+                        {
+                            float minY = mrNote.bounds.min.y;
+                            float yOffset = wallPos.y - minY;
+                            noteObj.transform.position += new Vector3(0, yOffset + 0.002f, 0);
+                        }
                     }
 
-                    NoteItem nComp = noteObj.GetComponent<NoteItem>();
-                    if (nComp == null) nComp = noteObj.AddComponent<NoteItem>();
+                    NoteItem oldN2 = noteObj.GetComponent<NoteItem>();
+                    if (oldN2 != null) DestroyImmediate(oldN2);
+                    NoteItem nComp = noteObj.AddComponent<NoteItem>();
 
                     nComp.digitPosition = assignedNotes + 1;
                     nComp.digitValue = int.Parse(correctKeypadCode[assignedNotes].ToString());
@@ -2225,10 +2389,10 @@ namespace ModularHospital
 #endif
             }
 
+            int batteriesNeeded = Random.Range(10, 15); // Aumentar a 10-14 baterías en el mapa
             string diff = PlayerPrefs.GetString("SelectedDifficulty", "NORMAL");
-            int batteriesNeeded = 6;
-            if (diff == "FACIL") batteriesNeeded = 8;
-            else if (diff == "DIFICIL") batteriesNeeded = 4;
+            if (diff == "FACIL") batteriesNeeded = 14;
+            else if (diff == "DIFICIL") batteriesNeeded = 8;
 
             // 1. Spawning de Baterías abundantes utilizando objetos de habitación e instanciación procedural
             List<GameObject> prePlacedBatteries = new List<GameObject>();
@@ -2266,15 +2430,50 @@ namespace ModularHospital
                     continue; // Máximo 1 batería por habitación y cero en elevador
                 }
 
+                // VERIFICACIÓN ESTRICTA ANTI-PARED: Si la batería está atrapada dentro de un bloque macizo (gridMatrix == 0) o a menos de 0.8m de un colisionador sólido, descartar
+                Vector2Int bCell = PositionToGridCell(chosenBat.transform.position);
+                if (bCell.x >= 0 && bCell.x < sizeX && bCell.y >= 0 && bCell.y < sizeZ)
+                {
+                    if (gridMatrix[bCell.x, bCell.y] == 0) continue; // Atrapada en pared maciza
+                }
+
+                // Verificar colisión directa por OverlapSphere con bloques macizos de pared o pilares
+                Collider[] hits = Physics.OverlapSphere(chosenBat.transform.position, 0.45f);
+                bool trappedInWall = false;
+                foreach (Collider c in hits)
+                {
+                    if (c == null) continue;
+                    string cn = c.name.ToLower();
+                    if (cn.Contains("solid_wall") || cn.Contains("pillar") || cn.Contains("outer_wall"))
+                    {
+                        trappedInWall = true;
+                        break;
+                    }
+                }
+                if (trappedInWall) continue;
+
                 if (lastElevatorPos.x > -900f && Vector3.Distance(chosenBat.transform.position, lastElevatorPos) < 6.0f) continue;
 
                 if (parentMod != null) usedRoomsForBat.Add(parentMod);
 
-                chosenBat.SetActive(true); // Activar batería tal como está en el prefab — NO mover ni rotar
+                chosenBat.SetActive(true); // Activar batería tal como está en el prefab
                 chosenBat.name = $"[Hospital_Battery_{activatedBats + 1}]";
 
                 // Activar la batería y asegurar que todos sus renderers e hijos sean visibles
                 ActivateItemFully(chosenBat);
+
+                RaycastHit batPreHit;
+                if (Physics.Raycast(chosenBat.transform.position + Vector3.up * 1.0f, Vector3.down, out batPreHit, 2.5f))
+                {
+                    chosenBat.transform.position = batPreHit.point;
+                    MeshRenderer mrPreB = chosenBat.GetComponentInChildren<MeshRenderer>();
+                    if (mrPreB != null)
+                    {
+                        float bottomY = mrPreB.bounds.min.y;
+                        float diffY = batPreHit.point.y - bottomY;
+                        chosenBat.transform.position += new Vector3(0, diffY, 0);
+                    }
+                }
 
                 // Asegurar BoxCollider trigger para que sea interactable
                 BoxCollider bcBat = chosenBat.GetComponent<BoxCollider>();
@@ -2303,7 +2502,7 @@ namespace ModularHospital
                 for (int i = activatedBats; i < batteriesNeeded; i++)
                 {
                     Vector3 spawnPos;
-                    if (availableRoomsForBat.Count > 0)
+                    if (availableRoomsForBat.Count > 0 && Random.value < 0.5f)
                     {
                         int rIdx = Random.Range(0, availableRoomsForBat.Count);
                         HospitalModule chosenRoom = availableRoomsForBat[rIdx];
@@ -2312,7 +2511,29 @@ namespace ModularHospital
                     }
                     else
                     {
-                        spawnPos = GetItemSpawnPosition(transform.position + new Vector3(Random.Range(-12f, 12f), 0f, Random.Range(-12f, 12f)));
+                        // Spawning directo sobre el suelo de pasillos principales
+                        List<Vector3> corridorSpawns = new List<Vector3>();
+                        for (int cx = 2; cx < sizeX - 2; cx++)
+                        {
+                            for (int cz = 2; cz < sizeZ - 2; cz++)
+                            {
+                                if (gridMatrix[cx, cz] == 1) // Pasillo
+                                {
+                                    float worldX = (cx * 4.0f) - halfW + 2.0f;
+                                    float worldZ = (cz * 4.0f) - halfD + 2.0f;
+                                    corridorSpawns.Add(new Vector3(worldX, transform.position.y, worldZ));
+                                }
+                            }
+                        }
+                        if (corridorSpawns.Count > 0)
+                        {
+                            Vector3 baseC = corridorSpawns[Random.Range(0, corridorSpawns.Count)];
+                            spawnPos = baseC + new Vector3(Random.Range(-0.8f, 0.8f), 0f, Random.Range(-0.8f, 0.8f));
+                        }
+                        else
+                        {
+                            spawnPos = GetItemSpawnPosition(transform.position + new Vector3(Random.Range(-12f, 12f), 0f, Random.Range(-12f, 12f)));
+                        }
                     }
 
                     if (lastElevatorPos.x > -900f && Vector3.Distance(spawnPos, lastElevatorPos) < 6.0f) continue;
@@ -2320,16 +2541,28 @@ namespace ModularHospital
                     GameObject bObj = Instantiate(batteryPrefab, spawnPos, Quaternion.Euler(0, Random.Range(0, 360), 0), parent);
                     bObj.name = $"[Hospital_Battery_{i + 1}]";
 
-                    // Ajustar la batería para que su base quede exactamente al ras del suelo
-                    // El raycast ya nos dio la superficie, pero el pivote del prefab puede ser el centro del mesh
-                    MeshRenderer mrBat = bObj.GetComponentInChildren<MeshRenderer>();
-                    if (mrBat != null)
+                    RaycastHit batHit;
+                    if (Physics.Raycast(spawnPos + Vector3.up * 1.5f, Vector3.down, out batHit, 3.0f))
                     {
-                        float meshMinY = mrBat.bounds.min.y;   // Y real más baja del mesh en espacio mundial
-                        float surfaceY = spawnPos.y;            // Y de la superficie del suelo
-                        float correction = surfaceY - meshMinY; // Diferencia a corregir
-                        if (Mathf.Abs(correction) > 0.001f)
-                            bObj.transform.position += new Vector3(0, correction, 0);
+                        bObj.transform.position = batHit.point;
+                        MeshRenderer mrB = bObj.GetComponentInChildren<MeshRenderer>();
+                        if (mrB != null)
+                        {
+                            float bottomY = mrB.bounds.min.y;
+                            float diffY = batHit.point.y - bottomY;
+                            bObj.transform.position += new Vector3(0, diffY, 0);
+                        }
+                    }
+                    else
+                    {
+                        MeshRenderer mrBat = bObj.GetComponentInChildren<MeshRenderer>();
+                        if (mrBat != null)
+                        {
+                            float meshMinY = mrBat.bounds.min.y;
+                            float surfaceY = spawnPos.y;
+                            float correction = surfaceY - meshMinY;
+                            bObj.transform.position += new Vector3(0, correction + 0.002f, 0);
+                        }
                     }
 
                     BatteryItem bComp = bObj.GetComponent<BatteryItem>();
@@ -2337,6 +2570,66 @@ namespace ModularHospital
                     bComp.interactDistance = 3.2f;
                     bComp.rechargeAmount = 80f;
                 }
+            }
+        }
+
+        private void CleanInternalRoomBlockingWalls(Transform parent)
+        {
+            int removedCount = 0;
+            foreach (HospitalModule mod in placedModules)
+            {
+                if (mod == null || (mod.moduleType != ModuleType.SmallRoom && mod.moduleType != ModuleType.DirectorOffice)) continue;
+
+                Vector3 roomCenter = mod.transform.position + Vector3.up * 1.25f;
+                // Escanear volumen interior de la habitación (radio de 1.6m dentro de la celda 4x4m)
+                Collider[] innerCols = Physics.OverlapSphere(roomCenter, 1.6f);
+                foreach (Collider col in innerCols)
+                {
+                    if (col == null) continue;
+                    if (col.transform.IsChildOf(mod.transform)) continue;
+
+                    string cName = col.gameObject.name.ToLower();
+                    string rName = col.transform.root.name.ToLower();
+
+                    bool isProtected = rName.Contains("player") || rName.Contains("lamp") ||
+                                       cName.Contains("unified_floor") || cName.Contains("unified_ceiling") ||
+                                       cName.Contains("bed") || cName.Contains("cama") || cName.Contains("desk") ||
+                                       cName.Contains("mueble") || cName.Contains("table") || cName.Contains("chair");
+
+                    if (!isProtected && (cName.Contains("wall") || cName.Contains("pillar") || cName.Contains("solid") || cName.Contains("marco") || cName.Contains("frame")))
+                    {
+                        col.enabled = false;
+                        col.gameObject.SetActive(false);
+                        removedCount++;
+                    }
+                }
+
+                // Desbloquear también la entrada frontal de la puerta (0.8m a 1.6m al frente del umbral)
+                Vector3 doorFront = mod.transform.position + Vector3.up * 1.25f + mod.transform.forward * (-1.8f);
+                Collider[] doorCols = Physics.OverlapSphere(doorFront, 0.9f);
+                foreach (Collider col in doorCols)
+                {
+                    if (col == null) continue;
+                    if (col.transform.IsChildOf(mod.transform)) continue;
+
+                    string cName = col.gameObject.name.ToLower();
+                    string rName = col.transform.root.name.ToLower();
+
+                    bool isProtected = rName.Contains("player") || rName.Contains("lamp") ||
+                                       cName.Contains("unified_floor") || cName.Contains("unified_ceiling") ||
+                                       cName.Contains("door") || cName.Contains("puerta");
+
+                    if (!isProtected && (cName.Contains("wall") || cName.Contains("pillar") || cName.Contains("solid")))
+                    {
+                        col.enabled = false;
+                        col.gameObject.SetActive(false);
+                        removedCount++;
+                    }
+                }
+            }
+            if (removedCount > 0)
+            {
+                Debug.Log($"ModularHospitalGenerator: {removedCount} muros/mallas intrusivas eliminadas del interior y umbrales de habitaciones.");
             }
         }
 
@@ -2408,15 +2701,13 @@ namespace ModularHospital
 
             if (playerObj != null)
             {
-                // Buscar la primera celda de pasillo abierta (gridMatrix == 1) (NO habitación, NO esquina ciega)
-                Vector2Int spawnCell = new Vector2Int(1, 1);
-                bool foundOpenCorridor = false;
-
-                for (int x = 1; x < sizeX - 1; x++)
+                // Buscar una celda de pasillo abierta limpia (gridMatrix == 1) lejos de paredes macizas
+                Vector2Int spawnCell = new Vector2Int(-1, -1);
+                for (int x = 2; x < sizeX - 2; x++)
                 {
-                    for (int z = 1; z < sizeZ - 1; z++)
+                    for (int z = 2; z < sizeZ - 2; z++)
                     {
-                        if (gridMatrix[x, z] == 1) // Es un pasillo
+                        if (gridMatrix[x, z] == 1) // Es pasillo puro
                         {
                             int openNeighbors = 0;
                             if (z + 1 < sizeZ && gridMatrix[x, z + 1] == 1) openNeighbors++;
@@ -2424,16 +2715,34 @@ namespace ModularHospital
                             if (x + 1 < sizeX && gridMatrix[x + 1, z] == 1) openNeighbors++;
                             if (x - 1 >= 0 && gridMatrix[x - 1, z] == 1) openNeighbors++;
 
-                            if (openNeighbors >= 2) // Pasillo abierto y continuo
+                            if (openNeighbors >= 2)
                             {
                                 spawnCell = new Vector2Int(x, z);
-                                foundOpenCorridor = true;
                                 break;
                             }
                         }
                     }
-                    if (foundOpenCorridor) break;
+                    if (spawnCell.x != -1) break;
                 }
+
+                // Fallback: cualquier celda gridMatrix == 1
+                if (spawnCell.x == -1)
+                {
+                    for (int x = 1; x < sizeX - 1; x++)
+                    {
+                        for (int z = 1; z < sizeZ - 1; z++)
+                        {
+                            if (gridMatrix[x, z] == 1)
+                            {
+                                spawnCell = new Vector2Int(x, z);
+                                break;
+                            }
+                        }
+                        if (spawnCell.x != -1) break;
+                    }
+                }
+
+                if (spawnCell.x == -1) spawnCell = new Vector2Int(2, 2);
 
                 float worldX = (spawnCell.x * 4.0f) - halfW + 2.0f;
                 float worldZ = (spawnCell.y * 4.0f) - halfD + 2.0f;

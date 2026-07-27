@@ -129,6 +129,19 @@ public class FlashlightController : MonoBehaviour
                 activeDrainRate = drainRate * 0.25f;
             }
 
+            float batteryPercent = (currentBattery / maxBattery) * 100f;
+
+            // MODO AHORRO DE ENERGÍA (< 20% de Batería): La batería se descarga 60% más lento y la intensidad baja a tenue
+            if (batteryPercent < 20f && batteryPercent > 0f)
+            {
+                activeDrainRate *= 0.40f; // Descarga 60% más lenta
+                float energySaverIntensity = baseIntensity * (0.40f + (batteryPercent / 20f) * 0.30f); // 40% a 70% de brillo
+                if (flashlightLight.intensity > energySaverIntensity && !isGlitchedByMonster)
+                {
+                    flashlightLight.intensity = Mathf.Lerp(flashlightLight.intensity, energySaverIntensity, Time.deltaTime * 3f);
+                }
+            }
+
             currentBattery -= activeDrainRate * Time.deltaTime;
             currentBattery = Mathf.Clamp(currentBattery, 0f, maxBattery);
 

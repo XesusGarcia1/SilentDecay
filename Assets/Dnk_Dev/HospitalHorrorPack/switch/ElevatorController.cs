@@ -101,9 +101,13 @@ public class ElevatorController : MonoBehaviour
             audioSource.playOnAwake = false;
         }
 
-        if (startWithKeycard)
+        if (startWithKeycard || bypassKeycard)
         {
             hasKeycard = true;
+            keycardUsed = true;
+            isArrived = true;
+            doorsOpen = true;
+            currentDoorProgress = 1.0f;
         }
 
         // Resolver referencias de puertas si no estan asignadas (busqueda profunda de jerarquia)
@@ -377,10 +381,9 @@ public class ElevatorController : MonoBehaviour
             }
         }
 
-        // 3. Procesar interacciones
-        Vector3 localPlayerPos = transform.InverseTransformPoint(playerTransform.position);
-        float currentTileSize = doorSlideDistance / 0.44f;
-        bool isInside = localPlayerPos.z < (0.46f * currentTileSize) && Mathf.Abs(localPlayerPos.x) < (0.49f * currentTileSize);
+        // 3. Procesar interacciones: Comprobación directa de distancia global a la cabina (radio de 3.0m)
+        float worldDistToElevator = Vector3.Distance(transform.position, playerTransform.position);
+        bool isInside = worldDistToElevator <= 3.0f;
 
         float distToButton = interactDistance + 1f;
         if (isInside && intButtonTrans != null)
@@ -401,27 +404,23 @@ public class ElevatorController : MonoBehaviour
             // Evitar que el manager ficticio intercepte la llamada si no es el elevador real
             if (transform.name.Contains("Manager") && extButtonTrans == null && intButtonTrans == null) return;
 
-            Camera cam = Camera.main;
-            if (cam != null)
+            if (isInside)
             {
-                Ray ray = new Ray(cam.transform.position, cam.transform.forward);
-                RaycastHit hit;
-                if (Physics.Raycast(ray, out hit, interactDistance + 1.5f))
+                HandleInteraction(hasPower);
+            }
+            else
+            {
+                Camera cam = Camera.main;
+                if (cam != null)
                 {
-                    string n = hit.transform.name.ToLower();
-                    string parentN = hit.transform.parent != null ? hit.transform.parent.name.ToLower() : "";
-                    bool isElevator = hit.transform == transform || hit.transform.IsChildOf(transform) || transform.IsChildOf(hit.transform) || n.Contains("elevator") || n.Contains("ascensor") || parentN.Contains("elevator") || parentN.Contains("ascensor");
-                    if (isInside || isElevator)
+                    Vector3 localPos = transform.InverseTransformPoint(playerTransform.position);
+                    if (localPos.z >= -0.2f)
                     {
-                        HandleInteraction(hasPower);
-                    }
-                }
-                else
-                {
-                    Vector3 dir = (transform.position - cam.transform.position).normalized;
-                    if (isInside || Vector3.Dot(cam.transform.forward, dir) > 0.45f)
-                    {
-                        HandleInteraction(hasPower);
+                        Vector3 dirToElevator = (transform.position - cam.transform.position).normalized;
+                        if (Vector3.Dot(cam.transform.forward, dirToElevator) >= 0.25f)
+                        {
+                            HandleInteraction(hasPower);
+                        }
                     }
                 }
             }
@@ -446,14 +445,12 @@ public class ElevatorController : MonoBehaviour
         bool effectivePower = hasPower || bypassPower || bypassKeycard || startWithKeycard;
 
         // Determinar si el jugador esta dentro o fuera de la cabina
-        Vector3 localPlayerPos = transform.InverseTransformPoint(playerTransform.position);
-        float currentTileSize = doorSlideDistance / 0.44f;
-        bool isInside = localPlayerPos.z < (0.46f * currentTileSize) && Mathf.Abs(localPlayerPos.x) < (0.49f * currentTileSize);
+        bool isInside = Vector3.Distance(transform.position, playerTransform.position) <= 3.0f;
 
         if (isInside)
         {
             // Panel Interior: Intentar escapar
-            if (isArrived && doorsOpen && !isEscaping)
+            if (!isEscaping)
             {
                 if (effectivePower)
                 {
@@ -870,9 +867,7 @@ public class ElevatorController : MonoBehaviour
 
         if (playerTransform == null || isEscaping) return;
 
-        Vector3 localPlayerPos = transform.InverseTransformPoint(playerTransform.position);
-        float currentTileSize = doorSlideDistance / 0.44f;
-        bool isInside = localPlayerPos.z < (0.46f * currentTileSize) && Mathf.Abs(localPlayerPos.x) < (0.49f * currentTileSize);
+        bool isInside = Vector3.Distance(transform.position, playerTransform.position) <= 3.0f;
 
         float dist = interactDistance + 1f;
         if (isInside && intButtonTrans != null)
@@ -893,33 +888,35 @@ public class ElevatorController : MonoBehaviour
         Camera cam = Camera.main;
         if (cam == null) return;
 
-        // 1. Verificar que el jugador esté mirando DE FRENTE hacia las puertas o botón del elevador (Cero de espaldas)
-        Transform targetFocus = isInside ? (intButtonTrans != null ? intButtonTrans : transform) : (extButtonTrans != null ? extButtonTrans : transform);
-        Vector3 dirToElevator = (targetFocus.position - cam.transform.position).normalized;
-        float faceDot = Vector3.Dot(cam.transform.forward, dirToElevator);
-
-        if (faceDot < 0.70f) return; // NUNCA MOSTRAR SI EL JUGADOR ESTÁ DE ESPALDAS O MIRANDO A OTRO LADO
-
-        // 2. Verificar que la mirilla central impacte directamente sobre el botón, puertas o cabina (NUNCA EN PAREDES)
-        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
-        RaycastHit hit;
-        bool lookingAtElevator = false;
-
-        if (Physics.Raycast(ray, out hit, interactDistance + 1.2f))
+        if (!isInside)
         {
-            string n = hit.transform.name.ToLower();
-            bool isElevatorPart = hit.transform == transform || hit.transform.IsChildOf(transform) ||
-                                  hit.transform == extButtonTrans || hit.transform == intButtonTrans ||
-                                  n.Contains("elevator") || n.Contains("ascensor");
+            // 1. Verificar que el jugador esté mirando DE FRENTE hacia las puertas o botón del elevador si está afuera
+            Transform targetFocus = extButtonTrans != null ? extButtonTrans : transform;
+            Vector3 dirToElevator = (targetFocus.position - cam.transform.position).normalized;
+            float faceDot = Vector3.Dot(cam.transform.forward, dirToElevator);
 
-            if (isElevatorPart)
+            if (faceDot < 0.35f) return; // NUNCA MOSTRAR SI EL JUGADOR ESTÁ DE ESPALDAS AFUERA
+
+            // 2. Verificar que la mirilla central impacte directamente sobre el botón, puertas o cabina (NUNCA EN PAREDES)
+            Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+            RaycastHit hit;
+            bool lookingAtElevator = false;
+
+            if (Physics.Raycast(ray, out hit, interactDistance + 1.2f))
             {
-                lookingAtElevator = true;
-            }
-        }
+                string n = hit.transform.name.ToLower();
+                bool isElevatorPart = hit.transform == transform || hit.transform.IsChildOf(transform) ||
+                                      hit.transform == extButtonTrans || hit.transform == intButtonTrans ||
+                                      n.Contains("elevator") || n.Contains("ascensor");
 
-        // SI NO ESTÁ MIRANDO DIRECTAMENTE AL BOTÓN O PUERTAS DEL ELEVADOR Y NO ESTÁ ADENTRO -> OCULTAR PROMPT
-        if (!isInside && !lookingAtElevator) return;
+                if (isElevatorPart)
+                {
+                    lookingAtElevator = true;
+                }
+            }
+
+            if (!lookingAtElevator) return;
+        }
 
         string promptText = "";
         Color textColor = Color.white;
@@ -928,7 +925,7 @@ public class ElevatorController : MonoBehaviour
 
         if (isInside)
         {
-            if (isArrived && doorsOpen && !isEscaping)
+            if (!isEscaping)
             {
                 promptText = hasPower ? "[E]  Iniciar Descenso al Sotano" : "Elevador sin Energia (Repare Fusibles)";
                 textColor = hasPower ? Color.green : Color.red;

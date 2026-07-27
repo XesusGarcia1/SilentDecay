@@ -2239,7 +2239,7 @@ public class TunnelsGenerator : MonoBehaviour
 					interactionTimer = 0f;
 					return;
 				}
-				if (MobileInput.GetKey(KeyCode.E))
+				if (MobileInput.GetKey(KeyCode.E) || Input.GetKey(KeyCode.E))
 				{
 					interactionTimer = Mathf.MoveTowards(interactionTimer, 2f, Time.deltaTime);
 				}
@@ -2356,7 +2356,7 @@ public class TunnelsGenerator : MonoBehaviour
 			}
 			if (Vector3.Distance(playerObjInstance.transform.position, exitPointPos) < 3.5f * mapScale)
 			{
-				if (MobileInput.GetKey(KeyCode.E))
+				if (MobileInput.GetKey(KeyCode.E) || Input.GetKey(KeyCode.E))
 				{
 					interactionTimer = Mathf.MoveTowards(interactionTimer, 2f, Time.deltaTime);
 				}

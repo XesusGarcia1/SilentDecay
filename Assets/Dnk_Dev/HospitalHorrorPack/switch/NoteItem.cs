@@ -15,7 +15,7 @@ public class NoteItem : MonoBehaviour
 
     void Start()
     {
-        interactDistance = 3.2f; // Rango de interacción ampliado para tomar cómodamente de lejos
+        interactDistance = 4.5f; // Distancia cómoda y natural (4.5 metros)
         FindPlayer();
 
         BoxCollider box = GetComponent<BoxCollider>();
@@ -24,6 +24,14 @@ public class NoteItem : MonoBehaviour
             box = gameObject.AddComponent<BoxCollider>();
             box.isTrigger = true;
         }
+
+        Vector3 lossy = transform.lossyScale;
+        float sx = lossy.x > 0.001f ? 0.35f / lossy.x : 0.35f;
+        float sy = lossy.y > 0.001f ? 0.25f / lossy.y : 0.25f;
+        float sz = lossy.z > 0.001f ? 0.35f / lossy.z : 0.35f;
+
+        box.center = Vector3.zero;
+        box.size = new Vector3(sx, sy, sz); // Tamaño absoluto en metros en mundo real sin importar la escala heredada del prefab parent
     }
 
     void FindPlayer()
@@ -62,13 +70,35 @@ public class NoteItem : MonoBehaviour
             FindPlayer();
         }
 
-        playerNear = InteractionFocusManager.IsFocused(gameObject, interactDistance);
+        float dist = player != null ? Vector3.Distance(transform.position, player.position) : 999f;
+        if (dist > interactDistance)
+        {
+            playerNear = false;
+            return;
+        }
+
+        // Detección estricta: La mirilla de la cámara DEBE apuntar directamente al objeto o colisionador de esta nota
+        bool isHitDirectly = false;
+        Camera cam = Camera.main;
+        if (cam != null)
+        {
+            Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+            RaycastHit hit;
+            if (Physics.Raycast(ray, out hit, interactDistance))
+            {
+                if (hit.transform == transform || hit.transform.IsChildOf(transform) || transform.IsChildOf(hit.transform))
+                {
+                    isHitDirectly = true;
+                }
+            }
+        }
+
+        playerNear = isHitDirectly;
     }
 
     void LateUpdate()
     {
-        bool isTarget = playerNear && InteractionFocusManager.IsFocused(gameObject, interactDistance);
-        if (isTarget && MobileInput.GetKeyDown(KeyCode.E))
+        if (playerNear && MobileInput.GetKeyDown(KeyCode.E))
         {
             CollectNote();
         }

@@ -85,7 +85,19 @@ public class InteractionFocusManager : MonoBehaviour
                     MonoBehaviour itemScript = obj.GetComponent<MonoBehaviour>();
                     if (itemScript != null && hitObj.transform.parent == obj.transform.parent && hitObj.transform.parent != null)
                     {
-                        isMatch = true;
+                        // Evitar emparejamientos accidentales a través del suelo o paredes del módulo/mapa modular
+                        string parentName = hitObj.transform.parent.name.ToLower();
+                        bool isGenericMapContainer = parentName.Contains("hospital") || 
+                                                     parentName.Contains("generator") || 
+                                                     parentName.Contains("corridor") || 
+                                                     parentName.Contains("room") || 
+                                                     parentName.Contains("container") || 
+                                                     hitObj.transform.parent.GetComponent<ModularHospital.HospitalModule>() != null;
+
+                        if (!isGenericMapContainer)
+                        {
+                            isMatch = true;
+                        }
                     }
                 }
 
@@ -102,7 +114,12 @@ public class InteractionFocusManager : MonoBehaviour
                     {
                         if (wallHit.collider != null && wallHit.collider.gameObject != hitObj && !wallHit.collider.transform.IsChildOf(obj.transform))
                         {
-                            if (wallHit.normal.y < 0.7f && !wallHit.collider.gameObject.name.ToLower().Contains("floor"))
+                            // Ignorar si el obstáculo detectado es el propio jugador o su cápsula
+                            bool isPlayer = wallHit.collider.CompareTag("Player") || 
+                                            wallHit.collider.gameObject.name.ToLower().Contains("player") || 
+                                            wallHit.collider.gameObject.name.ToLower().Contains("capsule");
+
+                            if (!isPlayer && wallHit.normal.y < 0.7f && !wallHit.collider.gameObject.name.ToLower().Contains("floor"))
                             {
                                 return false; // Pared interpuesta
                             }
