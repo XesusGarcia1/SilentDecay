@@ -61,7 +61,7 @@ namespace ModularHospital
 
         private List<HospitalModule> placedModules = new List<HospitalModule>();
         private List<ModuleConnector> openConnectors = new List<ModuleConnector>();
-        private int[,] gridMatrix; // 0=Empty/Wall, 1=Corridor, 2=DirectorOffice, 3=SmallRoom
+        public int[,] gridMatrix; // 0=Empty/Wall, 1=Corridor, 2=DirectorOffice, 3=SmallRoom
         private Vector3 lastElevatorPos = new Vector3(-999f, -999f, -999f);
         private Vector3 lastFuseBoxPos = new Vector3(-999f, -999f, -999f);
         private Vector3 lastSubGenAPos = new Vector3(-999f, -999f, -999f);

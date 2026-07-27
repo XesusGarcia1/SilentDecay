@@ -202,36 +202,86 @@ public class MainMenuManager : MonoBehaviour
         {
             if (startYaw == -999f) startYaw = 90f;
             float swayAngle = Mathf.Sin(Time.time * 0.25f) * 10f; // Balanceo cinemático amplio
-            float slowWalk = Mathf.Sin(Time.time * 0.12f) * 1.2f; // Movimiento amplio de caminata
+            float slowWalk = Mathf.Sin(Time.time * 0.12f) * 1.0f; // Movimiento amplio de caminata
             if (Camera.main != null)
             {
-                Vector3 centerPos = modGen.transform.position + new Vector3(2.0f, 1.35f, 2.0f);
-                Vector3 desiredPos = centerPos + new Vector3(slowWalk, 0f, 0f);
-
-                // Anti-atravieso absoluto: Raycast en abanico para proteger la frustum de la cámara (margen de 0.85m)
-                Vector3 moveDir = (desiredPos - centerPos);
-                if (moveDir.sqrMagnitude > 0.001f)
+                // Buscar la mejor celda de pasillo abierta e inspeccionar los 4 lados para encontrar la mejor dirección sin paredes
+                Vector3 openCenter = modGen.transform.position + new Vector3(2.0f, 1.35f, 2.0f);
+                if (modGen.gridMatrix != null)
                 {
-                    RaycastHit wallHit;
-                    // Raycast directo desde el centro hacia la posición deseada
-                    if (Physics.Raycast(centerPos, moveDir.normalized, out wallHit, moveDir.magnitude + 0.85f))
+                    int sX = modGen.gridMatrix.GetLength(0);
+                    int sZ = modGen.gridMatrix.GetLength(1);
+                    float halfW = (sX * 4.0f) / 2.0f;
+                    float halfD = (sZ * 4.0f) / 2.0f;
+
+                    // Buscar una celda central libre que tenga pasillos continuos a los lados
+                    for (int cx = 2; cx < sX - 2; cx++)
                     {
-                        float safeDist = Mathf.Max(0f, wallHit.distance - 0.85f);
-                        desiredPos = centerPos + moveDir.normalized * safeDist;
+                        bool found = false;
+                        for (int cz = 2; cz < sZ - 2; cz++)
+                        {
+                            if (modGen.gridMatrix[cx, cz] == 1 && modGen.gridMatrix[cx + 1, cz] == 1 && modGen.gridMatrix[cx - 1, cz] == 1)
+                            {
+                                float wX = (cx * 4.0f) - halfW + 2.0f;
+                                float wZ = (cz * 4.0f) - halfD + 2.0f;
+                                openCenter = modGen.transform.position + new Vector3(wX, 1.35f, wZ);
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found) break;
                     }
                 }
 
-                // También verificar si la rotación del balanceo aproxima el plano de visión a una pared
-                Quaternion desiredRot = Quaternion.Euler(1.5f, startYaw + swayAngle, 0f);
-                RaycastHit lookHit;
-                if (Physics.Raycast(desiredPos, desiredRot * Vector3.forward, out lookHit, 0.90f))
+                // Orientar la cámara a lo largo del pasillo buscando la dirección con mayor visión profunda
+                if (startYaw == -999f)
                 {
-                    // Si la pared está muy cerca de la cara de la cámara, recortar suavemente la posición hacia atrás
-                    desiredPos -= (desiredRot * Vector3.forward) * (0.90f - lookHit.distance);
+                    float maxDist = -1f;
+                    float bestAngle = 90f;
+                    float[] testAngles = new float[] { 0f, 90f, 180f, 270f };
+                    foreach (float angle in testAngles)
+                    {
+                        Vector3 testDir = Quaternion.Euler(0, angle, 0) * Vector3.forward;
+                        RaycastHit hit;
+                        float rayDist = 30f;
+                        if (Physics.Raycast(openCenter, testDir, out hit, 30f))
+                        {
+                            rayDist = hit.distance;
+                        }
+                        if (rayDist > maxDist)
+                        {
+                            maxDist = rayDist;
+                            bestAngle = angle;
+                        }
+                    }
+                    startYaw = bestAngle;
+                }
+
+                Vector3 corridorDir = Quaternion.Euler(0, startYaw, 0) * Vector3.forward;
+                Vector3 corridorRight = Quaternion.Euler(0, startYaw, 0) * Vector3.right;
+                Vector3 desiredPos = openCenter + corridorRight * (slowWalk * 0.40f);
+
+                // Anti-atravieso robusto con OverlapSphere
+                Collider[] hits = Physics.OverlapSphere(desiredPos, 0.75f);
+                bool wallTooClose = false;
+                foreach (Collider c in hits)
+                {
+                    if (c == null) continue;
+                    string cName = c.name.ToLower();
+                    if (cName.Contains("wall") || cName.Contains("pared") || cName.Contains("pillar") || cName.Contains("muro"))
+                    {
+                        wallTooClose = true;
+                        break;
+                    }
+                }
+
+                if (wallTooClose)
+                {
+                    desiredPos = openCenter;
                 }
 
                 Camera.main.transform.position = desiredPos;
-                Camera.main.transform.rotation = desiredRot;
+                Camera.main.transform.rotation = Quaternion.Euler(1.5f, startYaw + swayAngle, 0f);
 
                 // Linterna potente en la cámara del menú con parpadeo atmosférico realista
                 if (menuFlashlight == null)
