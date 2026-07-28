@@ -88,22 +88,15 @@ public class EnemyActivator : MonoBehaviour
         enemyToActivate.SetActive(true);
 
         // 2. Reposicionar DESPUES de activar (NavMeshAgent activo = puede recibir SetDestination)
-        HospitalMazeGenerator generator = FindObjectOfType<HospitalMazeGenerator>();
-        if (generator != null)
+        // LEGACY REMOVED: HospitalMazeGenerator.RespawnEnemyNearPlayer() no longer exists
+        // Fallback: colocar al lado del jugador
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null)
         {
-            generator.RespawnEnemyNearPlayer();
-        }
-        else
-        {
-            // Fallback: colocar al lado del jugador
-            GameObject player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null)
-            {
-                Vector3 offset = new Vector3(
-                    Random.Range(-1f, 1f), 0f, Random.Range(-1f, 1f)
-                ).normalized * Random.Range(8f, 14f);
-                enemyToActivate.transform.position = player.transform.position + offset;
-            }
+            Vector3 offset = new Vector3(
+                Random.Range(-1f, 1f), 0f, Random.Range(-1f, 1f)
+            ).normalized * Random.Range(8f, 14f);
+            enemyToActivate.transform.position = player.transform.position + offset;
         }
     }
 }

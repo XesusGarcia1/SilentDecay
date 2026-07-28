@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 using System.Collections;
@@ -784,7 +784,7 @@ public class ElevatorController : MonoBehaviour
         }
 
         // Ocultar si estamos en modo menú
-        HospitalMazeGenerator generator = FindObjectOfType<HospitalMazeGenerator>();
+        ModularHospital.ModularHospitalGenerator generator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
         if (generator != null && generator.isMenuMode) return;
         if (isGameEnded)
         {

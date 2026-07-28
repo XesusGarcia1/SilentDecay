@@ -9,7 +9,6 @@ public class KeycardItem : MonoBehaviour
     private Transform playerTransform;
     private bool playerNear = false;
     private float lookScore = -1f;
-    private HospitalMazeGenerator mazeGen;
 
     // Sistema global de priorización de interacción por mirada
     public static int lastFrameChecked = -1;
@@ -46,7 +45,6 @@ public class KeycardItem : MonoBehaviour
     void Start()
     {
         interactDistance = 4.0f;
-        mazeGen = FindObjectOfType<HospitalMazeGenerator>();
         FindPlayer();
 
         // Destruir todos los BoxCollider viejos o gigantes del prefab original
@@ -96,7 +94,7 @@ public class KeycardItem : MonoBehaviour
     void Update()
     {
         var modGen = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
-        bool isMenu = (mazeGen != null && mazeGen.isMenuMode) || (modGen != null && modGen.isMenuMode);
+        bool isMenu = modGen != null && modGen.isMenuMode;
         if (isMenu) return;
 
         Camera cam = Camera.main;

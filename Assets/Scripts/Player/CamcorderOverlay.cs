@@ -30,7 +30,7 @@ public class CamcorderOverlay : MonoBehaviour
     void OnGUI()
     {
         // Ocultar si estamos en modo menú
-        HospitalMazeGenerator generator = FindObjectOfType<HospitalMazeGenerator>();
+        ModularHospital.ModularHospitalGenerator generator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
         if (generator != null && generator.isMenuMode) return;
 
         if (whiteTex == null) return;

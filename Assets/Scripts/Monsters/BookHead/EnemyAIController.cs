@@ -203,8 +203,8 @@ public class EnemyAIController : MonoBehaviour
         if (!agent.isOnNavMesh)
         {
             // Si no está en el NavMesh, usar Warp para anclar al punto del suelo más cercano (restringiendo a Y del nivel)
-            HospitalMazeGenerator gen = FindObjectOfType<HospitalMazeGenerator>();
-            float floorY = gen != null ? gen.transform.position.y : transform.position.y;
+            // LEGACY REMOVED: HospitalMazeGenerator.transform.position.y
+            float floorY = transform.position.y;
             Vector3 testOrigin = new Vector3(transform.position.x, floorY, transform.position.z);
 
             UnityEngine.AI.NavMeshHit hit;
@@ -303,8 +303,8 @@ public class EnemyAIController : MonoBehaviour
         }
 
         // REGLA ABSOLUTA DE SEGURIDAD: EL MONSTRUO JAMÁS PUEDE ESTAR ELEVADO SOBRE EL TECHO
-        HospitalMazeGenerator mazeGen = FindObjectOfType<HospitalMazeGenerator>();
-        float targetFloorY = mazeGen != null ? mazeGen.transform.position.y : 0f;
+        // LEGACY REMOVED: HospitalMazeGenerator.transform.position.y
+        float targetFloorY = 0f;
         if (transform.position.y > targetFloorY + 0.8f)
         {
             Vector3 currentP = transform.position;
@@ -538,9 +538,8 @@ public class EnemyAIController : MonoBehaviour
 
         if (isPlayerHidden)
         {
+            // LEGACY REMOVED: HospitalMazeGenerator.mapScale
             float currentMapScale = 4f;
-            HospitalMazeGenerator gen = FindObjectOfType<HospitalMazeGenerator>();
-            if (gen != null) currentMapScale = gen.mapScale;
 
             if (currentState is EnemyChaseState && distanceToPlayer <= (5f * currentMapScale) && canSeePlayer)
             {

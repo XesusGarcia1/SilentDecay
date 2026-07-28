@@ -11,13 +11,11 @@ public class BatteryItem : MonoBehaviour
     private Transform playerTransform;
     private bool playerNear = false;
     private float lookScore = -1f;
-    private HospitalMazeGenerator mazeGen;
 
     void Start()
     {
         rechargeAmount = 60f; // Cada pila recarga un 60% de energía
         interactDistance = 3.2f; // Distancia cómoda de interacción
-        mazeGen = FindObjectOfType<HospitalMazeGenerator>();
         FindPlayer();
 
         CapsuleCollider box = GetComponent<CapsuleCollider>();
@@ -62,7 +60,7 @@ public class BatteryItem : MonoBehaviour
     void Update()
     {
         var modGen = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
-        bool isMenu = (mazeGen != null && mazeGen.isMenuMode) || (modGen != null && modGen.isMenuMode);
+        bool isMenu = modGen != null && modGen.isMenuMode;
         if (isMenu)
         {
             playerNear = false;

@@ -177,50 +177,9 @@ public class PowerBox : MonoBehaviour
                 faultLight.enabled = false;
             }
         
-        // Sistema anti-softlock periódico y equilibrado basado en la Dificultad
-        HospitalMazeGenerator generator = FindObjectOfType<HospitalMazeGenerator>();
-        if (generator != null && !generator.isMenuMode)
-        {
-            itemCheckTimer += Time.deltaTime;
-            
-            // Intervalo de chequeo según dificultad (Fácil: 30s, Normal: 60s, Difícil: 110s)
-            float checkInterval = 60f;
-            string diff = PlayerPrefs.GetString("SelectedDifficulty", "NORMAL");
-            if (diff == "FACIL") checkInterval = 30f;
-            else if (diff == "DIFICIL") checkInterval = 110f;
-
-            if (itemCheckTimer >= checkInterval)
-            {
-                itemCheckTimer = 0f;
-
-                // 1. CHEQUEO FUSIBLES: Si hay apagón y no hay fusibles en inventario ni en el suelo
-                if (isPowerOut && repairsCount >= maxFreeRepairs && fusesCount == 0)
-                {
-                    if (generator.GetActiveFusesCount() == 0)
-                    {
-                        generator.SpawnEmergencyFuse();
-                    }
-                }
-
-                // 2. CHEQUEO BATERÍAS: Si la linterna se está agotando y no quedan pilas en el suelo
-                FlashlightController fc = FindObjectOfType<FlashlightController>();
-                if (fc != null && fc.useBattery)
-                {
-                    // Umbral crítico de batería según dificultad (Fácil: < 30%, Normal: < 15%, Difícil: < 7%)
-                    float batteryThreshold = 15f;
-                    if (diff == "FACIL") batteryThreshold = 30f;
-                    else if (diff == "DIFICIL") batteryThreshold = 7f;
-
-                    if (fc.currentBattery < batteryThreshold)
-                    {
-                        if (generator.GetActiveBatteriesCount() == 0)
-                        {
-                            generator.SpawnEmergencyBattery();
-                        }
-                    }
-                }
-            }
-        }
+        // LEGACY REMOVED: HospitalMazeGenerator anti-softlock block
+        // (GetActiveFusesCount, SpawnEmergencyFuse, GetActiveBatteriesCount, SpawnEmergencyBattery
+        //  no longer exist on ModularHospital.ModularHospitalGenerator)
         }
     }
 
@@ -510,20 +469,8 @@ public class PowerBox : MonoBehaviour
     /// </summary>
     public void CheckAndSpawnEmergencyFuseInstant()
     {
-        HospitalMazeGenerator generator = FindObjectOfType<HospitalMazeGenerator>();
-        if (generator != null && !generator.isMenuMode)
-        {
-            // Si el apagón requiere fusible (ya se gastaron los rearmados gratis) y el inventario del jugador está en 0
-            if (isPowerOut && repairsCount >= maxFreeRepairs && fusesCount == 0)
-            {
-                // Y no hay absolutamente ningún fusible tirado en el suelo del mapa
-                if (generator.GetActiveFusesCount() == 0)
-                {
-                    generator.SpawnEmergencyFuse();
-                    Debug.Log("PowerBox: Generado fusible de emergencia instantáneo para evitar softlock.");
-                }
-            }
-        }
+        // LEGACY REMOVED: HospitalMazeGenerator.GetActiveFusesCount / SpawnEmergencyFuse
+        // no longer exist on ModularHospital.ModularHospitalGenerator
     }
 
     public void ShowMessage(string message, Color color, float duration)
@@ -536,7 +483,7 @@ public class PowerBox : MonoBehaviour
     void OnGUI()
     {
         // Ocultar si estamos en modo menú
-        HospitalMazeGenerator generator = FindObjectOfType<HospitalMazeGenerator>();
+        ModularHospital.ModularHospitalGenerator generator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
         if (generator != null && generator.isMenuMode) return;
 
         // 0. Cartel de interacción [E] cuando la mirilla enfoca directamente la Caja de Fusibles (distancia corta 2.2m)

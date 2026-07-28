@@ -5,7 +5,6 @@ using System.Collections.Generic;
 public class MainMenuManager : MonoBehaviour
 {
     public static bool startedFromMenu = false; // NUEVO: Para saber si iniciamos desde el menú
-    public HospitalMazeGenerator generator;
     public ModularHospital.ModularHospitalGenerator modularGenerator;
 
     [Header("Ajustes del Menú")]
@@ -98,10 +97,6 @@ public class MainMenuManager : MonoBehaviour
             modularGenerator.smallMapGridSize = new Vector2Int(8, 8);
         }
 
-        if (generator == null)
-        {
-            generator = FindObjectOfType<HospitalMazeGenerator>();
-        }
 
         // Crear una textura negra sutil y muy transparente para toda la pantalla
         sidebarTex = new Texture2D(2, 2);
@@ -326,32 +321,7 @@ public class MainMenuManager : MonoBehaviour
 
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-        }
-        else if (generator != null && generator.isMenuMode && generator.grid != null)
-        {
-            float tileSize = generator.tileSize;
-            Vector3 menuCamPos = generator.transform.position + new Vector3(generator.playerSpawnCell.x * tileSize, 1.25f, generator.playerSpawnCell.y * tileSize);
-            if (Camera.main != null) Camera.main.transform.position = menuCamPos;
-
-            if (startYaw == -999f)
-            {
-                Vector2Int cell = generator.playerSpawnCell;
-                int width = generator.width;
-                int height = generator.height;
-                
-                if (cell.y + 1 < height && generator.grid[cell.x, cell.y + 1]) startYaw = 0f;
-                else if (cell.x + 1 < width && generator.grid[cell.x + 1, cell.y]) startYaw = 90f;
-                else if (cell.y - 1 >= 0 && generator.grid[cell.x, cell.y - 1]) startYaw = 180f;
-                else if (cell.x - 1 >= 0 && generator.grid[cell.x - 1, cell.y]) startYaw = 270f;
-                else startYaw = 90f;
-            }
-
-            float angle = Mathf.Sin(Time.time * 0.16f) * 25f;
-            if (Camera.main != null) Camera.main.transform.rotation = Quaternion.Euler(4f, startYaw + angle, 0f);
-
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        } // fin if (modGen != null && modGen.isMenuMode)
     }
 
     void OnGUI()

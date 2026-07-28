@@ -600,45 +600,29 @@ public class PlayerHealth : MonoBehaviour
                 if (aiController != null)
                 {
                     // Forzar posición lejos mientras el monstruo sigue desactivado
-                    var hospitalGen = FindFirstObjectByType<HospitalMazeGenerator>();
-                    if (hospitalGen != null)
+                    // LEGACY REMOVED: HospitalMazeGenerator block (width, height, tileSize, playerSpawnCell no longer exist)
+                    // Fallback: punto de patrulla más alejado
+                    if (aiController.patrolPoints != null && aiController.patrolPoints.Length > 0)
                     {
-                        // Hospital: extremo opuesto
-                        int oppositeX = hospitalGen.width - 1 - hospitalGen.playerSpawnCell.x;
-                        int oppositeY = hospitalGen.height - 1 - hospitalGen.playerSpawnCell.y;
-                        oppositeX = Mathf.Clamp(oppositeX, 1, hospitalGen.width - 2);
-                        oppositeY = Mathf.Clamp(oppositeY, 1, hospitalGen.height - 2);
-
-                        Vector3 targetWorldPos = hospitalGen.transform.position + 
-                            new Vector3(oppositeX * hospitalGen.tileSize, 0.05f, oppositeY * hospitalGen.tileSize);
-
-                        monsterObj.transform.position = targetWorldPos;
+                        Transform bestPoint = aiController.patrolPoints[0];
+                        float maxDist = 0f;
+                        foreach (Transform pt in aiController.patrolPoints)
+                        {
+                            if (pt != null)
+                            {
+                                float d = Vector3.Distance(transform.position, pt.position);
+                                if (d > maxDist)
+                                {
+                                    maxDist = d;
+                                    bestPoint = pt;
+                                }
+                            }
+                        }
+                        monsterObj.transform.position = bestPoint.position;
                     }
                     else
                     {
-                        // Túneles: punto de patrulla más alejado
-                        if (aiController.patrolPoints != null && aiController.patrolPoints.Length > 0)
-                        {
-                            Transform bestPoint = aiController.patrolPoints[0];
-                            float maxDist = 0f;
-                            foreach (Transform pt in aiController.patrolPoints)
-                            {
-                                if (pt != null)
-                                {
-                                    float d = Vector3.Distance(transform.position, pt.position);
-                                    if (d > maxDist)
-                                    {
-                                        maxDist = d;
-                                        bestPoint = pt;
-                                    }
-                                }
-                            }
-                            monsterObj.transform.position = bestPoint.position;
-                        }
-                        else
-                        {
-                            monsterObj.transform.position = transform.position + Vector3.back * 60f;
-                        }
+                        monsterObj.transform.position = transform.position + Vector3.back * 60f;
                     }
 
                     // Reactivar objeto del monstruo
