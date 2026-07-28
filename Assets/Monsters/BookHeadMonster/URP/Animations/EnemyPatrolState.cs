@@ -11,8 +11,8 @@ public class EnemyPatrolState : IEnemyState
     private int currentPatrolIndex = 0;
 
     private bool isIdle = false;
-    private float idleTime = 15f;
-    private float eatTime = 3f;
+    private float idleTime = 3f;
+    private float eatTime = 2f;
     private float idleTimer = 0f;
     private float eatTimer = 0f;
 
@@ -54,6 +54,17 @@ public class EnemyPatrolState : IEnemyState
         // Asegurar que el agente no este pausado
         if (agent.isStopped)
             agent.isStopped = false;
+
+        // ─── DETECCION DE CAMINO INVALIDO ───────────────────────────────
+        // Si el path calculado es inválido o parcial, cambiar de punto YA
+        if (agent.hasPath && !agent.pathPending &&
+            (agent.pathStatus == NavMeshPathStatus.PathInvalid ||
+             agent.pathStatus == NavMeshPathStatus.PathPartial))
+        {
+            Debug.LogWarning("[Patrol] Path inválido/parcial al punto " + currentPatrolIndex + " → cambiando destino.");
+            MoveToNextPatrolPoint();
+            return;
+        }
 
         // Si no tiene destino, pedir uno
         if (!agent.hasPath && !agent.pathPending && !isIdle)
@@ -150,13 +161,31 @@ public class EnemyPatrolState : IEnemyState
                 }
             }
 
-            if (!agent.pathPending && agent.remainingDistance < 1f)
+            // ─── TIMEOUT ANTI-ESTANCAMIENTO ────────────────────────────────
+            // Si lleva más de 6s con velocidad casi cero y tiene un destino, fuerza cambio de punto
+            if (agent.hasPath && !agent.pathPending)
             {
-                if (Random.Range(0f, 1f) <= 0.5f)
+                stuckTimer += Time.deltaTime;
+                if (agent.velocity.magnitude > 0.15f)
+                    stuckTimer = 0f; // Se está moviendo, reiniciar contador
+
+                if (stuckTimer >= stuckTimeout)
+                {
+                    stuckTimer = 0f;
+                    Debug.LogWarning("[Patrol] BookHead atascado (" + stuckTimeout + "s sin moverse) → cambiando punto de patrulla.");
+                    MoveToNextPatrolPoint();
+                    return;
+                }
+            }
+
+            if (!agent.pathPending && agent.remainingDistance < 1.2f)
+            {
+                if (Random.Range(0f, 1f) <= 0.2f)
                 {
                     anim?.SetWalking(false);
                     anim?.SetIdle(true);
                     isIdle = true;
+                    idleTimer = 0f;
                 }
                 else
                 {
@@ -176,6 +205,10 @@ public class EnemyPatrolState : IEnemyState
         anim?.SetIdle(false);
         anim?.SetEating(false);
     }
+
+    // ─── TIMER ANTI-ESTANCAMIENTO ───────────────────────────────────────────
+    private float stuckTimer = 0f;
+    private const float stuckTimeout = 6f; // Segundos sin moverse antes de cambiar de punto
 
     // Barrido vertical para encontrar el NavMesh: prueba Y exacto, +/-0.5, +/-1, +/-2, +/-4
     private void TryWarpToNavMesh()
@@ -209,42 +242,93 @@ public class EnemyPatrolState : IEnemyState
     {
         if (!agent.isOnNavMesh) return;
 
+        stuckTimer = 0f; // Reiniciar contador al pedir nuevo punto
+
         if (patrolPoints == null || patrolPoints.Length == 0)
         {
             // SI NO HAY PUNTOS MANUALES: Generar un punto de patrulla aleatorio automático en los pasillos del mapa
-            Vector3 randomDirection = Random.insideUnitSphere * 15f;
-            randomDirection += enemy.transform.position;
-            NavMeshHit hit;
-            if (NavMesh.SamplePosition(randomDirection, out hit, 15f, NavMesh.AllAreas))
-            {
-                SetDestinationSafe(hit.position);
-            }
+            TrySetRandomNavMeshDestination();
             return;
         }
 
         if (patrolPoints.Length == 1)
         {
-            SetDestinationSafe(patrolPoints[0].position);
+            if (!SetDestinationSafe(patrolPoints[0].position))
+                TrySetRandomNavMeshDestination();
             return;
         }
 
-        int randomIndex = Random.Range(0, patrolPoints.Length);
-        int safety = 0;
-        while (randomIndex == currentPatrolIndex && safety < 20)
+        // Intentar hasta patrolPoints.Length puntos diferentes para encontrar uno alcanzable
+        int attempts = 0;
+        int maxAttempts = patrolPoints.Length;
+        int randomIndex;
+
+        do
         {
             randomIndex = Random.Range(0, patrolPoints.Length);
-            safety++;
+            int safety = 0;
+            while (randomIndex == currentPatrolIndex && safety < 20)
+            {
+                randomIndex = Random.Range(0, patrolPoints.Length);
+                safety++;
+            }
+            currentPatrolIndex = randomIndex;
+            attempts++;
         }
-        currentPatrolIndex = randomIndex;
-        SetDestinationSafe(patrolPoints[currentPatrolIndex].position);
+        while (!SetDestinationSafe(patrolPoints[currentPatrolIndex].position) && attempts < maxAttempts);
+
+        // Si ningún punto es alcanzable, ir a una posición aleatoria del NavMesh
+        if (attempts >= maxAttempts && (!agent.hasPath || agent.pathStatus != NavMeshPathStatus.PathComplete))
+        {
+            Debug.LogWarning("[Patrol] Ningún punto de patrulla es alcanzable. Usando destino aleatorio del NavMesh.");
+            TrySetRandomNavMeshDestination();
+        }
     }
 
-    private void SetDestinationSafe(Vector3 dest)
+    /// <summary>
+    /// Mueve el agente a un punto aleatorio válido del NavMesh dentro de un radio de búsqueda.
+    /// </summary>
+    private void TrySetRandomNavMeshDestination()
+    {
+        for (int i = 0; i < 10; i++) // Hasta 10 intentos
+        {
+            Vector3 randomDir = Random.insideUnitSphere * 18f;
+            randomDir += enemy.transform.position;
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(randomDir, out hit, 18f, NavMesh.AllAreas))
+            {
+                NavMeshPath path = new NavMeshPath();
+                if (agent.CalculatePath(hit.position, path) && path.status == NavMeshPathStatus.PathComplete)
+                {
+                    agent.SetPath(path);
+                    Debug.Log("[Patrol] Destino aleatorio NavMesh asignado: " + hit.position);
+                    return;
+                }
+            }
+        }
+        Debug.LogWarning("[Patrol] No se encontró ningún destino aleatorio alcanzable en el NavMesh.");
+    }
+
+    /// <summary>
+    /// Valida que el destino sea alcanzable (PathComplete) antes de asignarlo.
+    /// Devuelve true si el path fue asignado con éxito, false si el punto es inalcanzable.
+    /// </summary>
+    private bool SetDestinationSafe(Vector3 dest)
     {
         // Snap al NavMesh mas cercano al destino
         NavMeshHit hit;
         Vector3 finalDest = NavMesh.SamplePosition(dest, out hit, 8f, NavMesh.AllAreas) ? hit.position : dest;
-        bool ok = agent.SetDestination(finalDest);
-        Debug.Log("[Patrol] pt=" + currentPatrolIndex + " setOk=" + ok + " pathStatus=" + agent.pathStatus + " speed=" + agent.speed);
+
+        // Verificar que el camino sea completo (alcanzable) antes de asignarlo
+        NavMeshPath path = new NavMeshPath();
+        if (!agent.CalculatePath(finalDest, path) || path.status != NavMeshPathStatus.PathComplete)
+        {
+            Debug.LogWarning("[Patrol] Punto de patrulla inalcanzable (PathStatus=" + path.status + "). Buscando otro...");
+            return false;
+        }
+
+        agent.SetPath(path);
+        Debug.Log("[Patrol] pt=" + currentPatrolIndex + " asignado OK | pathStatus=" + path.status + " | speed=" + agent.speed);
+        return true;
     }
 }

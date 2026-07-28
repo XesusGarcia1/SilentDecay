@@ -14,7 +14,7 @@ public class FlashlightController : MonoBehaviour
     public bool useBattery = true; // Cambiado por defecto a true para supervivencia      // Consume batera?
     public float maxBattery = 100f;
     public float currentBattery;
-    public float drainRate = 0.08f;     // Consumo optimizado muy lento (dura mas de 20 minutos por bateria)
+    public float drainRate = 0.035f;     // Consumo super optimizado (~45 minutos reales por bateria)
 
     [HideInInspector] public bool isGlitchedByMonster = false;
     private PlayerSanity playerSanity;   // Referencia a la cordura del jugador
@@ -84,20 +84,19 @@ public class FlashlightController : MonoBehaviour
         playerSanity = GetComponent<PlayerSanity>();
         if (playerSanity == null) playerSanity = GetComponentInParent<PlayerSanity>();
 
-        // Crear una luz ambiental de ojos del jugador (visión de adaptación nocturna)
-        // para que nunca se quede en negro absoluto y pueda ver su entorno inmediato (5-7 metros)
+        // LUZ DE ADAPTACIÓN VISUAL NOCTURNA (OJOS DEL JUGADOR):
+        // Permite ver el contorno de paredes, puertas y pasillos en un rango de 9 metros sin arruinar la atmósfera de terror.
         if (transform.Find("Player_Eyes_Ambient") == null)
         {
             GameObject ambientObj = new GameObject("Player_Eyes_Ambient");
             ambientObj.transform.SetParent(transform, false);
-            // Centrar a la altura de la cámara
             ambientObj.transform.localPosition = Vector3.zero;
             
             Light ambientLight = ambientObj.AddComponent<Light>();
             ambientLight.type = LightType.Point;
-            ambientLight.range = 6.5f;
-            ambientLight.intensity = 0.45f;
-            ambientLight.color = new Color(0.15f, 0.18f, 0.22f); // Tono azul oscuro/grisáceo frío y tenue
+            ambientLight.range = 9.0f;
+            ambientLight.intensity = 0.85f;
+            ambientLight.color = new Color(0.20f, 0.24f, 0.32f); // Azul marino suave / visión nocturna natural
             ambientLight.shadows = LightShadows.None;
             ambientLight.enabled = true;
         }

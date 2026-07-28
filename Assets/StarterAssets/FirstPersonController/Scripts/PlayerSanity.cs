@@ -49,17 +49,19 @@ public class PlayerSanity : MonoBehaviour
 
     void Update()
     {
-        // Encontrar al monstruo si no se asignó en Start (por estar desactivado)
-        if (monsterTransform == null)
-        {
-            EnemyAIController enemy = FindObjectOfType<EnemyAIController>(true); // Buscar incluso desactivados
-            if (enemy != null) monsterTransform = enemy.transform;
-        }
-
-        // 1. Calcular el estado de la cordura
+        // Encontrar a cualquier enemigo en la escena (BookHead o El Rastrero)
         float distToMonster = 25f;
-        if (monsterTransform != null)
+        Transform closestEnemy = null;
+
+        CrawlerAI crawler = FindObjectOfType<CrawlerAI>();
+        EnemyAIController bookhead = FindObjectOfType<EnemyAIController>();
+
+        if (crawler != null) closestEnemy = crawler.transform;
+        else if (bookhead != null) closestEnemy = bookhead.transform;
+
+        if (closestEnemy != null)
         {
+            monsterTransform = closestEnemy;
             distToMonster = Vector3.Distance(transform.position, monsterTransform.position);
         }
 

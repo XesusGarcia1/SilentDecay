@@ -35,6 +35,20 @@ public class EnemyAIBookHead : MonoBehaviour
 
         anim = GetComponent<Animator>();
 
+        // Hacer Rigidbody y BoxColliders de tipo Trigger/Kinematic para evitar fricción física contra el suelo/paredes
+        Rigidbody[] childRbs = GetComponentsInChildren<Rigidbody>();
+        foreach (Rigidbody rb in childRbs)
+        {
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+
+        BoxCollider[] boxCols = GetComponentsInChildren<BoxCollider>();
+        foreach (BoxCollider bc in boxCols)
+        {
+            bc.isTrigger = true;
+        }
+
         if (player == null)
         {
             GameObject pObj = GameObject.FindGameObjectWithTag("Player");
@@ -58,7 +72,7 @@ public class EnemyAIBookHead : MonoBehaviour
 
     void Update()
     {
-        if (player == null) return;
+        if (player == null || isAttacking) return;
 
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 

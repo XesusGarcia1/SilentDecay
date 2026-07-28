@@ -1403,9 +1403,11 @@ void GenerateMaze()
                             Debug.Log("MazeGenerator: Keypad Oficina Creado anticipadamente en BuildPhysicalMap en altura " + keypadPos.y);
                         }
                     }
-
-                    // Levantar paredes normales del laberinto alrededor de la habitacion (excepto en la puerta y en medio de ella)
-                    CheckAndSpawnWalls(x, y, mapParent.transform);
+                    // NOTA: NO llamar CheckAndSpawnWalls para celdas de habitacion.
+                    // El prefab del cuarto YA tiene sus propias paredes internas.
+                    // Los pasillos adyacentes generan las paredes correctas hacia el cuarto
+                    // a traves de ShouldSpawnWallBetween (desde el lado del corredor).
+                    // Llamar CheckAndSpawnWalls aqui generaria muros duplicados DENTRO del cuarto.
                 }
                 else
                 {
@@ -1623,14 +1625,16 @@ void GenerateMaze()
             return true; // Si son de habitaciones distintas, debe haber pared divisoria
         }
 
-        // Si uno es habitacin y el otro es pasillo, colocar pared en las caras traseras y laterales (no en la puerta)
-        if (roomPositions.Contains(neighbor))
+        // Si uno es habitación y el otro es pasillo, colocar pared en las caras traseras y laterales (JAMÁS en la frontera de la puerta)
+        if (roomPositions.Contains(neighbor) && !roomPositions.Contains(cell))
         {
-            return !IsDoorCellForRoom(cell, neighbor);
+            if (IsDoorCellForRoom(cell, neighbor)) return false; // NUNCA poner pared en la frontera de la puerta
+            return true;
         }
-        if (roomPositions.Contains(cell))
+        if (roomPositions.Contains(cell) && !roomPositions.Contains(neighbor))
         {
-            return !IsDoorCellForRoom(neighbor, cell);
+            if (IsDoorCellForRoom(neighbor, cell)) return false; // NUNCA poner pared en la frontera de la puerta
+            return true;
         }
 
         // Si el vecino es una pared solida (y no es habitacion)
@@ -1641,10 +1645,10 @@ void GenerateMaze()
 
     bool IsDoorCellForRoom(Vector2Int corridorCell, Vector2Int roomCell)
     {
-        // La celda trasera de la habitacin no tiene puerta, solo el pivote (entrada) tiene
-        if (!roomPivots.Contains(roomCell)) return false;
+        Vector2Int pivot = roomPivots.Contains(roomCell) ? roomCell : GetRoomPivotForBackCell(roomCell);
+        if (!roomPivots.Contains(pivot)) return false;
 
-        return GetRoomDoorCell(roomCell) == corridorCell;
+        return GetRoomDoorCell(pivot) == corridorCell;
     }
 
     Vector2Int GetRoomDoorCell(Vector2Int cell)
@@ -1923,8 +1927,21 @@ void GenerateMaze()
         // Cantidad dinamica: escala con el tamano del mapa, minimo 6, maximo 24
         int targetCount = Mathf.Clamp((width * height) / 30, 6, 24);
 
-        // Barajar los corredores para seleccion aleatoria eficiente
-        List<Vector2Int> shuffled = new List<Vector2Int>(corridors);
+        // Barajar los corredores para seleccion aleatoria eficiente, excluyendo los anillos exteriores del perímetro
+        int marginX = Mathf.Clamp(width / 4, 2, 4);
+        int marginY = Mathf.Clamp(height / 4, 2, 4);
+
+        List<Vector2Int> centralCorridors = new List<Vector2Int>();
+        foreach (Vector2Int cell in corridors)
+        {
+            if (cell.x >= marginX && cell.x < width - marginX && cell.y >= marginY && cell.y < height - marginY)
+            {
+                centralCorridors.Add(cell);
+            }
+        }
+        if (centralCorridors.Count < 4) centralCorridors = new List<Vector2Int>(corridors);
+
+        List<Vector2Int> shuffled = new List<Vector2Int>(centralCorridors);
         for (int i = shuffled.Count - 1; i > 0; i--)
         {
             int j = Random.Range(0, i + 1);
@@ -1953,6 +1970,7 @@ void GenerateMaze()
             if (chosen.Count >= targetCount) break;
         }
 
+        List<Transform> patrolTransforms = new List<Transform>();
         // Crear un GameObject vacio por cada punto elegido
         for (int i = 0; i < chosen.Count; i++)
         {
@@ -1960,10 +1978,27 @@ void GenerateMaze()
             GameObject pt = new GameObject("PatrolPoint_" + i);
             pt.transform.SetParent(container.transform, false);
             pt.transform.position = worldPos;
-            // generatorCells.Add(pt.transform);
+            patrolTransforms.Add(pt.transform);
         }
 
-        Debug.Log("MazeGenerator: Generados " + generatorCells.Count + " puntos de patrullaje (mapa " + width + "x" + height + " -> target=" + targetCount + ")");
+        // Asignar dinámicamente los puntos de patrullaje a los scripts del BookHead
+        if (enemyObj != null)
+        {
+            var eAI = enemyObj.GetComponent<EnemyAIController>();
+            if (eAI == null) eAI = enemyObj.GetComponentInChildren<EnemyAIController>();
+            if (eAI != null)
+            {
+                eAI.SetPatrolPoints(patrolTransforms.ToArray());
+            }
+
+            var eAIBook = enemyObj.GetComponent<EnemyAIBookHead>();
+            if (eAIBook == null) eAIBook = enemyObj.GetComponentInChildren<EnemyAIBookHead>();
+            if (eAIBook != null)
+            {
+                eAIBook.InitializePatrol(patrolTransforms.ToArray(), playerObj != null ? playerObj.transform : null);
+            }
+            Debug.Log($"MazeGenerator: Asignados {patrolTransforms.Count} puntos de patrullaje a BookHead ({enemyObj.name}).");
+        }
     }
 
     // -----------------------------------------------------------------------

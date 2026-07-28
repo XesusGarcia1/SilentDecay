@@ -196,14 +196,22 @@ namespace StarterAssets
             // Check if the player is grounded and moving
             if (Grounded && _controller.velocity.magnitude > 0.1f && Time.time >= _nextStepTime)
             {
-                // Decide what sound to play based on movement speed
-                AudioClip clipToPlay = _input.sprint ? runSound : walkSound;
-
-                if (!_audioSource.isPlaying || _audioSource.clip != clipToPlay)
+                // Detectar si el jugador está tocando/sobrevolando el Trigger de la mancha de charco
+                bool isSteppingOnPuddle = false;
+                Collider[] hits = Physics.OverlapSphere(transform.position + Vector3.up * 0.2f, 1.4f, Physics.AllLayers, QueryTriggerInteraction.Collide);
+                foreach (Collider c in hits)
                 {
-                    _audioSource.PlayOneShot(clipToPlay);
+                    if (c != null && c.name.Contains("Rastrero_Corrosion"))
+                    {
+                        isSteppingOnPuddle = true;
+                        break;
+                    }
                 }
 
+                AudioClip puddleSound = Resources.Load<AudioClip>("PisarAgua");
+                AudioClip clipToPlay = (isSteppingOnPuddle && puddleSound != null) ? puddleSound : (_input.sprint ? runSound : walkSound);
+
+                _audioSource.PlayOneShot(clipToPlay);
                 _nextStepTime = Time.time + stepInterval; // Set next step time
             }
             else if (_controller.velocity.magnitude <= 0.1f && _audioSource.isPlaying) // Stop sound when player stops

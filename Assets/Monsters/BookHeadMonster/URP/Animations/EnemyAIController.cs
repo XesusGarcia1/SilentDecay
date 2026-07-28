@@ -71,17 +71,22 @@ public class EnemyAIController : MonoBehaviour
             // Asegurar que el agente controla el transform (no el motor de fisica)
             agent.updatePosition = true;
             agent.updateRotation = true;
-            agent.isStopped = false;
+            if (agent.isOnNavMesh) agent.isStopped = false;
         }
 
-        // CRITICO: Rigidbodies en hijos pelean contra el NavMeshAgent.
-        // Hacerlos kinematic para que el NavMesh tenga control del movimiento.
+        // CRITICO: Rigidbodies y BoxColliders sólidos en hijos pelean contra el NavMeshAgent.
+        // Hacerlos kinematic y triggers para que el NavMesh tenga control total del movimiento sin trabarse.
         Rigidbody[] childRbs = GetComponentsInChildren<Rigidbody>();
         foreach (Rigidbody rb in childRbs)
         {
             rb.isKinematic = true;
             rb.useGravity = false;
-            Debug.Log("EnemyAI: Rigidbody en " + rb.gameObject.name + " -> kinematic=true para no interferir con NavMeshAgent.");
+        }
+
+        BoxCollider[] boxCols = GetComponentsInChildren<BoxCollider>();
+        foreach (BoxCollider bc in boxCols)
+        {
+            bc.isTrigger = true;
         }
 
         if (fov == null)
@@ -337,12 +342,12 @@ public class EnemyAIController : MonoBehaviour
             }
         }
 
-        // Control de audio de tension y persecucion (Volumen moderado y agradable)
+        // ─── CONTROL DE AUDIO DE TENSIÓN Y PERSECUCIÓN ──────────────────────────
         if (player != null && audioSource != null)
         {
             float dist = Vector3.Distance(transform.position, player.position);
             bool isChasing = currentState is EnemyChaseState;
-            bool isClose = dist <= 10f;
+            bool isClose = dist <= 12f;
 
             if (chaseSoundClip != null && (isChasing || isClose))
             {
@@ -350,27 +355,30 @@ public class EnemyAIController : MonoBehaviour
                 {
                     audioSource.clip = chaseSoundClip;
                     audioSource.loop = true;
-                    audioSource.spatialBlend = 1f; // Sonido 3D atenuado por distancia
-                    audioSource.minDistance = 2f;
-                    audioSource.maxDistance = 18f;
+                    audioSource.spatialBlend = 1f;
+                    audioSource.minDistance = 3f;
+                    audioSource.maxDistance = 25f;  // Rango extendido: se escucha de más lejos
+                    audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
                     audioSource.Play();
                 }
 
                 if (isChasing)
                 {
-                    audioSource.volume = Mathf.MoveTowards(audioSource.volume, 0.35f, Time.deltaTime * 1.5f); // Volumen máximo moderado
+                    // Persiguiendo: rugido fuerte (0.7) — claramente aterrador
+                    audioSource.volume = Mathf.MoveTowards(audioSource.volume, 0.70f, Time.deltaTime * 2f);
                 }
                 else
                 {
-                    float targetVol = Mathf.Clamp01(1f - (dist - 2f) / 8f) * 0.22f;
-                    audioSource.volume = Mathf.MoveTowards(audioSource.volume, targetVol, Time.deltaTime * 1.5f);
+                    // Cerca pero sin perseguir: volumen basado en distancia (0.15 a 0.40)
+                    float targetVol = Mathf.Clamp01(1f - (dist - 2f) / 10f) * 0.40f;
+                    audioSource.volume = Mathf.MoveTowards(audioSource.volume, targetVol, Time.deltaTime * 2f);
                 }
             }
             else
             {
                 if (audioSource.clip == chaseSoundClip)
                 {
-                    audioSource.volume = Mathf.MoveTowards(audioSource.volume, 0f, Time.deltaTime * 1.5f);
+                    audioSource.volume = Mathf.MoveTowards(audioSource.volume, 0f, Time.deltaTime * 1.2f);
                     if (audioSource.volume <= 0.01f)
                     {
                         if (monsterSoundClip != null)
@@ -378,7 +386,9 @@ public class EnemyAIController : MonoBehaviour
                             audioSource.clip = monsterSoundClip;
                             audioSource.loop = true;
                             audioSource.spatialBlend = 1f;
-                            audioSource.volume = 0.15f;
+                            audioSource.minDistance = 3f;
+                            audioSource.maxDistance = 22f;
+                            audioSource.volume = 0.55f; // Rugido/gruñido ambiental audible
                             audioSource.Play();
                         }
                         else
@@ -459,9 +469,10 @@ public class EnemyAIController : MonoBehaviour
             audioSource.clip = monsterSoundClip;
             audioSource.loop = true;
             audioSource.spatialBlend = 1f;
-            audioSource.minDistance = 2f;
-            audioSource.maxDistance = 12f;
+            audioSource.minDistance = 3f;   // Se empieza a escuchar desde más lejos
+            audioSource.maxDistance = 22f;  // Rango más amplio para sonido ambiental del monstruo
             audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
+            audioSource.volume = 0.55f;     // Volumen base del rugido/gruñido ambiental
             audioSource.Play();
         }
 
@@ -487,10 +498,11 @@ public class EnemyAIController : MonoBehaviour
         {
             footstepAudioSource.clip = footstepSoundClip;
             footstepAudioSource.spatialBlend = 1f;
-            footstepAudioSource.minDistance = 1.5f;
-            footstepAudioSource.maxDistance = 12f;
+            footstepAudioSource.minDistance = 2.5f;  // Sonido fuerte en los primeros 2.5m
+            footstepAudioSource.maxDistance = 18f;   // Se escucha tenuemente hasta 18m
+            footstepAudioSource.rolloffMode = AudioRolloffMode.Logarithmic;
             footstepAudioSource.loop = false;
-            footstepAudioSource.volume = 0.6f;
+            footstepAudioSource.volume = 0.85f;      // Pisadas claramente audibles
         }
     }
 
@@ -553,7 +565,15 @@ public class EnemyAIController : MonoBehaviour
             {
                 ChangeState(new EnemyAttackState(this, agent, anim, player));
             }
-            else if (!(currentState is EnemyChaseState) && !(currentState is EnemyAttackState))
+            else if (currentState is EnemyAttackState)
+            {
+                // Si el jugador escapa durante el ataque, esperar a que el estado de ataque termine (o se aleje a más de 1.8x el attackRange)
+                if (distanceToPlayer > attackRange * 1.8f)
+                {
+                    ChangeState(new EnemyChaseState(this, agent, anim, player));
+                }
+            }
+            else if (!(currentState is EnemyChaseState))
             {
                 ChangeState(new EnemyChaseState(this, agent, anim, player));
             }

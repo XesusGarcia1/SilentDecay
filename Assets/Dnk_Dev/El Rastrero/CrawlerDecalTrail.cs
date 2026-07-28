@@ -43,66 +43,85 @@ public class CrawlerDecalTrail : MonoBehaviour
 
     void SpawnDecalOnSurface()
     {
-        // 1. Manchar Suelo Completo
+        // 1. Manchar el Suelo por donde pasa El Rastrero
         RaycastHit groundHit;
-        if (Physics.Raycast(transform.position + Vector3.up * 1.0f, Vector3.down, out groundHit, 2.5f))
+        Vector3 rayStart = transform.position + Vector3.up * 1.0f;
+
+        if (Physics.Raycast(rayStart, Vector3.down, out groundHit, 2.5f))
         {
             string hitName = groundHit.collider.name.ToLower();
             if (!hitName.Contains("player") && !hitName.Contains("rastrero") && !hitName.Contains("bookhead"))
             {
-                CreateCorrosionQuad(groundHit.point + Vector3.up * 0.008f, Quaternion.Euler(90f, Random.Range(0f, 360f), 0f), Random.Range(3.8f, 4.4f));
+                if (Vector3.Angle(groundHit.normal, Vector3.up) < 25f)
+                {
+                    CreateDecal(groundHit.point + Vector3.up * 0.003f, Quaternion.Euler(90f, Random.Range(0f, 360f), 0f), Random.Range(3.4f, 4.0f), true);
+                }
             }
         }
 
-        // 2. Manchar Muros y Techo Adyacentes alineados a la superficie
+        // 2. Manchar Muros y Techos Adyacentes (Solo si es pared o techo real del edificio)
         Vector3[] sideDirs = new Vector3[] { Vector3.left, Vector3.right, Vector3.forward, Vector3.back, Vector3.up };
         foreach (Vector3 dir in sideDirs)
         {
             RaycastHit hit;
-            float checkDist = 3.5f;
+            float maxRayDist = (dir == Vector3.up) ? 3.0f : 1.8f;
 
-            if (Physics.Raycast(transform.position + Vector3.up * 1.0f, dir, out hit, checkDist))
+            int layerMask = ~LayerMask.GetMask("Ignore Raycast", "Water", "UI");
+
+            if (Physics.Raycast(rayStart, dir, out hit, maxRayDist, layerMask))
             {
+                if (hit.collider == null) continue;
                 string hitName = hit.collider.name.ToLower();
-                if (hitName.Contains("player") || hitName.Contains("rastrero") || hitName.Contains("bookhead")) continue;
+                if (hitName.Contains("player") || hitName.Contains("rastrero") || hitName.Contains("bookhead") || hitName.Contains("battery") || hitName.Contains("fuse") || hitName.Contains("generator")) continue;
 
-                Quaternion flatRot = Quaternion.LookRotation(-hit.normal, Vector3.up);
-                if (dir == Vector3.up) flatRot = Quaternion.Euler(-90f, Random.Range(0f, 360f), 0f);
+                // Verificar si impacta una pared o techo real
+                float angleToUp = Vector3.Angle(hit.normal, Vector3.up);
+                float angleToDown = Vector3.Angle(hit.normal, Vector3.down);
 
-                CreateCorrosionQuad(hit.point + hit.normal * 0.012f, flatRot, Random.Range(2.2f, 3.2f));
+                if (Mathf.Abs(angleToUp - 90f) < 15f || angleToDown < 20f)
+                {
+                    Quaternion rot = Quaternion.LookRotation(-hit.normal, Vector3.up);
+                    if (dir == Vector3.up || angleToDown < 20f) rot = Quaternion.Euler(-90f, Random.Range(0f, 360f), 0f);
+
+                    float adaptedScale = Random.Range(2.5f, 3.2f);
+                    CreateDecal(hit.point + hit.normal * 0.002f, rot, adaptedScale, false);
+                }
             }
         }
     }
 
-    void CreateCorrosionQuad(Vector3 pos, Quaternion rot, float scale)
+    void CreateDecal(Vector3 pos, Quaternion rot, float scale, bool isFloor)
     {
-        GameObject quadObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        quadObj.name = $"[Rastrero_Corrosion_{activeDecals.Count + 1}]";
+        GameObject decalObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        decalObj.name = $"[Rastrero_Corrosion_{activeDecals.Count + 1}]";
 
-        Collider qCol = quadObj.GetComponent<Collider>();
-        if (qCol != null) Destroy(qCol);
+        // Quitar el MeshCollider sólido por completo
+        MeshCollider mc = decalObj.GetComponent<MeshCollider>();
+        if (mc != null) Destroy(mc);
 
-        quadObj.transform.position = pos;
-        quadObj.transform.rotation = rot;
-        quadObj.transform.localScale = new Vector3(scale, scale, 1f);
-
-        // Usar Shader URP Lit o Standard con modo transparente
-        Shader blendShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Unlit/Transparent");
-        Material instMat = new Material(blendShader);
-
-        if (instMat.HasProperty("_Surface")) instMat.SetFloat("_Surface", 1); // Transparent
-        if (instMat.HasProperty("_Blend")) instMat.SetFloat("_Blend", 0);
-        if (instMat.HasProperty("_ZWrite")) instMat.SetInt("_ZWrite", 0);
-        instMat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 10;
-
-        Texture2D chosenTex = (Random.value < 0.6f && moldTexture != null) ? moldTexture : veinsTexture;
-        if (chosenTex != null)
+        // Si es mancha de suelo, agregar un BoxCollider en modo TRIGGER (Jamás empuja al jugador pero detecta las pisadas)
+        if (isFloor)
         {
-            if (instMat.HasProperty("_BaseMap")) instMat.SetTexture("_BaseMap", chosenTex);
-            if (instMat.HasProperty("_MainTex")) instMat.SetTexture("_MainTex", chosenTex);
+            BoxCollider bc = decalObj.AddComponent<BoxCollider>();
+            bc.isTrigger = true;
+            bc.size = new Vector3(1.0f, 1.0f, 0.4f);
         }
 
-        Renderer rend = quadObj.GetComponent<Renderer>();
+        decalObj.transform.position = pos;
+        decalObj.transform.rotation = rot;
+        decalObj.transform.localScale = new Vector3(scale, scale, 1f);
+
+        // Usar Sprites/Default para recortes transparentes sin tarjetas cuadradas
+        Material instMat = new Material(Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Transparent"));
+
+        // Tintado oscuro ambiental para mimetizarse con el pasillo
+        Color darkAmbientColor = new Color(0.28f, 0.26f, 0.22f, 0.95f);
+        instMat.color = darkAmbientColor;
+
+        Texture2D chosenTex = (Random.value < 0.5f && moldTexture != null) ? moldTexture : veinsTexture;
+        if (chosenTex != null) instMat.mainTexture = chosenTex;
+
+        Renderer rend = decalObj.GetComponent<Renderer>();
         if (rend != null)
         {
             rend.material = instMat;
@@ -110,8 +129,8 @@ public class CrawlerDecalTrail : MonoBehaviour
             rend.receiveShadows = false;
         }
 
-        activeDecals.Add(quadObj);
-        StartCoroutine(FadeAndDestroyDecal(quadObj, instMat));
+        activeDecals.Add(decalObj);
+        StartCoroutine(FadeAndDestroyDecal(decalObj, instMat));
 
         if (activeDecals.Count > maxDecalsInScene)
         {

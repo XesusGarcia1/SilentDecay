@@ -609,7 +609,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 998392595}
-  - component: {fileID: 998392594}
   - component: {fileID: 998392593}
   - component: {fileID: 998392592}
   - component: {fileID: 998392591}
@@ -618,6 +617,7 @@ GameObject:
   - component: {fileID: 998392588}
   - component: {fileID: 998392587}
   - component: {fileID: 998392586}
+  - component: {fileID: 998392596}
   m_Layer: 0
   m_Name: BookHead
   m_TagString: Untagged
@@ -883,9 +883,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   player: {fileID: 1106696228}
   attackRange: 2
-  detectionRange: 7
-  walkSpeed: 4
-  runSpeed: 5
+  detectionRange: 5
+  walkSpeed: 1.5
+  runSpeed: 2.5
   patrolPoints:
   - {fileID: 0}
   - {fileID: 0}
@@ -935,10 +935,10 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: -902729914
   m_Radius: 1.15
-  m_Speed: 5
-  m_Acceleration: 3
+  m_Speed: 4
+  m_Acceleration: 15
   avoidancePriority: 50
-  m_AngularSpeed: 60
+  m_AngularSpeed: 160
   m_StoppingDistance: 1
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
@@ -947,31 +947,6 @@ NavMeshAgent:
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
---- !u!114 &998392594
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 998392585}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b4fb8c15c1f6e574384753bf5f8184c3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  player: {fileID: 1106696228}
-  detectionRange: 20
-  attackRange: 2
-  runSpeed: 10
-  walkSpeed: 4
-  patrolPoints:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
 --- !u!4 &998392595
 Transform:
   m_ObjectHideFlags: 0
@@ -988,6 +963,24 @@ Transform:
   - {fileID: 1742073175}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &998392596
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 998392585}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4fb8c15c1f6e574384753bf5f8184c3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 0}
+  detectionRange: 7
+  attackRange: 1.8
+  runSpeed: 2.2
+  walkSpeed: 1.2
+  patrolPoints: []
 --- !u!4 &1004023827 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2339480077225452941, guid: 1b087f10bf722334686c5b15dcf868ef, type: 3}
@@ -1574,6 +1567,7 @@ GameObject:
   - component: {fileID: 1421901080}
   - component: {fileID: 1421901079}
   - component: {fileID: 1421901078}
+  - component: {fileID: 1421901083}
   m_Layer: 0
   m_Name: TheCreep
   m_TagString: Untagged
@@ -1592,9 +1586,9 @@ NavMeshAgent:
   m_AgentTypeID: 0
   m_Radius: 0.4
   m_Speed: 1.8
-  m_Acceleration: 8
+  m_Acceleration: 12
   avoidancePriority: 50
-  m_AngularSpeed: 120
+  m_AngularSpeed: 180
   m_StoppingDistance: 0
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
@@ -1656,10 +1650,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   walkSpeed: 1.8
+  chaseSpeed: 2.8
   fleeSpeed: 3.2
+  chaseDistance: 8.5
   sanityEffectRadius: 6
   sanityDrainRate: 5
   flashlightFleeDistance: 7
+  arrastreSound: {fileID: 8300000, guid: abfb4cf7b39613e449e129e8a67915d2, type: 3}
+  rugidoSound: {fileID: 8300000, guid: 8febc68621190924da1039729d0324d9, type: 3}
+  aullidoSound: {fileID: 8300000, guid: bf9c0ac953f0a8a4080aeb834a475dc1, type: 3}
+  pisadasCercanasSound: {fileID: 8300000, guid: 0c6ceb94283ef004981d7003a6cff2d4, type: 3}
+  pisadasLejanasSound: {fileID: 8300000, guid: b109e2c8d19b0c3409da340afff9c2b3, type: 3}
 --- !u!4 &1421901082
 Transform:
   m_ObjectHideFlags: 0
@@ -1676,6 +1677,28 @@ Transform:
   - {fileID: 1018951248}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!64 &1421901083
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1421901077}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 0}
 --- !u!1001 &1633655342
 PrefabInstance:
   m_ObjectHideFlags: 0

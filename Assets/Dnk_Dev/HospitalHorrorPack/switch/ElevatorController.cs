@@ -383,7 +383,9 @@ public class ElevatorController : MonoBehaviour
 
         // 3. Procesar interacciones: Comprobación directa de distancia global a la cabina (radio de 3.0m)
         float worldDistToElevator = Vector3.Distance(transform.position, playerTransform.position);
-        bool isInside = worldDistToElevator <= 3.0f;
+        // isInside es verdadero solo si las puertas estan ABIERTAS y el jugador esta dentro.
+        // Con puertas cerradas, el jugador nunca esta "dentro" aunque este a 3m.
+        bool isInside = doorsOpen && worldDistToElevator <= 3.0f;
 
         float distToButton = interactDistance + 1f;
         if (isInside && intButtonTrans != null)
@@ -410,18 +412,44 @@ public class ElevatorController : MonoBehaviour
             }
             else
             {
+                // Verificar que el jugador esté mirando hacia el elevador usando raycast
+                // (misma lógica que OnGUI para que si el prompt es visible, E siempre funcione)
                 Camera cam = Camera.main;
+                bool canInteract = false;
+
                 if (cam != null)
                 {
-                    Vector3 localPos = transform.InverseTransformPoint(playerTransform.position);
-                    if (localPos.z >= -0.2f)
+                    // Opción A: Raycast impacta directamente en una parte del elevador
+                    Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+                    RaycastHit hit;
+                    if (Physics.Raycast(ray, out hit, interactDistance + 1.5f))
                     {
-                        Vector3 dirToElevator = (transform.position - cam.transform.position).normalized;
-                        if (Vector3.Dot(cam.transform.forward, dirToElevator) >= 0.25f)
-                        {
-                            HandleInteraction(hasPower);
-                        }
+                        string n = hit.transform.name.ToLower();
+                        bool isElevatorPart = hit.transform == transform || hit.transform.IsChildOf(transform) ||
+                                              hit.transform == extButtonTrans || hit.transform == intButtonTrans ||
+                                              n.Contains("elevator") || n.Contains("ascensor") || n.Contains("puerta");
+                        if (isElevatorPart) canInteract = true;
                     }
+
+                    // Opción B: Si está muy cerca (≤2.5m) y mirando vagamente hacia el elevador, permitir igualmente
+                    // Esto evita que el sonido no suene cuando se está pegado a las puertas
+                    if (!canInteract && worldDistToElevator <= 2.5f)
+                    {
+                        Transform targetFocus = extButtonTrans != null ? extButtonTrans : transform;
+                        Vector3 dirToElevator = (targetFocus.position - cam.transform.position).normalized;
+                        if (Vector3.Dot(cam.transform.forward, dirToElevator) >= -0.1f) // Muy permisivo al estar cerca
+                            canInteract = true;
+                    }
+                }
+                else
+                {
+                    // Sin cámara: permitir si está en rango de distancia
+                    canInteract = true;
+                }
+
+                if (canInteract)
+                {
+                    HandleInteraction(hasPower);
                 }
             }
         }
@@ -449,7 +477,14 @@ public class ElevatorController : MonoBehaviour
 
         if (isInside)
         {
-            // Panel Interior: Intentar escapar
+            // Panel Interior: Solo permite descender si el ascensor ya fue llamado, llegó y abrió sus puertas
+            if (!isArrived || !doorsOpen)
+            {
+                PlaySound(errorSound);
+                ShowScreenMsg("LLAME EL ELEVADOR DESDE LA BOTONERA EXTERIOR", Color.yellow);
+                return;
+            }
+
             if (!isEscaping)
             {
                 if (effectivePower)
@@ -867,7 +902,9 @@ public class ElevatorController : MonoBehaviour
 
         if (playerTransform == null || isEscaping) return;
 
-        bool isInside = Vector3.Distance(transform.position, playerTransform.position) <= 3.0f;
+        // isInside solo es verdadero si las puertas estan ABIERTAS y el jugador esta dentro de la cabina.
+        // Si las puertas están cerradas, aunque esté a 3m, NO está "dentro".
+        bool isInside = doorsOpen && Vector3.Distance(transform.position, playerTransform.position) <= 3.0f;
 
         float dist = interactDistance + 1f;
         if (isInside && intButtonTrans != null)
