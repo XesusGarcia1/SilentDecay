@@ -2017,21 +2017,7 @@ namespace ModularHospital
                 if (mod != null && mod.moduleType == ModuleType.SmallRoom && mod.moduleType != ModuleType.DirectorOffice)
                 {
                     // Verificar que la entrada de la habitación esté 100% abierta a un pasillo (no bloqueada por otra habitación)
-                    Vector3 doorFront = mod.transform.position + mod.transform.forward * (-2.0f) + Vector3.up * 1.0f;
-                    Collider[] frontCols = Physics.OverlapSphere(doorFront, 0.5f);
-                    bool hasBlockingWall = false;
-                    foreach (Collider c in frontCols)
-                    {
-                        if (c != null && !c.transform.IsChildOf(mod.transform))
-                        {
-                            string cn = c.name.ToLower();
-                            if (cn.Contains("solid_wall") || cn.Contains("outer_wall"))
-                            {
-                                hasBlockingWall = true;
-                                break;
-                            }
-                        }
-                    }
+                    bool hasBlockingWall = HasBlockingGeometryAtRoomEntrance(mod);
                     if (!hasBlockingWall)
                     {
                         smallRoomsForNotes.Add(mod);
@@ -2573,6 +2559,136 @@ namespace ModularHospital
             }
         }
 
+        private bool TryGetRoomDoorwayData(HospitalModule mod, out Vector3 threshold, out Vector3 outwardDir)
+        {
+            threshold = mod != null ? mod.transform.position + Vector3.up * 1.25f : Vector3.zero;
+            outwardDir = mod != null ? -mod.transform.forward : Vector3.forward;
+
+            if (mod == null) return false;
+
+            ModuleConnector bestConnector = null;
+            foreach (ModuleConnector connector in mod.connectors)
+            {
+                if (connector == null) continue;
+                if (connector.direction == ConnectorDirection.South)
+                {
+                    bestConnector = connector;
+                    break;
+                }
+                if (bestConnector == null) bestConnector = connector;
+            }
+
+            if (bestConnector == null)
+            {
+                bestConnector = mod.GetComponentInChildren<ModuleConnector>(true);
+            }
+
+            if (bestConnector != null)
+            {
+                Vector3 connectorPos = bestConnector.transform.position;
+                Vector3 rawDir = connectorPos - mod.transform.position;
+                rawDir.y = 0f;
+                if (rawDir.sqrMagnitude > 0.01f)
+                {
+                    outwardDir = rawDir.normalized;
+                    threshold = connectorPos + Vector3.up * 1.25f;
+                    return true;
+                }
+            }
+
+            outwardDir = (-mod.transform.forward).normalized;
+            threshold = mod.transform.position + Vector3.up * 1.25f + outwardDir * 1.8f;
+            return false;
+        }
+
+        private bool IsBlockingRoomGeometry(Collider col)
+        {
+            if (col == null) return false;
+
+            string cName = col.gameObject.name.ToLower();
+            string rName = col.transform.root.name.ToLower();
+
+            bool isProtected = rName.Contains("player") || rName.Contains("lamp") ||
+                               cName.Contains("unified_floor") || cName.Contains("unified_ceiling") ||
+                               cName.Contains("door") || cName.Contains("puerta") ||
+                               cName.Contains("hinge") || cName.Contains("connector") ||
+                               cName.Contains("bed") || cName.Contains("cama") ||
+                               cName.Contains("desk") || cName.Contains("mueble") ||
+                               cName.Contains("table") || cName.Contains("chair") ||
+                               cName.Contains("keypad") || cName.Contains("button") ||
+                               cName.Contains("screen") || cName.Contains("light") ||
+                               cName.Contains("marco") || cName.Contains("frame");
+
+            if (isProtected) return false;
+
+            return cName.Contains("solid_wall") || cName.Contains("outer_wall") ||
+                   cName.Contains("pillar") || cName.Contains("bloque") ||
+                   cName.Contains("column") || cName.Contains("blockingwall");
+        }
+
+        private bool HasBlockingGeometryAtRoomEntrance(HospitalModule mod)
+        {
+            if (mod == null) return false;
+
+            Vector3 threshold;
+            Vector3 outwardDir;
+            TryGetRoomDoorwayData(mod, out threshold, out outwardDir);
+
+            Vector3[] probePoints = new Vector3[]
+            {
+                threshold - outwardDir * 0.55f,
+                threshold,
+                threshold + outwardDir * 0.85f
+            };
+
+            foreach (Vector3 point in probePoints)
+            {
+                Collider[] cols = Physics.OverlapSphere(point, 0.7f);
+                foreach (Collider col in cols)
+                {
+                    if (IsBlockingRoomGeometry(col)) return true;
+                }
+            }
+
+            return false;
+        }
+
+        private int ClearBlockingGeometryAtRoomEntrance(HospitalModule mod)
+        {
+            if (mod == null) return 0;
+
+            Vector3 threshold;
+            Vector3 outwardDir;
+            TryGetRoomDoorwayData(mod, out threshold, out outwardDir);
+            Vector3 inwardDir = -outwardDir;
+
+            Vector3[] probePoints = new Vector3[]
+            {
+                threshold + inwardDir * 0.55f,
+                threshold,
+                threshold + outwardDir * 0.9f
+            };
+
+            int removed = 0;
+            foreach (Vector3 point in probePoints)
+            {
+                Collider[] cols = Physics.OverlapSphere(point, 0.9f);
+                foreach (Collider col in cols)
+                {
+                    if (!IsBlockingRoomGeometry(col)) continue;
+
+                    col.enabled = false;
+                    if (col.gameObject.activeSelf)
+                    {
+                        col.gameObject.SetActive(false);
+                        removed++;
+                    }
+                }
+            }
+
+            return removed;
+        }
+
         private void CleanInternalRoomBlockingWalls(Transform parent)
         {
             int removedCount = 0;
@@ -2581,51 +2697,23 @@ namespace ModularHospital
                 if (mod == null || (mod.moduleType != ModuleType.SmallRoom && mod.moduleType != ModuleType.DirectorOffice)) continue;
 
                 Vector3 roomCenter = mod.transform.position + Vector3.up * 1.25f;
-                // Escanear volumen interior de la habitación (radio de 1.6m dentro de la celda 4x4m)
+                // Escanear volumen interior de la habitaci?n (radio de 1.6m dentro de la celda 4x4m)
                 Collider[] innerCols = Physics.OverlapSphere(roomCenter, 1.6f);
                 foreach (Collider col in innerCols)
                 {
                     if (col == null) continue;
                     if (col.transform.IsChildOf(mod.transform)) continue;
+                    if (!IsBlockingRoomGeometry(col)) continue;
 
-                    string cName = col.gameObject.name.ToLower();
-                    string rName = col.transform.root.name.ToLower();
-
-                    bool isProtected = rName.Contains("player") || rName.Contains("lamp") ||
-                                       cName.Contains("unified_floor") || cName.Contains("unified_ceiling") ||
-                                       cName.Contains("bed") || cName.Contains("cama") || cName.Contains("desk") ||
-                                       cName.Contains("mueble") || cName.Contains("table") || cName.Contains("chair");
-
-                    if (!isProtected && (cName.Contains("wall") || cName.Contains("pillar") || cName.Contains("solid") || cName.Contains("marco") || cName.Contains("frame")))
+                    col.enabled = false;
+                    if (col.gameObject.activeSelf)
                     {
-                        col.enabled = false;
                         col.gameObject.SetActive(false);
                         removedCount++;
                     }
                 }
 
-                // Desbloquear también la entrada frontal de la puerta (0.8m a 1.6m al frente del umbral)
-                Vector3 doorFront = mod.transform.position + Vector3.up * 1.25f + mod.transform.forward * (-1.8f);
-                Collider[] doorCols = Physics.OverlapSphere(doorFront, 0.9f);
-                foreach (Collider col in doorCols)
-                {
-                    if (col == null) continue;
-                    if (col.transform.IsChildOf(mod.transform)) continue;
-
-                    string cName = col.gameObject.name.ToLower();
-                    string rName = col.transform.root.name.ToLower();
-
-                    bool isProtected = rName.Contains("player") || rName.Contains("lamp") ||
-                                       cName.Contains("unified_floor") || cName.Contains("unified_ceiling") ||
-                                       cName.Contains("door") || cName.Contains("puerta");
-
-                    if (!isProtected && (cName.Contains("wall") || cName.Contains("pillar") || cName.Contains("solid")))
-                    {
-                        col.enabled = false;
-                        col.gameObject.SetActive(false);
-                        removedCount++;
-                    }
-                }
+                removedCount += ClearBlockingGeometryAtRoomEntrance(mod);
             }
             if (removedCount > 0)
             {

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 using System.Collections;
@@ -51,6 +51,7 @@ public class ElevatorController : MonoBehaviour
     private RoomLightsManager roomLightsManager;
     private PowerBox powerBox;
     private AudioSource audioSource;
+    private AudioSource sfxAudioSource;
 
     private Transform extButtonTrans;
     private Transform intButtonTrans;
@@ -92,6 +93,7 @@ public class ElevatorController : MonoBehaviour
         powerBox = FindObjectOfType<PowerBox>();
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+        sfxAudioSource = gameObject.AddComponent<AudioSource>();
         
         // Forzar audioSource a 2D (spatialBlend = 0f) y volumen al máximo (1.0f) para que el sonido de error/acceso denegado y viaje se escuchen recios y claros
         if (audioSource != null)
@@ -99,6 +101,14 @@ public class ElevatorController : MonoBehaviour
             audioSource.volume = 1.0f;
             audioSource.spatialBlend = 0.0f; // Sonido 2D (Estéreo directo en audífonos)
             audioSource.playOnAwake = false;
+        }
+
+        if (sfxAudioSource != null)
+        {
+            sfxAudioSource.volume = 1.0f;
+            sfxAudioSource.spatialBlend = 0.0f; // SFX UI/feedback siempre claros
+            sfxAudioSource.playOnAwake = false;
+            sfxAudioSource.loop = false;
         }
 
         if (startWithKeycard || bypassKeycard)
@@ -176,6 +186,7 @@ public class ElevatorController : MonoBehaviour
         if (callSound == null) callSound = Resources.Load<AudioClip>("Ascensor_Llamar");
         if (arriveSound == null) arriveSound = Resources.Load<AudioClip>("Ascensor_Llegar");
         if (errorSound == null) errorSound = Resources.Load<AudioClip>("Ascensor_Error");
+        if (errorSound == null) errorSound = Resources.Load<AudioClip>("errorSound");
         if (travelSound == null) travelSound = Resources.Load<AudioClip>("Ascensor_Viaje");
 
         // Configurar escalas y posiciones iniciales congeladas para contraccion anclada al pivote lateral exterior
@@ -565,8 +576,22 @@ public class ElevatorController : MonoBehaviour
 
     void PlaySound(AudioClip clip)
     {
-        if (audioSource != null && clip != null)
+        if (clip == null) return;
+
+        // Los sonidos cortos de feedback deben vivir aparte del audio de viaje/estado.
+        if (clip == errorSound)
         {
+            if (sfxAudioSource != null)
+            {
+                sfxAudioSource.Stop();
+                sfxAudioSource.PlayOneShot(clip, 1.0f);
+                return;
+            }
+        }
+
+        if (audioSource != null)
+        {
+            audioSource.Stop();
             audioSource.clip = clip;
             if (clip == callSound)
             {
