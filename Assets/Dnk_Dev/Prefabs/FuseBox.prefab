@@ -301,6 +301,7 @@ MonoBehaviour:
   fusesCount: 0
   fuseIcon: {fileID: 0}
   blackoutSoundClip: {fileID: 0}
+  internalFuseMesh: {fileID: 0}
 --- !u!1001 &1895603559763570724
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -352,6 +353,10 @@ PrefabInstance:
     - target: {fileID: 8655259114068704893, guid: 639ec624a2e431440861325d26393d07, type: 3}
       propertyPath: m_Name
       value: Fuse (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8655259114068704893, guid: 639ec624a2e431440861325d26393d07, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

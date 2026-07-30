@@ -1,0 +1,236 @@
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using System.Collections.Generic;
+
+/// <summary>
+/// Coordinador principal del menú. Inicializa sistemas y delega
+/// el renderizado de cada pantalla a sus subcomponentes.
+/// </summary>
+public class MainMenuManager : MonoBehaviour
+{
+    // ─── Estado compartido (accesible por los subcomponentes) ────────────────
+    public static bool startedFromMenu = false;
+
+    public enum MenuState { Main, LevelSelect, PlayOptions, Settings }
+    [HideInInspector] public MenuState currentState = MenuState.Main;
+
+    // ─── Referencias ─────────────────────────────────────────────────────────
+    public ModularHospital.ModularHospitalGenerator modularGenerator;
+
+    [Header("Título Personalizado")]
+    public string gameTitle = "SILENT DECAY";
+
+    [Header("Redes Sociales")]
+    public string instagramURL = "https://www.instagram.com/lxesusgarcial";
+    public string facebookURL  = "https://www.facebook.com/lXesusGarcial";
+    public string youtubeURL   = "https://www.youtube.com/@Xesus_Garcia";
+
+    [Header("Sonidos de Menú")]
+    public AudioClip menuMusic;
+
+    // ─── Estado de audio ─────────────────────────────────────────────────────
+    [HideInInspector] public AudioSource menuAudioSource;
+    [HideInInspector] public AudioSource sfxAudioSource;
+    [HideInInspector] public AudioClip   buttonClickSound;
+
+    // ─── Opciones persistentes ───────────────────────────────────────────────
+    [HideInInspector] public float mouseSensitivity = 2.0f;
+    [HideInInspector] public float masterVolume     = 1.0f;
+    [HideInInspector] public bool  isFullscreen     = true;
+
+    // ─── Textura de overlay ──────────────────────────────────────────────────
+    [HideInInspector] public Texture2D sidebarTex;
+
+    // ─── Subcomponentes de pantalla ──────────────────────────────────────────
+    private MenuCameraController  cameraController;
+    private MenuScreenMain        screenMain;
+    private MenuScreenLevelSelect screenLevelSelect;
+    private MenuScreenPlayOptions screenPlayOptions;
+    private MenuScreenSettings    screenSettings;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    void Start()
+    {
+        InitRenderSettings();
+        InitScreenOrientation();
+        InitGenerator();
+        InitTextures();
+        InitPreferences();
+        InitAudio();
+        InitSubScreens();
+    }
+
+    // ─── Inicialización ───────────────────────────────────────────────────────
+
+    void InitRenderSettings()
+    {
+        RenderSettings.ambientMode           = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight          = Color.black;
+        RenderSettings.ambientSkyColor       = Color.black;
+        RenderSettings.ambientEquatorColor   = Color.black;
+        RenderSettings.ambientGroundColor    = Color.black;
+        RenderSettings.ambientIntensity      = 0.0f;
+        RenderSettings.reflectionIntensity   = 0.0f;
+        RenderSettings.fog                   = true;
+        RenderSettings.fogColor              = Color.black;
+        RenderSettings.fogMode               = FogMode.ExponentialSquared;
+        RenderSettings.fogDensity            = 0.08f;
+
+        foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None))
+        {
+            if (l.type == LightType.Directional)
+            {
+                l.enabled   = false;
+                l.intensity = 0f;
+            }
+        }
+    }
+
+    void InitScreenOrientation()
+    {
+        Screen.orientation                     = ScreenOrientation.AutoRotation;
+        Screen.autorotateToPortrait            = false;
+        Screen.autorotateToPortraitUpsideDown  = false;
+        Screen.autorotateToLandscapeLeft       = true;
+        Screen.autorotateToLandscapeRight      = true;
+    }
+
+    void InitGenerator()
+    {
+        if (modularGenerator == null)
+            modularGenerator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>(true);
+
+        if (modularGenerator != null)
+        {
+            modularGenerator.isMenuMode      = true;
+            modularGenerator.generateOnStart = true;
+            modularGenerator.smallMapGridSize = new Vector2Int(8, 8);
+        }
+    }
+
+    void InitTextures()
+    {
+        sidebarTex = new Texture2D(2, 2);
+        Color c = new Color(0f, 0f, 0f, 0.45f);
+        sidebarTex.SetPixel(0, 0, c); sidebarTex.SetPixel(0, 1, c);
+        sidebarTex.SetPixel(1, 0, c); sidebarTex.SetPixel(1, 1, c);
+        sidebarTex.Apply();
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible   = true;
+    }
+
+    void InitPreferences()
+    {
+        mouseSensitivity     = PlayerPrefs.GetFloat("MouseSensitivity", 2.0f);
+        masterVolume         = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
+        AudioListener.volume = masterVolume;
+        isFullscreen         = Screen.fullScreen;
+
+        int qualityIdx = PlayerPrefs.GetInt("QualityLevel", 2);
+        QualitySettings.SetQualityLevel(qualityIdx, true);
+    }
+
+    void InitAudio()
+    {
+        GameObject audioObj = new GameObject("MenuAudioSource");
+        audioObj.transform.SetParent(transform);
+        menuAudioSource            = audioObj.AddComponent<AudioSource>();
+        menuAudioSource.loop       = true;
+        menuAudioSource.spatialBlend = 0f;
+        menuAudioSource.volume     = masterVolume * 0.6f;
+
+        AudioClip clip = menuMusic != null ? menuMusic : Resources.Load<AudioClip>("Audio/Menu/Song");
+        if (clip == null) clip = Resources.Load<AudioClip>("Song");
+        if (clip != null)
+        {
+            menuAudioSource.clip = clip;
+            menuAudioSource.Play();
+        }
+
+        buttonClickSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
+        GameObject sfxObj = new GameObject("MenuSFXAudioSource");
+        sfxObj.transform.SetParent(transform);
+        sfxAudioSource              = sfxObj.AddComponent<AudioSource>();
+        sfxAudioSource.spatialBlend = 0f;
+        sfxAudioSource.volume       = masterVolume * 0.85f;
+    }
+
+    void InitSubScreens()
+    {
+        cameraController  = new MenuCameraController();
+        cameraController.Init(this);
+
+        screenMain        = gameObject.AddComponent<MenuScreenMain>();
+        screenMain.Init(this);
+
+        screenLevelSelect = gameObject.AddComponent<MenuScreenLevelSelect>();
+        screenLevelSelect.Init(this);
+
+        screenPlayOptions = gameObject.AddComponent<MenuScreenPlayOptions>();
+        screenPlayOptions.Init(this);
+
+        screenSettings    = gameObject.AddComponent<MenuScreenSettings>();
+        screenSettings.Init(this);
+    }
+
+    // ─── Helpers públicos ─────────────────────────────────────────────────────
+
+    public void PlayClickSound()
+    {
+        if (sfxAudioSource != null && buttonClickSound != null)
+            sfxAudioSource.PlayOneShot(buttonClickSound);
+    }
+
+    public void GoTo(MenuState state) => currentState = state;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    void Update()
+    {
+        cameraController?.Tick();
+    }
+
+    void OnGUI()
+    {
+        // Escalado dinámico 1920x1080
+        Vector2 scaleRef = new Vector2(1920f, 1080f);
+        Matrix4x4 svMat = GUI.matrix;
+        GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity,
+            new Vector3(Screen.width / scaleRef.x, Screen.height / scaleRef.y, 1f));
+
+        // Overlay oscuro
+        GUI.DrawTexture(new Rect(0, 0, 1920f, 1080f), sidebarTex);
+
+        // Estilos compartidos
+        var styles = new MenuStyles();
+
+        // Título
+        GUILayout.BeginArea(new Rect(0, 60, 1920f, 150));
+        GUILayout.Label(gameTitle, styles.Title, GUILayout.Height(65));
+        GUILayout.Label("• REC  00:00:01  |  VHS  |  OCT.24 1997", styles.SubTitle, GUILayout.Height(22));
+        GUILayout.EndArea();
+
+        // Área de contenido
+        int menuW = (currentState == MenuState.LevelSelect) ? 1280 : 480;
+        int menuH = (currentState == MenuState.LevelSelect) ? 640  : 580;
+        float menuY = (currentState == MenuState.LevelSelect) ? (1080f / 2f - 240f) : (1080f / 2f - 200f);
+        GUILayout.BeginArea(new Rect(1920f / 2f - menuW / 2f, menuY, menuW, menuH));
+        GUILayout.Space(10);
+
+        switch (currentState)
+        {
+            case MenuState.Main:        screenMain?.Draw(styles);        break;
+            case MenuState.LevelSelect: screenLevelSelect?.Draw(styles); break;
+            case MenuState.PlayOptions: screenPlayOptions?.Draw(styles); break;
+            case MenuState.Settings:    screenSettings?.Draw(styles);    break;
+        }
+
+        GUILayout.EndArea();
+
+        // Redes sociales (en todas las pantallas excepto LevelSelect)
+        if (currentState != MenuState.LevelSelect)
+            screenMain?.DrawSocialButtons();
+
+        GUI.matrix = svMat;
+    }
+}
