@@ -10,8 +10,8 @@ public class WaterPuddle : MonoBehaviour
     void Start()
     {
         // Cargar los clips de sonido desde Resources
-        dripSound = Resources.Load<AudioClip>("Gotera");
-        wetStepSound = Resources.Load<AudioClip>("PisarAgua");
+        dripSound = Resources.Load<AudioClip>("Audio/Compartido/Gotera");
+        wetStepSound = Resources.Load<AudioClip>("Audio/Compartido/PisarAgua");
 
         // Fallbacks de seguridad en caso de usar nombres en inglés
         if (dripSound == null) dripSound = Resources.Load<AudioClip>("Drip");

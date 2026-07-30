@@ -340,7 +340,8 @@ public class TunnelsGenerator : MonoBehaviour
 		UnityEngine.Debug.Log($"[Performance] Paso 3: Horneado del NavMesh: {stopwatch.ElapsedMilliseconds} ms");
 		stopwatch.Restart();
 		SpawnEntities();
-		AudioClip audioClip = Resources.Load<AudioClip>("AmbienteTunel");
+		AudioClip audioClip = Resources.Load<AudioClip>("Audio/Tuneles/AmbienteTunel");
+		if (audioClip == null) audioClip = Resources.Load<AudioClip>("AmbienteTunel");
 		if (audioClip != null)
 		{
 			AudioSource audioSource = base.gameObject.AddComponent<AudioSource>();
@@ -1895,7 +1896,8 @@ public class TunnelsGenerator : MonoBehaviour
 		float thickness = 0.08f * mapScale; // 0.24f
 
 		// Materiales del metal de la cabina (Premium - Gris/Azulado industrial con textura)
-		Material cabinaMat = Resources.Load<Material>("Mat_Bed_Metal_01");
+		Material cabinaMat = Resources.Load<Material>("Materiales/Mat_Bed_Metal_01");
+		if (cabinaMat == null) cabinaMat = Resources.Load<Material>("Mat_Bed_Metal_01");
 		if (cabinaMat != null)
 		{
 			cabinaMat = Object.Instantiate(cabinaMat);
@@ -1916,7 +1918,8 @@ public class TunnelsGenerator : MonoBehaviour
 		bumperMat.SetFloat("_Smoothness", 0.15f);
 
 		// Material de las puertas (Gris acero brillante pulido con textura)
-		Material puertaMat = Resources.Load<Material>("Mat_Bed_Metal_01");
+		Material puertaMat = Resources.Load<Material>("Materiales/Mat_Bed_Metal_01");
+		if (puertaMat == null) puertaMat = Resources.Load<Material>("Mat_Bed_Metal_01");
 		if (puertaMat != null)
 		{
 			puertaMat = Object.Instantiate(puertaMat);
@@ -2256,12 +2259,14 @@ public class TunnelsGenerator : MonoBehaviour
 					{
 						consoleIndicatorLight.color = Color.red;
 					}
-					AudioClip audioClip = Resources.Load<AudioClip>("Apagon_Sonido");
+					AudioClip audioClip = Resources.Load<AudioClip>("Audio/Tuneles/Apagon_Sonido");
+					if (audioClip == null) audioClip = Resources.Load<AudioClip>("Apagon_Sonido");
 					if (audioClip != null)
 					{
 						AudioSource.PlayClipAtPoint(audioClip, consolePos, 1f);
 					}
-					AudioClip audioClip2 = Resources.Load<AudioClip>("FloodSiren");
+					AudioClip audioClip2 = Resources.Load<AudioClip>("Audio/Tuneles/FloodSiren");
+					if (audioClip2 == null) audioClip2 = Resources.Load<AudioClip>("FloodSiren");
 					if (pumpAudioSource != null && audioClip2 != null)
 					{
 						pumpAudioSource.clip = audioClip2;
@@ -2313,7 +2318,8 @@ public class TunnelsGenerator : MonoBehaviour
 			}
 			if (Mathf.CeilToInt(currentDrainageTime) % 4 == 0 && currentDrainageTime - Mathf.Floor(currentDrainageTime) < 0.05f)
 			{
-				AudioClip audioClip3 = Resources.Load<AudioClip>("Ascensor_Error");
+				AudioClip audioClip3 = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Error");
+				if (audioClip3 == null) audioClip3 = Resources.Load<AudioClip>("Ascensor_Error");
 				if (audioClip3 != null && playerObjInstance != null)
 				{
 					AudioSource.PlayClipAtPoint(audioClip3, playerObjInstance.transform.position, 0.45f);
@@ -2322,7 +2328,8 @@ public class TunnelsGenerator : MonoBehaviour
 			if (currentDrainageTime <= 0f)
 			{
 				escapeState = EscapeState.Ready;
-				AudioClip audioClip4 = Resources.Load<AudioClip>("successSound");
+				AudioClip audioClip4 = Resources.Load<AudioClip>("Audio/Hospital/successSound");
+				if (audioClip4 == null) audioClip4 = Resources.Load<AudioClip>("successSound");
 				if (audioClip4 != null)
 				{
 					AudioSource.PlayClipAtPoint(audioClip4, consolePos, 1f);
@@ -2401,7 +2408,8 @@ public class TunnelsGenerator : MonoBehaviour
 		Time.timeScale = 0f;
 		Cursor.lockState = CursorLockMode.None;
 		Cursor.visible = true;
-		AudioClip audioClip = Resources.Load<AudioClip>("SonidoEscape");
+		AudioClip audioClip = Resources.Load<AudioClip>("Audio/Tuneles/SonidoEscape");
+		if (audioClip == null) audioClip = Resources.Load<AudioClip>("SonidoEscape");
 		if (audioClip != null && playerObjInstance != null)
 		{
 			AudioSource.PlayClipAtPoint(audioClip, playerObjInstance.transform.position, 1f);

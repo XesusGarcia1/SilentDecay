@@ -150,14 +150,17 @@ public class EnemyAIController : MonoBehaviour
         // Auto-cargar sonido de persecucion si esta vacio
         if (chaseSoundClip == null)
         {
-            chaseSoundClip = Resources.Load<AudioClip>("Monstruo_Alerta");
+            chaseSoundClip = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/Persecusion");
+            if (chaseSoundClip == null) chaseSoundClip = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/Monstruo_Alerta");
+            if (chaseSoundClip == null) chaseSoundClip = Resources.Load<AudioClip>("Persecusion");
+            if (chaseSoundClip == null) chaseSoundClip = Resources.Load<AudioClip>("Monstruo_Alerta");
             if (chaseSoundClip != null)
             {
-                Debug.Log("EnemyAIController: Foco de persecucion 'Monstruo_Alerta' cargado exitosamente.");
+                Debug.Log("EnemyAIController: Foco de persecucion cargado exitosamente: " + chaseSoundClip.name);
             }
             else
             {
-                Debug.LogError("EnemyAIController: ¡CRÍTICO! No se encontró 'Monstruo_Alerta' en Assets/Resources.");
+                Debug.LogError("EnemyAIController: ¡CRÍTICO! No se encontró sonido de persecución en Assets/Resources.");
             }
         }
 

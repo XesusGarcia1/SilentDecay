@@ -42,7 +42,8 @@ public class HallucinationGhost : MonoBehaviour
         audioSource.maxDistance = 15.0f;
         audioSource.volume = 0.8f;
 
-        whispersSound = Resources.Load<AudioClip>("Susurros");
+        // Auto-cargar audio si no está asignado
+        if (whispersSound == null) whispersSound = Resources.Load<AudioClip>("Audio/Compartido/Susurros");
         audioSource.clip = whispersSound;
 
         renderers = GetComponentsInChildren<Renderer>(true);

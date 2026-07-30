@@ -48,8 +48,11 @@ public class TunnelsPowerOutageManager : MonoBehaviour
         globalAudioSource.playOnAwake = false;
 
         // Cargar sonidos
-        outageStartClip = Resources.Load<AudioClip>("Apagon_Sonido");
-        outageEndClip = Resources.Load<AudioClip>("Interruptor");
+        outageStartClip = Resources.Load<AudioClip>("Audio/Tuneles/Apagon_Sonido");
+        if (outageStartClip == null) outageStartClip = Resources.Load<AudioClip>("Apagon_Sonido");
+        
+        outageEndClip = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
+        if (outageEndClip == null) outageEndClip = Resources.Load<AudioClip>("Interruptor");
 
         // Iniciar la corrutina del ciclo de energía
         StartCoroutine(PowerCycleRoutine());

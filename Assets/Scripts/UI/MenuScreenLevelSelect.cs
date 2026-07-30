@@ -11,7 +11,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
     public void Init(MainMenuManager manager)
     {
         ctx = manager;
-        texHospitalThumb = Resources.Load<Texture2D>("game1");
+        texHospitalThumb = Resources.Load<Texture2D>("Texturas/UI/game1");
     }
 
     public void Draw(MenuStyles s)

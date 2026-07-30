@@ -10,7 +10,7 @@ public class WaterDrip : MonoBehaviour
     void Start()
     {
         // Cargar el clip de gotera
-        AudioClip clip = Resources.Load<AudioClip>("Gotera");
+        AudioClip clip = Resources.Load<AudioClip>("Audio/Compartido/Gotera");
         if (clip == null) clip = Resources.Load<AudioClip>("Drip");
 
         if (clip != null)

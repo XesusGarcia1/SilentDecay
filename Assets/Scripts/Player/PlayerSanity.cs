@@ -35,7 +35,7 @@ public class PlayerSanity : MonoBehaviour
         // Cargar el sonido de susurros copiado en Resources
         if (whispersSound == null)
         {
-            whispersSound = Resources.Load<AudioClip>("Susurros");
+            whispersSound = Resources.Load<AudioClip>("Audio/Compartido/Susurros");
         }
 
         // Inicializar AudioSource para los susurros (sonido 2D en la cabeza del jugador)

@@ -38,13 +38,13 @@ namespace ModularHospital
             audioSource.maxDistance = 10f;
         }
 
+        if (openSound == null) openSound = Resources.Load<AudioClip>("Audio/Hospital/OpenDrawer");
         if (openSound == null) openSound = Resources.Load<AudioClip>("OpenDrawer");
-        if (openSound == null) openSound = Resources.Load<AudioClip>("Open_Drawer");
-        if (openSound == null) openSound = Resources.Load<AudioClip>("Interruptor");
+        if (openSound == null) openSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
 
+        if (closeSound == null) closeSound = Resources.Load<AudioClip>("Audio/Hospital/CloseDrawer");
         if (closeSound == null) closeSound = Resources.Load<AudioClip>("CloseDrawer");
-        if (closeSound == null) closeSound = Resources.Load<AudioClip>("Close_Drawer");
-        if (closeSound == null) closeSound = Resources.Load<AudioClip>("Interruptor");
+        if (closeSound == null) closeSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
 
         // Configurar BoxCollider de interacción para el cajón y DESACTIVAR colisiones físicas sólidas en la malla móvil
         Collider[] allCols = GetComponentsInChildren<Collider>(true);

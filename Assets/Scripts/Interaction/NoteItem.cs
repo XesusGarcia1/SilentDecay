@@ -109,7 +109,7 @@ public class NoteItem : MonoBehaviour
         ElevatorController.RegisterNote(digitPosition, digitValue);
 
         // Cargar el sonido realista de tomar/hojear papel
-        AudioClip pickupSound = Resources.Load<AudioClip>("Nota_Grab");
+        AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Hospital/Nota_Grab");
         if (pickupSound != null)
         {
             // Reproducir en la cámara principal para que se escuche directamente en los oídos del jugador

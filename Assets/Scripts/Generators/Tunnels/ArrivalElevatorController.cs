@@ -79,7 +79,8 @@ public class ArrivalElevatorController : MonoBehaviour
 		float travelDuration = 2f;
 		Vector3 originalCamLocalPos = ((Camera.main != null) ? Camera.main.transform.localPosition : Vector3.zero);
 		
-		AudioClip travelClip = Resources.Load<AudioClip>("Ascensor_Viaje");
+		AudioClip travelClip = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Viaje");
+		if (travelClip == null) travelClip = Resources.Load<AudioClip>("Ascensor_Viaje");
 		AudioSource humSource = null;
 		if (travelClip != null)
 		{
@@ -121,7 +122,8 @@ public class ArrivalElevatorController : MonoBehaviour
 		}
 
 		// Sonido Ding de llegada
-		AudioClip arriveClip = Resources.Load<AudioClip>("Ascensor_Llegar");
+		AudioClip arriveClip = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Llegar");
+		if (arriveClip == null) arriveClip = Resources.Load<AudioClip>("Ascensor_Llegar");
 		if (arriveClip != null)
 		{
 			AudioSource.PlayClipAtPoint(arriveClip, transform.position, 0.9f);

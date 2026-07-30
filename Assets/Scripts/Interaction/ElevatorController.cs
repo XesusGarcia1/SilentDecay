@@ -182,11 +182,19 @@ public class ElevatorController : MonoBehaviour
         Transform intScreenTrans = transform.Find("BotoneraInterior/PantallaPisoInterior");
         if (intScreenTrans != null) intScreenRenderer = intScreenTrans.GetComponent<Renderer>();
 
-        // Cargar sonidos automáticamente desde la carpeta Assets/Resources al iniciar
+        // Cargar sonidos automáticamente desde la carpeta Assets/Resources al iniciar (probando rutas organizadas y fallbacks)
+        if (callSound == null) callSound = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Llamar");
         if (callSound == null) callSound = Resources.Load<AudioClip>("Ascensor_Llamar");
+
+        if (arriveSound == null) arriveSound = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Llegar");
         if (arriveSound == null) arriveSound = Resources.Load<AudioClip>("Ascensor_Llegar");
+
+        if (errorSound == null) errorSound = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Error");
+        if (errorSound == null) errorSound = Resources.Load<AudioClip>("Audio/Hospital/errorSound");
         if (errorSound == null) errorSound = Resources.Load<AudioClip>("Ascensor_Error");
         if (errorSound == null) errorSound = Resources.Load<AudioClip>("errorSound");
+
+        if (travelSound == null) travelSound = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Viaje");
         if (travelSound == null) travelSound = Resources.Load<AudioClip>("Ascensor_Viaje");
 
         // Configurar escalas y posiciones iniciales congeladas para contraccion anclada al pivote lateral exterior

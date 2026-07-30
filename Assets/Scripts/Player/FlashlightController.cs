@@ -33,7 +33,7 @@ public class FlashlightController : MonoBehaviour
         // Si no se asignó sonido o la referencia está rota, cargamos desde Resources
         if (clickSound == null || !clickSound)
         {
-            clickSound = Resources.Load<AudioClip>("Linterna_Click");
+            clickSound = Resources.Load<AudioClip>("Audio/Compartido/Linterna_Click");
         }
 
         // Si no se asign luz en el Inspector, la creamos dinmicamente

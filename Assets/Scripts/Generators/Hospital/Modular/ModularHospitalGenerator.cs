@@ -556,8 +556,8 @@ namespace ModularHospital
             RenderSettings.fogEndDistance = 14.0f;
 
             // MÚSICA AMBIENTAL DEL MAPA DE HOSPITAL (Music Hospital Level)
-            AudioClip hospitalMusic = Resources.Load<AudioClip>("Music Hospital Level");
-            if (hospitalMusic == null) hospitalMusic = Resources.Load<AudioClip>("Music_Hospital_Level");
+            AudioClip hospitalMusic = Resources.Load<AudioClip>("Audio/Hospital/Music Hospital Level");
+            if (hospitalMusic == null) hospitalMusic = Resources.Load<AudioClip>("Music Hospital Level");
             if (hospitalMusic != null)
             {
                 AudioSource bgAudio = GetComponent<AudioSource>();
@@ -1327,101 +1327,115 @@ namespace ModularHospital
 #endif
             }
 
-            // 1. Spawning FuseBox adosada 100% a la pared sólida de un pasillo recto (Module_StraightCorridor)
+            // 1. Spawning FuseBox preferentemente en SpawnPoints asignados o adosada a pared de pasillo recto
             if (fuseBoxPrefab != null)
             {
-                // Buscar exclusivamente módulos de PASILLO RECTO (Module_StraightCorridor)
-                HospitalModule targetModule = null;
-                List<HospitalModule> straightCorridors = new List<HospitalModule>();
-                foreach (HospitalModule mod in placedModules)
-                {
-                    if (mod != null && mod.moduleType == ModuleType.StraightCorridor)
-                    {
-                        // Excluir si está demasiado cerca del elevador o generadores (> 8.0m de distancia mínima)
-                        if (lastElevatorPos.x > -900f && Vector3.Distance(mod.transform.position, lastElevatorPos) < 6.0f) continue;
-
-                        bool nearGen = false;
-                        SubGenerator[] existingGens = FindObjectsOfType<SubGenerator>();
-                        foreach (var gen in existingGens)
-                        {
-                            if (gen != null && Vector3.Distance(mod.transform.position, gen.transform.position) < 8.0f)
-                            {
-                                nearGen = true;
-                                break;
-                            }
-                        }
-                        if (nearGen) continue;
-
-                        straightCorridors.Add(mod);
-                    }
-                }
-
-                if (straightCorridors.Count > 0)
-                {
-                    targetModule = straightCorridors[Random.Range(0, straightCorridors.Count)];
-                }
-
                 Vector3 finalFbPos = transform.position + Vector3.up * 1.25f;
                 Quaternion finalFbRot = Quaternion.identity;
+                bool foundSpawnPoint = false;
 
-                if (targetModule != null)
+                // Buscar prioritariamente un Transform asignado para FuseBox en los módulos colocados
+                foreach (HospitalModule mod in placedModules)
                 {
-                    // Un módulo de pasillo recto (4x4m) tiene sus dos paredes sólidas a los lados (local X = -1.85m o X = +1.85m)
-                    float sideX = Random.value > 0.5f ? -1.85f : 1.85f;
-                    Vector3 localWallPos = new Vector3(sideX, 1.25f, 0f);
-                    finalFbPos = targetModule.transform.TransformPoint(localWallPos);
-
-                    // Raycast desde el centro del pasillo hacia la pared lateral para adosar perfectamente la caja de fusibles
-                    Vector3 moduleCenter = targetModule.transform.position + Vector3.up * 1.25f;
-                    Vector3 rayDir = (finalFbPos - moduleCenter).normalized;
-                    RaycastHit wallHit;
-                    if (Physics.Raycast(moduleCenter, rayDir, out wallHit, 2.5f))
+                    if (mod == null) continue;
+                    Transform[] allT = mod.GetComponentsInChildren<Transform>(true);
+                    foreach (Transform t in allT)
                     {
-                        finalFbPos = wallHit.point + wallHit.normal * 0.12f; // Adosar la base a la pared lisa
-                        finalFbRot = Quaternion.LookRotation(wallHit.normal, Vector3.up); // La puerta y frente miran 100% hacia el centro del pasillo
+                        if (t == null) continue;
+                        string tName = t.name.ToLower();
+                        if (tName.Contains("fuseboxspawn") || tName.Contains("fuse_box_spawn") || tName.Contains("spawnpoint_fusebox") || tName.Contains("spawn_fusebox"))
+                        {
+                            finalFbPos = t.position;
+                            finalFbRot = t.rotation;
+                            foundSpawnPoint = true;
+                            Debug.Log($"[FuseBox] Encontrado SpawnPoint designado '{t.name}' en módulo {mod.name}.");
+                            break;
+                        }
                     }
-                    else
+                    if (foundSpawnPoint) break;
+                }
+
+                if (!foundSpawnPoint)
+                {
+                    // Buscar exclusivamente módulos de PASILLO RECTO (Module_StraightCorridor)
+                    HospitalModule targetModule = null;
+                    List<HospitalModule> straightCorridors = new List<HospitalModule>();
+                    foreach (HospitalModule mod in placedModules)
                     {
-                        finalFbRot = targetModule.transform.rotation * Quaternion.Euler(0f, sideX < 0f ? 90f : 270f, 0f);
+                        if (mod != null && mod.moduleType == ModuleType.StraightCorridor)
+                        {
+                            // Excluir si está demasiado cerca del elevador o generadores (> 8.0m de distancia mínima)
+                            if (lastElevatorPos.x > -900f && Vector3.Distance(mod.transform.position, lastElevatorPos) < 6.0f) continue;
+
+                            bool nearGen = false;
+                            SubGenerator[] existingGens = FindObjectsOfType<SubGenerator>();
+                            foreach (var gen in existingGens)
+                            {
+                                if (gen != null && Vector3.Distance(mod.transform.position, gen.transform.position) < 8.0f)
+                                {
+                                    nearGen = true;
+                                    break;
+                                }
+                            }
+                            if (nearGen) continue;
+
+                            straightCorridors.Add(mod);
+                        }
+                    }
+
+                    if (straightCorridors.Count > 0)
+                    {
+                        targetModule = straightCorridors[Random.Range(0, straightCorridors.Count)];
+                    }
+
+                    if (targetModule != null)
+                    {
+                        float sideX = Random.value > 0.5f ? -1.85f : 1.85f;
+                        Vector3 localWallPos = new Vector3(sideX, 1.25f, 0f);
+                        finalFbPos = targetModule.transform.TransformPoint(localWallPos);
+
+                        Vector3 moduleCenter = targetModule.transform.position + Vector3.up * 1.25f;
+                        Vector3 rayDir = (finalFbPos - moduleCenter).normalized;
+                        RaycastHit wallHit;
+                        // Usar raycast ignorando triggers/props
+                        if (Physics.Raycast(moduleCenter, rayDir, out wallHit, 2.5f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                        {
+                            finalFbPos = wallHit.point + wallHit.normal * 0.15f; // Adosar la base despejada de la pared
+                            finalFbRot = Quaternion.LookRotation(wallHit.normal, Vector3.up); // Mirar hacia el pasillo
+                        }
+                        else
+                        {
+                            finalFbRot = targetModule.transform.rotation * Quaternion.Euler(0f, sideX < 0f ? 90f : 270f, 0f);
+                        }
                     }
                 }
 
-                // Instanciar la Caja de Fusibles sobre la pared del pasillo recto
+                // Instanciar la Caja de Fusibles
                 GameObject fbObj = Instantiate(fuseBoxPrefab, finalFbPos, finalFbRot, parent);
                 fbObj.name = "[Hospital_FuseBox]";
 
-                // BUSCAR EL PUNTO PIVOTE 'celling' EN TODA LA JERARQUÍA Y ASENTARLO 100% SOBRE EL PISO (Y = 0.0m)
-                Transform cellingPt = null;
-                foreach (Transform child in fbObj.GetComponentsInChildren<Transform>(true))
+                // Si se usó pasillo y no spawn point, ajustar altura suavemente si es necesario
+                if (!foundSpawnPoint)
                 {
-                    if (child == null) continue;
-                    string cName = child.name.ToLower();
-                    if (cName.Contains("celling") || cName.Contains("ceiling") || cName.Contains("tubo") || cName.Contains("pipe"))
+                    Transform cellingPt = null;
+                    foreach (Transform child in fbObj.GetComponentsInChildren<Transform>(true))
                     {
-                        cellingPt = child;
-                        break;
+                        if (child == null) continue;
+                        string cName = child.name.ToLower();
+                        if (cName.Contains("celling") || cName.Contains("ceiling"))
+                        {
+                            cellingPt = child;
+                            break;
+                        }
+                    }
+
+                    if (cellingPt != null)
+                    {
+                        float yDiff = transform.position.y - cellingPt.position.y;
+                        fbObj.transform.position += new Vector3(0, yDiff, 0);
                     }
                 }
 
-                if (cellingPt != null)
-                {
-                    float yDiff = transform.position.y - cellingPt.position.y;
-                    fbObj.transform.position += new Vector3(0, yDiff, 0);
-                    Debug.Log("ModularHospitalGenerator: Caja de fusibles asentada en piso usando pivote 'celling'.");
-                }
-                else
-                {
-                    MeshRenderer mr = fbObj.GetComponentInChildren<MeshRenderer>();
-                    if (mr != null)
-                    {
-                        float minY = mr.bounds.min.y;
-                        float yOffset = transform.position.y - minY;
-                        if (Mathf.Abs(yOffset) > 0.001f)
-                        {
-                            fbObj.transform.position += new Vector3(0, yOffset, 0);
-                        }
-                    }
-                }
 
                 PowerBox pBox = fbObj.GetComponent<PowerBox>();
                 if (pBox == null) pBox = fbObj.AddComponent<PowerBox>();
@@ -2696,20 +2710,35 @@ namespace ModularHospital
             {
                 if (mod == null || (mod.moduleType != ModuleType.SmallRoom && mod.moduleType != ModuleType.DirectorOffice)) continue;
 
+                List<Vector3> scanPoints = new List<Vector3>();
                 Vector3 roomCenter = mod.transform.position + Vector3.up * 1.25f;
-                // Escanear volumen interior de la habitaci?n (radio de 1.6m dentro de la celda 4x4m)
-                Collider[] innerCols = Physics.OverlapSphere(roomCenter, 1.6f);
-                foreach (Collider col in innerCols)
-                {
-                    if (col == null) continue;
-                    if (col.transform.IsChildOf(mod.transform)) continue;
-                    if (!IsBlockingRoomGeometry(col)) continue;
+                scanPoints.Add(roomCenter);
 
-                    col.enabled = false;
-                    if (col.gameObject.activeSelf)
+                // Si es la Oficina del Director (o habitación amplia), agregar puntos de escaneo desplazados (cuadrantes interiores)
+                if (mod.moduleType == ModuleType.DirectorOffice)
+                {
+                    scanPoints.Add(roomCenter + mod.transform.forward * 1.2f);
+                    scanPoints.Add(roomCenter - mod.transform.forward * 1.2f);
+                    scanPoints.Add(roomCenter + mod.transform.right * 1.2f);
+                    scanPoints.Add(roomCenter - mod.transform.right * 1.2f);
+                }
+
+                foreach (Vector3 p in scanPoints)
+                {
+                    float radius = mod.moduleType == ModuleType.DirectorOffice ? 1.85f : 1.6f;
+                    Collider[] innerCols = Physics.OverlapSphere(p, radius);
+                    foreach (Collider col in innerCols)
                     {
-                        col.gameObject.SetActive(false);
-                        removedCount++;
+                        if (col == null) continue;
+                        if (col.transform.IsChildOf(mod.transform)) continue;
+                        if (!IsBlockingRoomGeometry(col)) continue;
+
+                        col.enabled = false;
+                        if (col.gameObject.activeSelf)
+                        {
+                            col.gameObject.SetActive(false);
+                            removedCount++;
+                        }
                     }
                 }
 
@@ -2955,7 +2984,7 @@ namespace ModularHospital
             targetLight = GetComponent<Light>();
             
             // Cargar el clip de audio de zumbido/chispazo de lámpara
-            flickerClip = Resources.Load<AudioClip>("Error Light Sound");
+            flickerClip = Resources.Load<AudioClip>("Audio/Hospital/ErrorLightSound");
             if (flickerClip == null) flickerClip = Resources.Load<AudioClip>("ErrorLightSound");
 
             if (flickerClip != null)

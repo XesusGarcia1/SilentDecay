@@ -103,7 +103,7 @@ public class BatteryItem : MonoBehaviour
             pBox.ShowMessage($"Pila de repuesto recogida! Batería cargada +{rechargeAmount}%", Color.green, 3.5f);
         }
 
-        AudioClip pickupSound = Resources.Load<AudioClip>("Interruptor");
+        AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
         if (pickupSound != null)
         {
             AudioSource.PlayClipAtPoint(pickupSound, transform.position, 1.0f);

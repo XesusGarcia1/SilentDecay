@@ -16,9 +16,9 @@ public class MenuScreenMain : MonoBehaviour
     public void Init(MainMenuManager manager)
     {
         ctx = manager;
-        texInstagram = Resources.Load<Texture2D>("social_instagram");
-        texFacebook  = Resources.Load<Texture2D>("social_facebook");
-        texYoutube   = Resources.Load<Texture2D>("social_youtube");
+        texInstagram = Resources.Load<Texture2D>("Texturas/UI/social_instagram");
+        texFacebook  = Resources.Load<Texture2D>("Texturas/UI/social_facebook");
+        texYoutube   = Resources.Load<Texture2D>("Texturas/UI/social_youtube");
     }
 
     public void Draw(MenuStyles s)

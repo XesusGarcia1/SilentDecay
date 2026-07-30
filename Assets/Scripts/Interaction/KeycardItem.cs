@@ -135,7 +135,7 @@ public class KeycardItem : MonoBehaviour
             Debug.Log("KeycardItem: Apagón y rugido forzado dinámicamente al recoger la tarjeta.");
         }
 
-        AudioClip pickupSound = Resources.Load<AudioClip>("Interruptor");
+        AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
         if (pickupSound != null)
         {
             AudioSource.PlayClipAtPoint(pickupSound, transform.position, 1.0f);

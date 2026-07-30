@@ -70,19 +70,18 @@ public class PlayerHealth : MonoBehaviour
             healthText.gameObject.SetActive(false);
         }
 
-        // Cargar el sonido de latido desde Resources como fallback
-        if (heartbeatSound == null)
-        {
-            heartbeatSound = Resources.Load<AudioClip>("Latido");
-        }
+        // Intentar auto-cargar latido de corazón desde Resources si no está configurado
+        if (heartbeatSound == null) heartbeatSound = Resources.Load<AudioClip>("Audio/Compartido/Latido");
 
-        // Crear el AudioSource para reproducir los latidos en 2D (directo al oído del jugador)
-        heartbeatAudioSource = gameObject.AddComponent<AudioSource>();
-        heartbeatAudioSource.clip = heartbeatSound;
-        heartbeatAudioSource.loop = true;
-        heartbeatAudioSource.volume = 0f;
-        heartbeatAudioSource.spatialBlend = 0f; // Sonido Estéreo
-        heartbeatAudioSource.Play();
+        if (heartbeatSound != null)
+        {
+            heartbeatAudioSource = gameObject.AddComponent<AudioSource>();
+            heartbeatAudioSource.clip = heartbeatSound;
+            heartbeatAudioSource.loop = true;
+            heartbeatAudioSource.spatialBlend = 0f; // Sonido Estéreo
+            heartbeatAudioSource.volume = 0f;
+            heartbeatAudioSource.Play();
+        }
 
         // Generar una textura de Vignette (borde rojo) procedural al inicio
         CreateProceduralVignette();
@@ -98,13 +97,13 @@ public class PlayerHealth : MonoBehaviour
         string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         if (currentScene == "TunnelsMap")
         {
-            screamerSound = Resources.Load<AudioClip>("Screamer");
-            if (screamerSound == null) screamerSound = Resources.Load<AudioClip>("Monstruo_Alerta");
+            screamerSound = Resources.Load<AudioClip>("Audio/Compartido/Screamer");
+            if (screamerSound == null) screamerSound = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/Monstruo_Alerta");
         }
         else
         {
             // Hospital (SampleScene)
-            screamerSound = Resources.Load<AudioClip>("Monstruo_Alerta");
+            screamerSound = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/Monstruo_Alerta");
         }
     }
 

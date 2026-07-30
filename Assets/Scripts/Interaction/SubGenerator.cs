@@ -62,10 +62,11 @@ public class SubGenerator : MonoBehaviour
         }
         else
         {
-            audioSource.clip = Resources.Load<AudioClip>("activeLoopSound");
+            audioSource.clip = Resources.Load<AudioClip>("Audio/Hospital/activeLoopSound");
+            if (audioSource.clip == null) audioSource.clip = Resources.Load<AudioClip>("activeLoopSound");
             if (audioSource.clip == null)
             {
-                audioSource.clip = Resources.Load<AudioClip>("Ascensor_Viaje"); // Fallback secundario
+                audioSource.clip = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Viaje"); // Fallback secundario
             }
         }
         

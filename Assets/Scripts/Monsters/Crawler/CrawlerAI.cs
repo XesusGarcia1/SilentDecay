@@ -30,6 +30,10 @@ public class CrawlerAI : MonoBehaviour
     public AudioClip pisadasCercanasSound;
     public AudioClip pisadasLejanasSound;
 
+    [Header("Sonido de Persecución/Tensión")]
+    [Tooltip("AudioClip asignado para el momento de persecución (ej. Persecusion)")]
+    public AudioClip chaseSoundClip;
+
     private NavMeshAgent agent;
     private Animator animator;
     private Transform playerTransform;
@@ -37,6 +41,7 @@ public class CrawlerAI : MonoBehaviour
     private PlayerSanity playerSanity;
     private AudioSource spatialAudioSource;
     private AudioSource roarAudioSource;
+    private AudioSource chaseAudioSource;
     private AudioSource heartbeatAudioSource;
     private AudioClip heartbeatClip;
 
@@ -74,12 +79,39 @@ public class CrawlerAI : MonoBehaviour
         roarAudioSource.minDistance = 2.0f;
         roarAudioSource.maxDistance = 25.0f;
 
+        // Crear AudioSource exclusivo para sonido de persecución
+        chaseAudioSource = gameObject.AddComponent<AudioSource>();
+        chaseAudioSource.spatialBlend = 1.0f; // 3D
+        chaseAudioSource.minDistance = 3.0f;
+        chaseAudioSource.maxDistance = 25.0f;
+        chaseAudioSource.loop = true;
+
         // Auto-cargar sonidos desde Resources si no están asignados en el inspector
+        if (arrastreSound == null) arrastreSound = Resources.Load<AudioClip>("Audio/Monstruos/TheCreep/ArrastreRastrero");
         if (arrastreSound == null) arrastreSound = Resources.Load<AudioClip>("ArrastreRastrero");
+
+        if (rugidoSound == null) rugidoSound = Resources.Load<AudioClip>("Audio/Monstruos/TheCreep/RugidoRastrero");
         if (rugidoSound == null) rugidoSound = Resources.Load<AudioClip>("RugidoRastrero");
+
+        if (aullidoSound == null) aullidoSound = Resources.Load<AudioClip>("Audio/Monstruos/TheCreep/RastreroAullido");
         if (aullidoSound == null) aullidoSound = Resources.Load<AudioClip>("RastreroAullido");
+
+        if (pisadasCercanasSound == null) pisadasCercanasSound = Resources.Load<AudioClip>("Audio/Monstruos/TheCreep/PisadasCercasRastrero");
         if (pisadasCercanasSound == null) pisadasCercanasSound = Resources.Load<AudioClip>("PisadasCercasRastrero");
+
+        if (pisadasLejanasSound == null) pisadasLejanasSound = Resources.Load<AudioClip>("Audio/Monstruos/TheCreep/PisadasLejosRastrero");
         if (pisadasLejanasSound == null) pisadasLejanasSound = Resources.Load<AudioClip>("PisadasLejosRastrero");
+        if (chaseSoundClip == null)
+        {
+            chaseSoundClip = Resources.Load<AudioClip>("Audio/Monstruos/TheCreep/Persecucion");
+            if (chaseSoundClip == null) chaseSoundClip = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/Persecusion");
+            if (chaseSoundClip == null) chaseSoundClip = Resources.Load<AudioClip>("Persecucion");
+            if (chaseSoundClip == null) chaseSoundClip = Resources.Load<AudioClip>("Persecusion");
+        }
+        if (chaseSoundClip != null)
+        {
+            chaseAudioSource.clip = chaseSoundClip;
+        }
 
         // Iniciar sonido de arrastre continuo en segundo plano (volumen moderado)
         if (arrastreSound != null)
@@ -136,6 +168,7 @@ public class CrawlerAI : MonoBehaviour
         // 4. Comportamiento de IA: Huida -> Persecución en Oscuridad -> Patrullaje
         if (isFleeing)
         {
+            if (chaseAudioSource != null && chaseAudioSource.isPlaying) chaseAudioSource.Stop();
             fleeTimer -= Time.deltaTime;
             if (fleeTimer <= 0f)
             {
@@ -178,6 +211,12 @@ public class CrawlerAI : MonoBehaviour
                 agent.speed = chaseSpeed;
                 agent.SetDestination(playerTransform.position);
 
+                if (chaseAudioSource != null && chaseSoundClip != null && !chaseAudioSource.isPlaying)
+                {
+                    chaseAudioSource.clip = chaseSoundClip;
+                    chaseAudioSource.Play();
+                }
+
                 // Si alcanza al jugador en cuerpo a cuerpo (menos de 1.8m), infligir daño de salud real
                 if (distToPlayer <= 1.8f)
                 {
@@ -191,6 +230,10 @@ public class CrawlerAI : MonoBehaviour
             }
             else
             {
+                if (chaseAudioSource != null && chaseAudioSource.isPlaying)
+                {
+                    chaseAudioSource.Stop();
+                }
                 agent.speed = walkSpeed;
                 if (!agent.pathPending && agent.remainingDistance <= 0.8f)
                 {
@@ -342,7 +385,7 @@ public class CrawlerAI : MonoBehaviour
         // Control del Latido de corazón en audífonos (Audio 2D en la cabeza del jugador)
         if (heartbeatAudioSource == null && playerTransform != null)
         {
-            heartbeatClip = Resources.Load<AudioClip>("Latido");
+            heartbeatClip = Resources.Load<AudioClip>("Audio/Compartido/Latido");
             if (heartbeatClip != null)
             {
                 heartbeatAudioSource = playerTransform.gameObject.AddComponent<AudioSource>();

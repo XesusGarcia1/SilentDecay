@@ -47,13 +47,13 @@ public class KeypadController : MonoBehaviour
         audioSource.maxDistance = 10f;
 
         // Cargar sonidos por defecto de Resources si no están asignados en el Inspector
-        if (keySound == null) keySound = Resources.Load<AudioClip>("Interruptor"); 
+        if (keySound == null) keySound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor"); 
         
-        if (successSound == null) successSound = Resources.Load<AudioClip>("successSound");
-        if (successSound == null) successSound = Resources.Load<AudioClip>("Ascensor_Llegar"); // Fallback
+        if (successSound == null) successSound = Resources.Load<AudioClip>("Audio/Hospital/successSound");
+        if (successSound == null) successSound = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Llegar"); // Fallback
         
-        if (errorSound == null) errorSound = Resources.Load<AudioClip>("errorSound");
-        if (errorSound == null) errorSound = Resources.Load<AudioClip>("Ascensor_Error"); // Fallback
+        if (errorSound == null) errorSound = Resources.Load<AudioClip>("Audio/Hospital/errorSound");
+        if (errorSound == null) errorSound = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Error"); // Fallback
 
         if (screenText != null)
         {

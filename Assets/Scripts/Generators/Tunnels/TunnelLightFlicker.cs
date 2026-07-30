@@ -58,7 +58,8 @@ public class TunnelLightFlicker : MonoBehaviour
         audioSource.volume = 0.5f;
 
         // Cargar el sonido desde Resources
-        flickerSound = Resources.Load<AudioClip>("ErrorLightSound");
+        flickerSound = Resources.Load<AudioClip>("Audio/Hospital/ErrorLightSound");
+        if (flickerSound == null) flickerSound = Resources.Load<AudioClip>("ErrorLightSound");
         audioSource.clip = flickerSound;
 
         // 4. Iniciar ciclo de parpadeo/apagón

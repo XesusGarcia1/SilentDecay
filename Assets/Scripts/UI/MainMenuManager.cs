@@ -140,16 +140,20 @@ public class MainMenuManager : MonoBehaviour
         menuAudioSource.spatialBlend = 0f;
         menuAudioSource.volume     = masterVolume * 0.6f;
 
-        AudioClip clip = menuMusic != null ? menuMusic : Resources.Load<AudioClip>("Song");
-        if (clip != null) { menuAudioSource.clip = clip; menuAudioSource.Play(); }
+        AudioClip clip = menuMusic != null ? menuMusic : Resources.Load<AudioClip>("Audio/Menu/Song");
+        if (clip == null) clip = Resources.Load<AudioClip>("Song");
+        if (clip != null)
+        {
+            menuAudioSource.clip = clip;
+            menuAudioSource.Play();
+        }
 
+        buttonClickSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
         GameObject sfxObj = new GameObject("MenuSFXAudioSource");
         sfxObj.transform.SetParent(transform);
         sfxAudioSource              = sfxObj.AddComponent<AudioSource>();
         sfxAudioSource.spatialBlend = 0f;
         sfxAudioSource.volume       = masterVolume * 0.85f;
-
-        buttonClickSound = Resources.Load<AudioClip>("Interruptor");
     }
 
     void InitSubScreens()

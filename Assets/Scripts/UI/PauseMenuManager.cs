@@ -36,7 +36,7 @@ public class PauseMenuManager : MonoBehaviour
         pauseBgTex.Apply();
 
         // Cargar sonidos
-        buttonClickSound = Resources.Load<AudioClip>("Interruptor");
+        buttonClickSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
         sfxSource = gameObject.AddComponent<AudioSource>();
         sfxSource.playOnAwake = false;
         sfxSource.spatialBlend = 0.0f; // SFX 2D inmediato

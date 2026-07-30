@@ -187,13 +187,13 @@ public class PhenomenonAIController : MonoBehaviour
         heartbeatAudio.loop = true;
         heartbeatAudio.volume = 0f;
         heartbeatAudio.playOnAwake = false;
-        heartbeatAudio.clip = Resources.Load<AudioClip>("Latido");
+        heartbeatAudio.clip = Resources.Load<AudioClip>("Audio/Compartido/Latido");
  
         // Inicializar AudioSource 3D para el arrastre de garras (CERCANO)
         dragAudioSource = gameObject.AddComponent<AudioSource>();
         if (dragFingersSound == null)
         {
-            dragFingersSound = Resources.Load<AudioClip>("DragFingersSound");
+            dragFingersSound = Resources.Load<AudioClip>("Audio/Monstruos/Phenomenon/DragFingersSound");
         }
         dragAudioSource.clip = dragFingersSound;
         dragAudioSource.loop = true;
@@ -207,7 +207,7 @@ public class PhenomenonAIController : MonoBehaviour
         dragShortAudioSource = gameObject.AddComponent<AudioSource>();
         if (dragFingersSoundShort == null)
         {
-            dragFingersSoundShort = Resources.Load<AudioClip>("DragFingersSoundShort");
+            dragFingersSoundShort = Resources.Load<AudioClip>("Audio/Monstruos/Phenomenon/DragFingersSoundShort");
         }
         dragShortAudioSource.clip = dragFingersSoundShort;
         dragShortAudioSource.loop = true;
@@ -229,7 +229,7 @@ public class PhenomenonAIController : MonoBehaviour
         glowLight.shadows = LightShadows.None;
 
         // Inicializar Silbido de la Muerte
-        whistleClip = Resources.Load<AudioClip>("Silbido");
+        whistleClip = Resources.Load<AudioClip>("Audio/Monstruos/Phenomenon/Silbido");
         if (whistleClip == null) whistleClip = Resources.Load<AudioClip>("Whistle");
         
         if (whistleClip != null)
@@ -1019,10 +1019,11 @@ public class PhenomenonAIController : MonoBehaviour
             }
 
             // Sonido de susto/ataque (ej. Apagon + Susurros de golpe a volumen alto)
-            AudioClip sClip = Resources.Load<AudioClip>("Susurros");
+            AudioClip sClip = Resources.Load<AudioClip>("Audio/Compartido/Susurros");
             if (sClip != null) AudioSource.PlayClipAtPoint(sClip, player.position, 1.0f);
             
-            AudioClip aClip = Resources.Load<AudioClip>("Apagon");
+            AudioClip aClip = Resources.Load<AudioClip>("Audio/Tuneles/Apagon_Sonido");
+            if (aClip == null) aClip = Resources.Load<AudioClip>("Apagon");
             if (aClip != null) AudioSource.PlayClipAtPoint(aClip, player.position, 1.0f);
         }
 
@@ -1107,7 +1108,7 @@ public class PhenomenonAIController : MonoBehaviour
                     AudioSource audio = GetComponent<AudioSource>();
                     if (audio != null)
                     {
-                        AudioClip glitchSound = Resources.Load<AudioClip>("Linterna_Click");
+                        AudioClip glitchSound = Resources.Load<AudioClip>("Audio/Compartido/Linterna_Click");
                         if (glitchSound != null)
                         {
                             audio.PlayOneShot(glitchSound, 0.4f);
@@ -1575,7 +1576,8 @@ public class PhenomenonAIController : MonoBehaviour
                 }
 
                 // Play warp sound (Apagon) en la posición del jugador
-                AudioClip warpSound = Resources.Load<AudioClip>("Apagon");
+                AudioClip warpSound = Resources.Load<AudioClip>("Audio/Tuneles/Apagon_Sonido");
+                if (warpSound == null) warpSound = Resources.Load<AudioClip>("Apagon");
                 if (warpSound != null)
                 {
                     AudioSource.PlayClipAtPoint(warpSound, player.position, 0.9f);
@@ -1608,7 +1610,7 @@ public class PhenomenonAIController : MonoBehaviour
 
         AudioSource snd = scareSoundObj.AddComponent<AudioSource>();
         // Cargar el arrastre de garras
-        AudioClip clawClip = Resources.Load<AudioClip>("DragFingersSound");
+        AudioClip clawClip = Resources.Load<AudioClip>("Audio/Monstruos/Phenomenon/DragFingersSound");
         if (clawClip == null) clawClip = dragFingersSound;
         
         snd.clip = clawClip;
@@ -1866,26 +1868,34 @@ public class PhenomenonAIController : MonoBehaviour
 
                 if (agent.Warp(targetPos))
                 {
-                    ResetAgentPath();
-                    shadowWarpCooldownTimer = 4.0f; // Cooldown de 4 segundos para evitar spam
-
-                    // Sonido 3D de desaparición/reaparición espectral
-                    AudioClip warpSound = Resources.Load<AudioClip>("Susurros");
-                    if (warpSound != null)
-                    {
-                        AudioSource.PlayClipAtPoint(warpSound, player.position, 0.75f);
-                    }
-
-                    // Pequeña interferencia en la linterna
-                    FlashlightController fl = FindObjectOfType<FlashlightController>();
-                    if (fl != null)
-                    {
-                        StartCoroutine(GlitchFlashlightCoroutine(fl));
-                    }
-
-                    Debug.Log("[PhenomenonAIController] Salto de Sombras: Monstruo atravesó la luz y reapareció detrás del jugador.");
+                    PlayShadowWarpEvent();
                 }
             }
+        }
+    }
+
+    private void PlayShadowWarpEvent()
+    {
+        if (player != null)
+        {
+            ResetAgentPath();
+            shadowWarpCooldownTimer = 4.0f; // Cooldown de 4 segundos para evitar spam
+
+            // Sonido 3D de desaparición/reaparición espectral
+            AudioClip warpSound = Resources.Load<AudioClip>("Audio/Compartido/Susurros");
+            if (warpSound != null)
+            {
+                AudioSource.PlayClipAtPoint(warpSound, player.position, 0.75f);
+            }
+
+            // Pequeña interferencia en la linterna
+            FlashlightController fl = FindObjectOfType<FlashlightController>();
+            if (fl != null)
+            {
+                StartCoroutine(GlitchFlashlightCoroutine(fl));
+            }
+
+            Debug.Log("[PhenomenonAIController] Salto de Sombras: Monstruo atravesó la luz y reapareció detrás del jugador.");
         }
     }
 
@@ -1927,16 +1937,16 @@ public class PhenomenonAIController : MonoBehaviour
             int randType = Random.Range(0, 3);
             if (randType == 0)
             {
-                soundClip = Resources.Load<AudioClip>("DragFingersSoundShort");
+                soundClip = Resources.Load<AudioClip>("Audio/Monstruos/Phenomenon/DragFingersSoundShort");
             }
             else if (randType == 1)
             {
-                soundClip = Resources.Load<AudioClip>("DragFingersSound");
+                soundClip = Resources.Load<AudioClip>("Audio/Monstruos/Phenomenon/DragFingersSound");
                 vol *= 0.7f; // El largo es un poco más ruidoso
             }
             else
             {
-                soundClip = Resources.Load<AudioClip>("Susurros");
+                soundClip = Resources.Load<AudioClip>("Audio/Compartido/Susurros");
                 vol *= 0.6f;
             }
 
@@ -1981,9 +1991,17 @@ public class PhenomenonAIController : MonoBehaviour
 
         // Elegir aleatoriamente uno de los dos sonidos para evitar repetición constante
         int randSound = Random.Range(1, 3); // Retorna 1 o 2
-        AudioClip impactClip = Resources.Load<AudioClip>($"Impacto_{randSound}");
+        AudioClip impactClip = Resources.Load<AudioClip>($"Audio/Compartido/Impacto_{randSound}");
         
         // Búsqueda en cascada / Fallback de seguridad
+        if (impactClip == null)
+        {
+            impactClip = Resources.Load<AudioClip>("Audio/Compartido/Impacto_1");
+        }
+        if (impactClip == null)
+        {
+            impactClip = Resources.Load<AudioClip>("Audio/Tuneles/Apagon_Sonido");
+        }
         if (impactClip == null)
         {
             impactClip = Resources.Load<AudioClip>("Impacto");

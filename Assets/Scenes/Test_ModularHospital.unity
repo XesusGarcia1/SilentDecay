@@ -902,7 +902,7 @@ MonoBehaviour:
   footstepAudioSource: {fileID: 998392588}
   footstepSoundClip: {fileID: 8300000, guid: a2927b04d7eff8f40bf11a45f7866c17, type: 3}
   playerSprintDetector: {fileID: 0}
-  chaseSoundClip: {fileID: 0}
+  chaseSoundClip: {fileID: 8300000, guid: 96c6f180d541e034fb8ca20eabd13588, type: 3}
 --- !u!95 &998392592
 Animator:
   serializedVersion: 7
@@ -1568,6 +1568,7 @@ GameObject:
   - component: {fileID: 1421901079}
   - component: {fileID: 1421901078}
   - component: {fileID: 1421901083}
+  - component: {fileID: 1421901084}
   m_Layer: 0
   m_Name: TheCreep
   m_TagString: Untagged
@@ -1661,6 +1662,7 @@ MonoBehaviour:
   aullidoSound: {fileID: 8300000, guid: bf9c0ac953f0a8a4080aeb834a475dc1, type: 3}
   pisadasCercanasSound: {fileID: 8300000, guid: 0c6ceb94283ef004981d7003a6cff2d4, type: 3}
   pisadasLejanasSound: {fileID: 8300000, guid: b109e2c8d19b0c3409da340afff9c2b3, type: 3}
+  chaseSoundClip: {fileID: 0}
 --- !u!4 &1421901082
 Transform:
   m_ObjectHideFlags: 0
@@ -1699,6 +1701,27 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 0}
+--- !u!65 &1421901084
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1421901077}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1.6138371, y: 1.549051, z: 1.9282374}
+  m_Center: {x: -0.21145946, y: 0.6879152, z: -0.47539878}
 --- !u!1001 &1633655342
 PrefabInstance:
   m_ObjectHideFlags: 0

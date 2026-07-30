@@ -58,7 +58,8 @@ public class PowerBox : MonoBehaviour
 
         if (blackoutSoundClip == null)
         {
-            blackoutSoundClip = Resources.Load<AudioClip>("Apagon_Sonido");
+            blackoutSoundClip = Resources.Load<AudioClip>("Audio/Tuneles/Apagon_Sonido");
+            if (blackoutSoundClip == null) blackoutSoundClip = Resources.Load<AudioClip>("Apagon_Sonido");
         }
 
         if (electricitySound != null)
@@ -416,7 +417,9 @@ public class PowerBox : MonoBehaviour
             }
 
             // Reproducir sonido impactante de chispazo y cortocircuito directo en 2D en los oídos del jugador
-            AudioClip popClip = blackoutSoundClip != null ? blackoutSoundClip : Resources.Load<AudioClip>("Apagon_Sonido");
+            AudioClip popClip = blackoutSoundClip != null ? blackoutSoundClip : Resources.Load<AudioClip>("Audio/Tuneles/Apagon_Sonido");
+            if (popClip == null) popClip = Resources.Load<AudioClip>("Apagon_Sonido");
+            if (popClip == null) popClip = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
             if (popClip == null) popClip = Resources.Load<AudioClip>("Interruptor");
 
             if (popClip != null)
