@@ -17,6 +17,16 @@ public class NotepadUIManager : MonoBehaviour
     private Transform playerTransform;
     private static HashSet<Vector2Int> discoveredRooms = new HashSet<Vector2Int>();
 
+    public static void ResetNotepadData()
+    {
+        discoveredRooms.Clear();
+        for (int i = 0; i < foundNotes.Length; i++)
+        {
+            foundNotes[i] = -1;
+        }
+        Debug.Log("NotepadUIManager: Datos de libreta y mapa reseteados.");
+    }
+
     void Awake()
     {
         if (Instance == null)
@@ -41,18 +51,73 @@ public class NotepadUIManager : MonoBehaviour
         }
     }
 
+    private bool ShouldSuppressNotepadUI()
+    {
+        // 1. Si el juego está pausado
+        if (Time.timeScale == 0f) return true;
+
+        // 2. Si estamos en la escena de carga o menú principal
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (currentScene == "LoadingScene" || currentScene == "MainMenu") return true;
+
+        // 3. Si hay una pantalla de carga (SceneLoader) activa en escena
+        if (FindObjectOfType<SceneLoader>() != null) return true;
+
+        // 4. Si el generador está en modo menú
+        var generator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
+        if (generator != null && generator.isMenuMode) return true;
+
+        return false;
+    }
+
     void Update()
     {
-        // Ignorar si el juego está pausado o en menú principal
-        if (Time.timeScale == 0f) return;
-
-        var generator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
-        if (generator != null && generator.isMenuMode) return;
+        if (ShouldSuppressNotepadUI())
+        {
+            if (IsOpen) CloseNotepad();
+            return;
+        }
 
         // Escuchar únicamente la tecla TAB o botón táctil para la libreta
         if (Input.GetKeyDown(KeyCode.Tab) || MobileInput.GetKeyDown(KeyCode.Tab))
         {
             ToggleNotepad();
+        }
+
+        // Descubrir celdas del mapa continuamente en segundo plano mientras se explora el hospital
+        TrackMapExploration();
+    }
+
+    private void TrackMapExploration()
+    {
+        var gen = FindFirstObjectByType<ModularHospital.ModularHospitalGenerator>();
+        if (gen != null && gen.gridMatrix != null)
+        {
+            if (playerTransform == null) FindPlayer();
+            if (playerTransform == null) return;
+
+            int sX = gen.gridMatrix.GetLength(0);
+            int sZ = gen.gridMatrix.GetLength(1);
+
+            float halfW = (sX * 4.0f) / 2.0f;
+            float halfD = (sZ * 4.0f) / 2.0f;
+            Vector3 pLocal = playerTransform.position - gen.transform.position;
+            int pGX = Mathf.Clamp(Mathf.RoundToInt((pLocal.x + halfW - 2.0f) / 4.0f), 0, sX - 1);
+            int pGZ = Mathf.Clamp(Mathf.RoundToInt((pLocal.z + halfD - 2.0f) / 4.0f), 0, sZ - 1);
+
+            // Revelar celdas al explorar por proximidad (Radio 1 casilla)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    int cx = pGX + dx;
+                    int cz = pGZ + dz;
+                    if (cx >= 0 && cx < sX && cz >= 0 && cz < sZ)
+                    {
+                        discoveredRooms.Add(new Vector2Int(cx, cz));
+                    }
+                }
+            }
         }
     }
 
@@ -147,26 +212,51 @@ public class NotepadUIManager : MonoBehaviour
 
     void OnGUI()
     {
-        if (Time.timeScale == 0f) return;
+        if (ShouldSuppressNotepadUI()) return;
 
         if (!IsOpen)
         {
             var generator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
             if (generator != null && generator.isMenuMode) return;
 
-            // Dibujar botón HUD de Libreta [TAB] limpio en la esquina superior derecha
-            Rect iconRect = new Rect(Screen.width - 200, 25, 175, 42);
-            GUIStyle iconStyle = new GUIStyle();
-            iconStyle.fontSize = 15;
-            iconStyle.alignment = TextAnchor.MiddleCenter;
-            iconStyle.fontStyle = FontStyle.Bold;
+            // Reubicar botón de Libreta abajo del HUD de subgeneradores en la derecha, compacto y oscuro
+            int numGens = 0;
+            SubGenerator[] subGens = FindObjectsOfType<SubGenerator>();
+            if (subGens != null && subGens.Length > 0)
+            {
+                numGens = subGens.Length;
+            }
 
-            GUI.color = new Color(0f, 0.1f, 0.2f, 0.75f);
+            float yPos = 98f;
+            if (numGens > 0)
+            {
+                yPos = 98f + 65f + 8f; // Abajo de la caja de subgeneradores
+            }
+            else
+            {
+                yPos = 98f; // Si no hay subgeneradores, va justo abajo de la caja de fusibles (que termina en Y=90)
+            }
+
+            float rightEdge = Screen.width - 25f;
+            float btnSize = 50f;
+            Rect iconRect = new Rect(rightEdge - btnSize, yPos, btnSize, btnSize);
+
+            // Fondo semitransparente oscuro unificado (como fusibles y subgeneradores, no azul)
+            GUI.color = new Color(0f, 0f, 0f, 0.6f);
             GUI.DrawTexture(iconRect, Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            iconStyle.normal.textColor = new Color(0.2f, 0.85f, 1f);
-            if (GUI.Button(iconRect, "📝 LIBRETA [TAB]", iconStyle))
+            GUIStyle iconStyle = new GUIStyle(GUI.skin.button);
+            iconStyle.fontSize = 22;
+            iconStyle.alignment = TextAnchor.MiddleCenter;
+            iconStyle.fontStyle = FontStyle.Bold;
+            iconStyle.normal.background = null;
+            iconStyle.hover.background = null;
+            iconStyle.active.background = null;
+            iconStyle.normal.textColor = Color.white;
+            iconStyle.hover.textColor = new Color(0.9f, 0.9f, 0.9f);
+
+            if (GUI.Button(iconRect, "📝", iconStyle))
             {
                 OpenNotepad();
             }
@@ -489,6 +579,24 @@ public class NotepadUIManager : MonoBehaviour
                             qStyle.alignment = TextAnchor.MiddleCenter;
                             qStyle.normal.textColor = Color.black;
                             GUI.Label(cellRect, "?", qStyle);
+                        }
+                        GUI.color = Color.white;
+                    }
+                    else if (type == 1) // Pasillo caminable
+                    {
+                        if (isDiscovered)
+                        {
+                            // Pasillo descubierto (Color pergamino claro iluminado)
+                            GUI.color = new Color(0.88f, 0.85f, 0.75f, 0.95f);
+                            GUI.DrawTexture(cellRect, Texture2D.whiteTexture);
+                            GUI.color = new Color(0.4f, 0.4f, 0.35f, 0.3f);
+                            GUI.Box(cellRect, "");
+                        }
+                        else
+                        {
+                            // Pasillo no descubierto (Sombra de pergamino / Niebla)
+                            GUI.color = new Color(0.65f, 0.62f, 0.55f, 0.75f);
+                            GUI.DrawTexture(cellRect, Texture2D.whiteTexture);
                         }
                         GUI.color = Color.white;
                     }

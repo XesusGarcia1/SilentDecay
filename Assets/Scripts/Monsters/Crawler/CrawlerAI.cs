@@ -29,6 +29,14 @@ public class CrawlerAI : MonoBehaviour
     public AudioClip aullidoSound;
     public AudioClip pisadasCercanasSound;
     public AudioClip pisadasLejanasSound;
+    public AudioClip atackSound;
+
+    [Header("Ajustes de Ataque / Mordisco")]
+    [Tooltip("Tiempo de enfriamiento en segundos entre cada mordisco de ataque")]
+    public float attackBiteCooldown = 1.0f;
+    [Tooltip("Daño infligido a la salud del jugador por cada mordisco")]
+    public float biteDamage = 25.0f;
+    private float attackBiteTimer = 0f;
 
     [Header("Sonido de Persecución/Tensión")]
     [Tooltip("AudioClip asignado para el momento de persecución (ej. Persecusion)")]
@@ -106,6 +114,11 @@ public class CrawlerAI : MonoBehaviour
 
         if (pisadasLejanasSound == null) pisadasLejanasSound = Resources.Load<AudioClip>("Audio/Monstruos/TheCreep/PisadasLejosRastrero");
         if (pisadasLejanasSound == null) pisadasLejanasSound = Resources.Load<AudioClip>("PisadasLejosRastrero");
+
+        if (atackSound == null) atackSound = Resources.Load<AudioClip>("Audio/Monstruos/TheCreep/Atack");
+        if (atackSound == null) atackSound = Resources.Load<AudioClip>("Audio/Monstruos/TheCreep/atack");
+        if (atackSound == null) atackSound = Resources.Load<AudioClip>("Atack");
+        if (atackSound == null) atackSound = Resources.Load<AudioClip>("atack");
         if (chaseSoundClip == null)
         {
             chaseSoundClip = Resources.Load<AudioClip>("Audio/Monstruos/TheCreep/Persecucion");
@@ -335,6 +348,27 @@ public class CrawlerAI : MonoBehaviour
         }
         else if (playerTransform != null && agent != null && agent.enabled)
         {
+            // Comprobar si el jugador está escondido bajo la cama
+            HideUnderBed hideScript = FindObjectOfType<HideUnderBed>();
+            bool isPlayerHidden = hideScript != null && hideScript.isHiding;
+
+            if (isPlayerHidden)
+            {
+                if (chaseAudioSource != null && chaseAudioSource.isPlaying)
+                {
+                    chaseAudioSource.Stop();
+                }
+                agent.speed = walkSpeed;
+                if (animator != null) animator.speed = 1.0f;
+                
+                // Si el jugador está escondido, El Rastrero patrulla el perímetro exterior en vez de perseguir
+                if (!agent.pathPending && agent.remainingDistance <= 1.1f)
+                {
+                    SetNextPerimeterDestination();
+                }
+                return;
+            }
+
             float distToPlayer = Vector3.Distance(transform.position, playerTransform.position);
 
             // SISTEMA ANTI-DOBLE PERSECUCIÓN: Si BookHead ya está cerca (menos de 8m), El Rastrero se retira al perímetro
@@ -398,15 +432,31 @@ public class CrawlerAI : MonoBehaviour
                     }
                 }
 
-                // Si alcanza al jugador en cuerpo a cuerpo (menos de 1.8m), infligir daño de salud real
+                // Si alcanza al jugador en cuerpo a cuerpo (menos de 1.8m), infligir daño por mordisco periódico con el sonido atack
                 if (distToPlayer <= 1.8f)
                 {
-                    PlayerHealth hp = playerTransform.GetComponent<PlayerHealth>();
-                    if (hp == null) hp = playerTransform.GetComponentInParent<PlayerHealth>();
-                    if (hp != null)
+                    attackBiteTimer -= Time.deltaTime;
+                    if (attackBiteTimer <= 0f)
                     {
-                        hp.TakeDamage(18.0f * Time.deltaTime); // Infligir daño de garrazos/mordiscos
+                        attackBiteTimer = attackBiteCooldown;
+
+                        PlayerHealth hp = playerTransform.GetComponent<PlayerHealth>();
+                        if (hp == null) hp = playerTransform.GetComponentInParent<PlayerHealth>();
+                        if (hp != null)
+                        {
+                            hp.TakeDamage(biteDamage);
+                        }
+
+                        if (roarAudioSource != null && atackSound != null)
+                        {
+                            roarAudioSource.pitch = Random.Range(0.95f, 1.05f);
+                            roarAudioSource.PlayOneShot(atackSound, 1.0f);
+                        }
                     }
+                }
+                else
+                {
+                    attackBiteTimer = 0f;
                 }
             }
             else
@@ -625,6 +675,16 @@ public class CrawlerAI : MonoBehaviour
     void CheckSanityDrain()
     {
         if (playerTransform == null) return;
+
+        HideUnderBed hideScript = FindObjectOfType<HideUnderBed>();
+        if (hideScript != null && hideScript.isHiding)
+        {
+            if (heartbeatAudioSource != null)
+            {
+                heartbeatAudioSource.volume = Mathf.MoveTowards(heartbeatAudioSource.volume, 0f, Time.deltaTime * 0.5f);
+            }
+            return;
+        }
 
         float dist = Vector3.Distance(transform.position, playerTransform.position);
 

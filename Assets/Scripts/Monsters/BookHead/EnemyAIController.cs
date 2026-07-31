@@ -550,7 +550,8 @@ public class EnemyAIController : MonoBehaviour
             // LEGACY REMOVED: HospitalMazeGenerator.mapScale
             float currentMapScale = 4f;
 
-            if (currentState is EnemyChaseState && distanceToPlayer <= (5f * currentMapScale) && canSeePlayer)
+            bool visuallySawHide = fov != null && fov.CanSeePlayer();
+            if (currentState is EnemyChaseState && distanceToPlayer <= (5f * currentMapScale) && visuallySawHide)
             {
                 Debug.Log("El enemigo te vio esconderte!");
                 ChangeState(new EnemyAttackState(this, agent, anim, player));

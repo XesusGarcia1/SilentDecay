@@ -278,18 +278,20 @@ namespace ModularHospital
                 }
             }
 
-            // Asignar Habitaciones Normales
+            // Asignar Habitaciones Normales (Pase 1: Separación estricta de 3 celdas)
             int roomsPlaced = 0;
             foreach (Vector2Int cell in availableCells)
             {
                 if (roomsPlaced >= targetRoomCount) break;
                 if (gridMatrix[cell.x, cell.y] != 0) continue;
 
-                int minSeparation = 2; // Garantizar que NINGUNA habitación esté pegada o detrás de otra (mínimo 2 celdas de distancia)
+                int minSeparation = 3;
                 bool isTooClose = false;
                 foreach (Vector2Int rCell in roomCells)
                 {
-                    if (Mathf.Abs(rCell.x - cell.x) < minSeparation && Mathf.Abs(rCell.y - cell.y) < minSeparation)
+                    int dx = Mathf.Abs(rCell.x - cell.x);
+                    int dy = Mathf.Abs(rCell.y - cell.y);
+                    if (dx < minSeparation && dy < minSeparation)
                     {
                         isTooClose = true;
                         break;
@@ -303,6 +305,38 @@ namespace ModularHospital
                     roomsPlaced++;
 
                     EnsureDoorwayCorridor(cell.x, cell.y, sizeX, sizeZ);
+                }
+            }
+
+            // Pase 2 (Fallback para mapas pequeños): Usar separación de 2 celdas con regla estricta anti-pegadas (dx+dy >= 3)
+            if (roomsPlaced < targetRoomCount)
+            {
+                foreach (Vector2Int cell in availableCells)
+                {
+                    if (roomsPlaced >= targetRoomCount) break;
+                    if (gridMatrix[cell.x, cell.y] != 0) continue;
+
+                    bool isTooClose = false;
+                    foreach (Vector2Int rCell in roomCells)
+                    {
+                        int dx = Mathf.Abs(rCell.x - cell.x);
+                        int dy = Mathf.Abs(rCell.y - cell.y);
+                        // Jamás permitir habitaciones pegadas directa o diagonalmente (dx+dy < 3 o dx<2 && dy<2)
+                        if (dx + dy < 3 || (dx < 2 && dy < 2))
+                        {
+                            isTooClose = true;
+                            break;
+                        }
+                    }
+
+                    if (!isTooClose && HasAdjacentCorridor(cell.x, cell.y, sizeX, sizeZ))
+                    {
+                        gridMatrix[cell.x, cell.y] = 3;
+                        roomCells.Add(cell);
+                        roomsPlaced++;
+
+                        EnsureDoorwayCorridor(cell.x, cell.y, sizeX, sizeZ);
+                    }
                 }
             }
 
@@ -447,10 +481,24 @@ namespace ModularHospital
                 }
             }
 
-            // 0. REINICIAR LA LIBRETA DE NOTAS AL GENERAR EL MAPA
-            for (int i = 0; i < 7; i++)
+            // 0. REINICIAR LA LIBRETA DE NOTAS, EL MAPA Y LAS 3 VIDAS AL GENERAR UN NUEVO HOSPITAL
+            // IMPORTANTE: Solo inicializar vidas si es una partida NUEVA (vidasActuales == maxVidas o primera vez).
+            // Si el jugador ya tiene menos vidas (respawn mid-game), NO resetear — respetar el conteo actual.
+            NotepadUIManager.ResetNotepadData();
+            if (GameManager.Instance != null)
             {
-                ElevatorController.foundNotes[i] = -1;
+                // Detectar si esta es la primera vez que se genera (venimos del menú con vidas llenas)
+                // vs. una regeneración por respawn (el jugador ya tiene menos de maxVidas).
+                bool esPrimerGeneracion = (GameManager.Instance.vidasActuales >= GameManager.Instance.maxVidas);
+                if (esPrimerGeneracion)
+                {
+                    GameManager.Instance.InicializarVidasParaMapa(3);
+                    Debug.Log("ModularHospitalGenerator: Primera generación — vidas inicializadas a 3.");
+                }
+                else
+                {
+                    Debug.Log($"ModularHospitalGenerator: Regeneración post-muerte — manteniendo {GameManager.Instance.vidasActuales} vidas actuales.");
+                }
             }
             // 4. MANTENER PAREDES INTEGRAS DE PISO A TECHO (Sin borrado de paneles ni huecos flotantes)
             // ClearBlockingWallAtConnector se desactiva para evitar cortar mallas o crear vacíos verticales
@@ -822,6 +870,14 @@ namespace ModularHospital
                     float dist = Vector3.Distance(objPos, connPos);
                     if (dist <= 1.3f)
                     {
+                        // IMPORTANTE: Si esta pared pertenece a un módulo de Habitación (SmallRoom/DirectorOffice/LargeRoom), NUNCA apagarla salvo que sea la puerta
+                        HospitalModule wallModule = t.GetComponentInParent<HospitalModule>();
+                        if (wallModule != null && (wallModule.moduleType == ModuleType.SmallRoom || wallModule.moduleType == ModuleType.DirectorOffice || wallModule.moduleType == ModuleType.LargeRoom || wallModule.moduleType == ModuleType.OfficeRoom))
+                        {
+                            // Preservar pared de la habitación
+                            continue;
+                        }
+
                         if (col != null) col.enabled = false;
                         t.gameObject.SetActive(false);
                     }
@@ -2852,6 +2908,25 @@ namespace ModularHospital
                         if (col.transform.IsChildOf(mod.transform)) continue; // Conservar paredes propias de la habitación
                         if (!IsBlockingRoomGeometry(col)) continue;
 
+                        // PROTECCIÓN ABSOLUTA: Jamás desactivar o borrar paredes que pertenezcan a OTRA habitación
+                        bool belongsToOtherRoom = false;
+                        foreach (HospitalModule otherMod in placedModules)
+                        {
+                            if (otherMod != null && otherMod != mod)
+                            {
+                                bool isOtherRoom = otherMod.moduleType == ModuleType.SmallRoom || 
+                                                   otherMod.moduleType == ModuleType.DirectorOffice || 
+                                                   otherMod.moduleType == ModuleType.LargeRoom || 
+                                                   otherMod.moduleType == ModuleType.OfficeRoom;
+                                if (isOtherRoom && col.transform.IsChildOf(otherMod.transform))
+                                {
+                                    belongsToOtherRoom = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (belongsToOtherRoom) continue;
+
                         col.enabled = false;
                         if (col.gameObject.activeSelf)
                         {
@@ -2991,6 +3066,13 @@ namespace ModularHospital
                 playerObj.transform.position = spawnPos;
 
                 if (cc != null) cc.enabled = true;
+
+                // CRÍTICO: Registrar el punto de spawn en GameManager para que RespawnSequence
+                // pueda teletransportar al jugador aquí cuando muera y tenga vidas restantes.
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.RegistrarSpawnJugador(spawnPos, playerObj.transform.rotation);
+                }
 
                 // Ajustar velocidad ágil y cómoda para el jugador
                 StarterAssets.FirstPersonController fpc = playerObj.GetComponentInChildren<StarterAssets.FirstPersonController>();

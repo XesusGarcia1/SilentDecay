@@ -89,7 +89,43 @@ public class EnemyAIBookHead : MonoBehaviour
 
     void Update()
     {
-        if (player == null || isAttacking) return;
+        if (player == null) return;
+
+        // Comprobar si el jugador está escondido
+        HideUnderBed hideScript = FindObjectOfType<HideUnderBed>();
+        bool isPlayerHidden = hideScript != null && hideScript.isHiding;
+
+        if (isPlayerHidden)
+        {
+            // Detener persecución o ataque incondicionalmente
+            if (isAttacking)
+            {
+                StopAllCoroutines();
+                isAttacking = false;
+                if (anim != null) anim.SetBool("Attacking", false);
+            }
+            if (isEating)
+            {
+                StopAllCoroutines();
+                isEating = false;
+                if (anim != null) anim.SetBool("Eating", false);
+            }
+
+            if (!isPatrolling && initialized)
+            {
+                isPatrolling = true;
+                if (anim != null)
+                {
+                    anim.SetBool("Running", false);
+                    anim.SetBool("Walking", true);
+                    anim.SetBool("Still", false);
+                }
+                StartCoroutine(PatrolRoutine());
+            }
+            return; // No hacer nada más mientras el jugador esté escondido
+        }
+
+        if (isAttacking) return;
 
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 

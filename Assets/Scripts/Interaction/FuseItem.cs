@@ -45,8 +45,10 @@ public class FuseItem : MonoBehaviour
         box.center = Vector3.zero;
         box.size = new Vector3(sx, sy, sz); // 45 cm constantes en espacio de mundo
 
-        if (pickupSound == null)
-            pickupSound = Resources.Load<AudioClip>("Interruptor");
+        if (pickupSound == null) pickupSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
+        if (pickupSound == null) pickupSound = Resources.Load<AudioClip>("Interruptor");
+        if (pickupSound == null) pickupSound = Resources.Load<AudioClip>("Audio/Compartido/Bateria_Pickup");
+        if (pickupSound == null) pickupSound = Resources.Load<AudioClip>("Click");
     }
 
     void FindPlayer()

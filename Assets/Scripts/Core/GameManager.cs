@@ -42,20 +42,21 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 1f;
         AudioListener.volume = 1f;
         
-        // Al cargar el menú principal, reiniciamos las vidas
+        // Solo reiniciar vidas al volver al menú principal.
+        // IMPORTANTE: LoadingScene NO debe reiniciar vidas, porque es una pantalla intermedia
+        // que se usa tanto para el primer acceso como para los reintentos mid-game.
         if (scene.name == "MainMenu")
         {
             vidasActuales = maxVidas;
+            Debug.Log("GameManager: Vidas de sesión reiniciadas a " + maxVidas + " (vuelta al Menú).");
         }
-
-        // Al cargar la pantalla de carga o el hospital de nuevo, reiniciar vidas para que el retry funcione
-        if (scene.name == "LoadingScene" || scene.name == "SampleScene")
+        else if (scene.name != "LoadingScene")
         {
-            // Solo reiniciar si están en 0 (venimos de un Game Over)
+            // Al entrar a cualquier mapa de juego, si las vidas son 0 (corrupción) → dejar en 1 como fallback
             if (vidasActuales <= 0)
             {
-                vidasActuales = maxVidas;
-                Debug.Log("GameManager: Vidas reiniciadas al detectar Game Over + retry.");
+                vidasActuales = 1;
+                Debug.LogWarning("GameManager: vidasActuales era 0 al entrar al mapa. Forzando a 1.");
             }
         }
     }
@@ -104,15 +105,59 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        // Desactivar temporalmente el CharacterController para evitar conflictos de físicas al teletransportar
+        // 1. Encontrar el CharacterController en la jerarquía del jugador
         CharacterController cc = player.GetComponent<CharacterController>();
-        if (cc != null) cc.enabled = false;
+        if (cc == null) cc = player.GetComponentInParent<CharacterController>();
+        if (cc == null) cc = player.GetComponentInChildren<CharacterController>();
 
-        player.transform.position = playerSpawnPosition;
-        player.transform.rotation = playerSpawnRotation;
+        // 2. Encontrar el objeto raíz del jugador de forma segura (sin subir a carpetas del mapa/escena)
+        Transform current = player.transform;
+        Transform playerRoot = current;
+        while (current.parent != null)
+        {
+            string pName = current.parent.name.ToLower();
+            if (pName.Contains("generator") || pName.Contains("map") || pName.Contains("tunnels") || pName.Contains("hospital") || pName.Contains("scene") || pName.Contains("manager"))
+            {
+                break;
+            }
+            current = current.parent;
+            playerRoot = current;
+        }
 
-        if (cc != null) cc.enabled = true;
+        // 3. Desactivar temporalmente el CharacterController para evitar conflictos de físicas al teletransportar
+        if (cc != null)
+        {
+            cc.enabled = false;
+        }
 
-        Debug.Log("GameManager: Jugador teletransportado de vuelta al punto de spawn del nivel.");
+        // 4. Calcular el offset de la cápsula respecto a la raíz del jugador
+        Vector3 offset = player.transform.position - playerRoot.position;
+
+        // 5. Mover la raíz de manera que la cápsula quede exactamente en playerSpawnPosition
+        playerRoot.position = playerSpawnPosition - offset;
+        playerRoot.rotation = playerSpawnRotation;
+
+        // 6. Resetear rotaciones locales del FirstPersonController si existe
+        var fpc = playerRoot.GetComponentInChildren<StarterAssets.FirstPersonController>();
+        if (fpc == null) fpc = player.GetComponentInChildren<StarterAssets.FirstPersonController>();
+
+        if (fpc != null)
+        {
+            var pitchField = fpc.GetType().GetField("_cinemachineTargetPitch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (pitchField != null)
+            {
+                pitchField.SetValue(fpc, 0f);
+            }
+        }
+
+        // 7. Reactivar el CharacterController
+        if (cc != null)
+        {
+            Physics.SyncTransforms();
+            cc.enabled = true;
+            Physics.SyncTransforms();
+        }
+
+        Debug.Log($"GameManager: Jugador teletransportado al spawn ({playerSpawnPosition}). Raíz movida: {playerRoot.name}, Cápsula movida: {player.name}");
     }
 }

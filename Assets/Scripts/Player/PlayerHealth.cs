@@ -159,8 +159,8 @@ public class PlayerHealth : MonoBehaviour
                         Camera.main.transform.position = originalCamPos;
                     }
 
-                    // Iniciar secuencia de vidas si el GameManager está activo
-                    if (GameManager.Instance != null && !respawnCoroutineStarted)
+                    // Iniciar la secuencia de respawn SIEMPRE (RespawnSequence maneja el caso de GameManager null internamente)
+                    if (!respawnCoroutineStarted)
                     {
                         respawnCoroutineStarted = true;
                         StartCoroutine(RespawnSequence());
@@ -169,18 +169,9 @@ public class PlayerHealth : MonoBehaviour
                 return;
             }
 
-            // Si el GameManager está activo y se encarga de reaparecer, la coroutine maneja el tiempo
-            if (GameManager.Instance != null)
+            // Si la secuencia de reaparición está activa, la corrutina maneja el tiempo y el fade
+            if (isRespawning || respawnCoroutineStarted)
             {
-                if (!respawnCoroutineStarted)
-                {
-                    respawnCoroutineStarted = true;
-                    StartCoroutine(RespawnSequence());
-                }
-                
-                deathTimer += Time.unscaledDeltaTime;
-                blackFadeAlpha = Mathf.Min(1f, deathTimer / 1.5f);
-                AudioListener.volume = Mathf.Lerp(initialAudioListenerVolume, 0f, blackFadeAlpha);
                 return;
             }
 
@@ -276,13 +267,31 @@ public class PlayerHealth : MonoBehaviour
 
     private void TriggerDeathTransition()
     {
-        Debug.Log("PlayerHealth: Jugador ha muerto. Iniciando Jumpscare 3D...");
         isDead = true;
         isPlaying3DScare = true;
         screamerTimer = 0f;
         deathTimer = 0f;
         blackFadeAlpha = 0f;
         initialAudioListenerVolume = AudioListener.volume;
+
+        // IMPORTANTE: NO establecer isRespawning aquí todavía.
+        // Se determinará dentro de RespawnSequence() después de RestarVida().
+        // Si lo ponemos aquí, Update() hace return y el screamerTimer nunca avanza → freeze.
+        isRespawning = false;
+
+        // Precalcular texto de día para mostrarlo en la pantalla negra
+        int currentLives = (GameManager.Instance != null) ? GameManager.Instance.vidasActuales : 3;
+        int nextLives = Mathf.Max(1, currentLives - 1);
+        if (LocalizationManager.Instance != null)
+        {
+            respawnStatusText = nextLives == 1 
+                ? LocalizationManager.Instance.Get("hud_intentos_ult") 
+                : $"{LocalizationManager.Instance.Get("hud_dia_prefix")}{(GameManager.Instance != null ? GameManager.Instance.maxVidas : 3) - nextLives + 1}";
+        }
+        else
+        {
+            respawnStatusText = nextLives == 1 ? "Último intento" : $"Día {(GameManager.Instance != null ? GameManager.Instance.maxVidas : 3) - nextLives + 1}";
+        }
 
         // Desactivar Cinemachine Brain para tomar control directo de la cámara
         if (Camera.main != null)
@@ -293,14 +302,30 @@ public class PlayerHealth : MonoBehaviour
             originalCamPos = Camera.main.transform.position;
         }
 
-        // Buscar al monstruo en la escena para enfocar la cámara en él (evitando FindWithTag que causa excepciones si el tag no está registrado)
+        // Buscar al monstruo en la escena (funciona en ambos mapas: Hospital y Túneles)
         GameObject monsterObj = GameObject.Find("ThePhenomenon");
         if (monsterObj == null)
         {
             var ai = FindFirstObjectByType<PhenomenonAIController>();
             if (ai != null) monsterObj = ai.gameObject;
         }
+        // Hospital: BookHead (EnemyAIController)
+        if (monsterObj == null)
+        {
+            var bookHead = FindFirstObjectByType<EnemyAIController>();
+            if (bookHead != null) monsterObj = bookHead.gameObject;
+        }
+        // TheCreep (CrawlerAI)
+        if (monsterObj == null)
+        {
+            var creep = FindFirstObjectByType<CrawlerAI>();
+            if (creep != null) monsterObj = creep.gameObject;
+        }
+        if (monsterObj == null) monsterObj = GameObject.Find("BookHead");
+        if (monsterObj == null) monsterObj = GameObject.Find("BookHeadMonster");
+        if (monsterObj == null) monsterObj = GameObject.Find("TheCreep");
         monsterTransform = monsterObj != null ? monsterObj.transform : null;
+
 
         // Reproducir grito aterrador en 2D al volumen máximo (independiente de la atenuación)
         if (screamerSound != null)
@@ -495,16 +520,26 @@ public class PlayerHealth : MonoBehaviour
                     float btnH = 52f;
                     float btnX = Screen.width / 2f - btnW / 2f;
 
-                    // Botón 1: REINTENTAR — vuelve a cargar el hospital desde cero
+                    // Solo mostrar REINTENTAR (empezar desde cero) si el jugador AÚN tiene vidas
+                    // Nota: llegamos aquí porque GameManager.RestarVida() devolvió false (0 vidas restantes).
+                    // El botón REINTENTAR reinicia la partida completa desde el menú de opciones.
+                    // Una vez aquí, el jugador perdió todas sus vidas → solo ofrecer IR AL MENÚ.
+                    //
+                    // Sin embargo, se deja la opción de reintentar la partida COMPLETA desde cero:
                     Rect retryRect = new Rect(btnX, Screen.height / 2f + 20f, btnW, btnH);
                     string retryBtnText = LocalizationManager.Instance != null
                         ? LocalizationManager.Instance.Get("hud_reintentar_inicio")
-                        : "REINTENTAR";
+                        : "JUGAR DE NUEVO";
                     if (GUI.Button(retryRect, retryBtnText, buttonStyle))
                     {
                         Time.timeScale = 1f;
                         AudioListener.volume = 1f;
-                        SceneLoader.LoadScene("SampleScene");
+                        // Reiniciar vidas ANTES de pasar por LoadingScene, para que no arranque con 0
+                        if (GameManager.Instance != null)
+                            GameManager.Instance.InicializarVidasParaMapa(GameManager.Instance.maxVidas);
+                        string targetScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                        if (string.IsNullOrEmpty(targetScene) || targetScene == "LoadingScene") targetScene = "Test_ModularHospital";
+                        SceneLoader.LoadScene(targetScene);
                     }
 
                     // Botón 2: IR AL MENÚ — regresa al menú principal
@@ -517,6 +552,7 @@ public class PlayerHealth : MonoBehaviour
                         Time.timeScale = 1f;
                         AudioListener.volume = 1f;
                         UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+
                     }
                 }
             }
@@ -525,125 +561,190 @@ public class PlayerHealth : MonoBehaviour
 
     private System.Collections.IEnumerator RespawnSequence()
     {
-        // INMEDIATAMENTE marcar como respawning para que OnGUI nunca muestre el panel Game Over durante el fade
         isRespawning = true;
 
-        // Deshabilitar el CharacterController para evitar el error "Move called on inactive controller"
+        // Deshabilitar componentes de control del jugador
         CharacterController ccOnDeath = GetComponent<CharacterController>();
         if (ccOnDeath == null) ccOnDeath = GetComponentInParent<CharacterController>();
         if (ccOnDeath != null) ccOnDeath.enabled = false;
 
-        // Deshabilitar el FirstPersonController que llama .Move() en su Update (causa del error en consola)
         FirstPersonController fpControllerOnDeath = GetComponent<FirstPersonController>();
         if (fpControllerOnDeath == null) fpControllerOnDeath = GetComponentInParent<FirstPersonController>();
         if (fpControllerOnDeath != null) fpControllerOnDeath.enabled = false;
 
-        // Deshabilitar el StarterAssetsInputs para que no procese entradas mientras el jugador está muerto
         StarterAssetsInputs inputsOnDeath = GetComponent<StarterAssetsInputs>();
         if (inputsOnDeath == null) inputsOnDeath = GetComponentInParent<StarterAssetsInputs>();
         if (inputsOnDeath != null) inputsOnDeath.enabled = false;
 
-        // 1. Esperamos a que termine el fade a negro
-        while (deathTimer < 1.5f)
+        // 1. Transición limpia a pantalla negra (1 segundo)
+        float fadeTimer = 0f;
+        float fadeDuration = 1.0f;
+        while (fadeTimer < fadeDuration)
         {
+            fadeTimer += Time.unscaledDeltaTime;
+            blackFadeAlpha = Mathf.Clamp01(fadeTimer / fadeDuration);
+            AudioListener.volume = Mathf.Lerp(initialAudioListenerVolume, 0f, blackFadeAlpha);
             yield return null;
         }
+        blackFadeAlpha = 1.0f;
 
-        // 2. Restar la vida
+        // 2. Restar vida en GameManager
         bool tieneMasIntentos = false;
         if (GameManager.Instance != null)
         {
+            Debug.Log($"[RESPAWN] Antes de RestarVida: vidasActuales={GameManager.Instance.vidasActuales}, maxVidas={GameManager.Instance.maxVidas}");
             tieneMasIntentos = GameManager.Instance.RestarVida();
+            Debug.Log($"[RESPAWN] Después de RestarVida: vidasActuales={GameManager.Instance.vidasActuales}, tieneMasIntentos={tieneMasIntentos}");
+        }
+        else
+        {
+            Debug.LogWarning("[RESPAWN] GameManager.Instance es NULL — asumiendo que hay vidas (fallback a true).");
+            tieneMasIntentos = true;
         }
 
         if (tieneMasIntentos)
         {
-            // Activar isRespawning INMEDIATAMENTE para evitar el flash del panel Game Over
             isRespawning = true;
             isInvulnerable = true;
-            int vidasQuedan = GameManager.Instance.vidasActuales;
+            int vidasQuedan = (GameManager.Instance != null) ? GameManager.Instance.vidasActuales : 2;
             if (LocalizationManager.Instance != null)
             {
                 respawnStatusText = vidasQuedan == 1 
                     ? LocalizationManager.Instance.Get("hud_intentos_ult") 
-                    : $"{LocalizationManager.Instance.Get("hud_dia_prefix")}{GameManager.Instance.maxVidas - vidasQuedan + 1}";
+                    : $"{LocalizationManager.Instance.Get("hud_dia_prefix")}{(GameManager.Instance != null ? GameManager.Instance.maxVidas : 3) - vidasQuedan + 1}";
             }
             else
             {
-                respawnStatusText = vidasQuedan == 1 ? "Último intento" : $"Día {GameManager.Instance.maxVidas - vidasQuedan + 1}";
+                respawnStatusText = vidasQuedan == 1 ? "Último intento" : $"Día {(GameManager.Instance != null ? GameManager.Instance.maxVidas : 3) - vidasQuedan + 1}";
             }
 
-            // 3. Buscar y DESACTIVAR al monstruo durante la pantalla de muerte
+            // 3. Buscar y desactivar monstruo temporalmente (funciona en Hospital Y Túneles)
+            // Hospital: BookHead (EnemyAIController) | Túneles: Phenomenon (PhenomenonAIController) | TheCreep (CrawlerAI)
             GameObject monsterObj = GameObject.Find("ThePhenomenon");
             if (monsterObj == null)
             {
-                var ai = FindFirstObjectByType<PhenomenonAIController>();
-                if (ai != null) monsterObj = ai.gameObject;
+                var phenomenon = FindFirstObjectByType<PhenomenonAIController>();
+                if (phenomenon != null) monsterObj = phenomenon.gameObject;
             }
+            if (monsterObj == null)
+            {
+                var bookHead = FindFirstObjectByType<EnemyAIController>();
+                if (bookHead != null) monsterObj = bookHead.gameObject;
+            }
+            if (monsterObj == null)
+            {
+                var creep = FindFirstObjectByType<CrawlerAI>();
+                if (creep != null) monsterObj = creep.gameObject;
+            }
+            if (monsterObj == null) monsterObj = GameObject.Find("TheCreep");
             if (monsterObj != null)
             {
-                monsterObj.SetActive(false); // Apagar monstruo temporalmente para evitar ataques fantasma
+                // Desactivar NavMeshAgent antes de SetActive(false) para evitar errores de Unity
+                var agentTemp = monsterObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
+                if (agentTemp != null) agentTemp.enabled = false;
+                monsterObj.SetActive(false);
+                Debug.Log("PlayerHealth: Monstruo desactivado temporalmente para respawn: " + monsterObj.name);
+            }
+            else
+            {
+                Debug.LogWarning("PlayerHealth: No se encontró monstruo activo para desactivar durante el respawn.");
             }
             
-            // Pausar juego y mostrar el texto del día con calma (4 segundos)
+            // Pausar juego y mostrar pantalla del Día (2.5 segundos)
             Time.timeScale = 0f;
-            yield return new WaitForSecondsRealtime(4.0f);
+            yield return new WaitForSecondsRealtime(2.5f);
 
-            // 4. Reaparecer al jugador usando el spawn guardado
-            GameManager.Instance.ReaparecerJugador(gameObject);
+            // 4. Reaparecer jugador en su punto de spawn
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.ReaparecerJugador(gameObject);
+            }
 
-            // 5. Configurar al monstruo lejos y reactivarlo
+            // 5. Reposicionar monstruo lejos del jugador y reactivarlo
             if (monsterObj != null)
             {
-                var aiController = monsterObj.GetComponent<PhenomenonAIController>();
-                if (aiController != null)
+                // Intentar alejarlo del jugador al punto de patrulla más lejano disponible
+                Vector3 farPosition = transform.position + Vector3.back * 60f; // Fallback: 60m atrás
+
+                // Caso A: Phenomenon (Túneles)
+                var phenomenonCtrl = monsterObj.GetComponent<PhenomenonAIController>();
+                if (phenomenonCtrl != null && phenomenonCtrl.patrolPoints != null && phenomenonCtrl.patrolPoints.Length > 0)
                 {
-                    // Forzar posición lejos mientras el monstruo sigue desactivado
-                    // LEGACY REMOVED: HospitalMazeGenerator block (width, height, tileSize, playerSpawnCell no longer exist)
-                    // Fallback: punto de patrulla más alejado
-                    if (aiController.patrolPoints != null && aiController.patrolPoints.Length > 0)
+                    Transform bestPoint = phenomenonCtrl.patrolPoints[0];
+                    float maxDist = 0f;
+                    foreach (Transform pt in phenomenonCtrl.patrolPoints)
                     {
-                        Transform bestPoint = aiController.patrolPoints[0];
-                        float maxDist = 0f;
-                        foreach (Transform pt in aiController.patrolPoints)
+                        if (pt != null)
                         {
-                            if (pt != null)
-                            {
-                                float d = Vector3.Distance(transform.position, pt.position);
-                                if (d > maxDist)
-                                {
-                                    maxDist = d;
-                                    bestPoint = pt;
-                                }
-                            }
+                            float d = Vector3.Distance(transform.position, pt.position);
+                            if (d > maxDist) { maxDist = d; bestPoint = pt; }
                         }
-                        monsterObj.transform.position = bestPoint.position;
                     }
-                    else
-                    {
-                        monsterObj.transform.position = transform.position + Vector3.back * 60f;
-                    }
+                    farPosition = bestPoint.position;
+                }
 
-                    // Reactivar objeto del monstruo
-                    monsterObj.SetActive(true);
-
-                    // Resetear la IA y el NavMeshAgent
-                    UnityEngine.AI.NavMeshAgent agent = monsterObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
-                    if (agent != null)
+                // Caso B: BookHead (Hospital) — usar sus patrol points
+                var bookHeadCtrl = monsterObj.GetComponent<EnemyAIController>();
+                if (bookHeadCtrl != null && bookHeadCtrl.patrolPoints != null && bookHeadCtrl.patrolPoints.Length > 0)
+                {
+                    Transform bestPoint = bookHeadCtrl.patrolPoints[0];
+                    float maxDist = 0f;
+                    foreach (Transform pt in bookHeadCtrl.patrolPoints)
                     {
-                        agent.enabled = true;
-                        agent.ResetPath();
+                        if (pt != null)
+                        {
+                            float d = Vector3.Distance(transform.position, pt.position);
+                            if (d > maxDist) { maxDist = d; bestPoint = pt; }
+                        }
                     }
-                    aiController.currentState = PhenomenonAIController.PhenomenonState.Patrol;
+                    farPosition = bestPoint.position;
+                }
+
+                // Caso C: TheCreep (CrawlerAI) — alejar al extremo opuesto de la posición de spawn del jugador
+                var crawlerCtrl = monsterObj.GetComponent<CrawlerAI>();
+                if (crawlerCtrl != null)
+                {
+                    // Buscar una posición 45 metros en dirección opuesta
+                    Vector3 oppositeDir = (transform.position - monsterObj.transform.position).normalized;
+                    if (oppositeDir.sqrMagnitude < 0.01f) oppositeDir = Vector3.back;
+                    farPosition = transform.position - oppositeDir * 45f;
+                }
+
+                // Asegurar que farPosition esté en el NavMesh
+                UnityEngine.AI.NavMeshHit navHit;
+                if (UnityEngine.AI.NavMesh.SamplePosition(farPosition, out navHit, 40f, UnityEngine.AI.NavMesh.AllAreas))
+                {
+                    farPosition = navHit.position;
                 }
                 else
                 {
-                    // Si no tiene controlador, solo reactivarlo
-                    monsterObj.SetActive(true);
+                    // Fallback: usar la posición del jugador + offset y buscar en el NavMesh
+                    if (UnityEngine.AI.NavMesh.SamplePosition(transform.position + Vector3.forward * 25f, out navHit, 30f, UnityEngine.AI.NavMesh.AllAreas))
+                    {
+                        farPosition = navHit.position;
+                    }
                 }
+
+                // Mover y reactivar
+                monsterObj.SetActive(true);
+                monsterObj.transform.position = farPosition;
+
+                UnityEngine.AI.NavMeshAgent agentReactivate = monsterObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
+                if (agentReactivate != null)
+                {
+                    agentReactivate.enabled = true;
+                    agentReactivate.Warp(farPosition);
+                    agentReactivate.ResetPath();
+                }
+
+                // Restablecer estado de patrulla (Phenomenon)
+                if (phenomenonCtrl != null)
+                    phenomenonCtrl.currentState = PhenomenonAIController.PhenomenonState.Patrol;
+
+                Debug.Log("PlayerHealth: Monstruo reposicionado y reactivado en " + farPosition);
             }
 
-            // 6. Curar al jugador y restablecer cordura
+            // 6. Restaurar salud y controles
             health = 100f;
             currentRegenLimit = 100f;
             if (playerSanity != null)
@@ -651,7 +752,6 @@ public class PlayerHealth : MonoBehaviour
                 playerSanity.sanity = 100f;
             }
 
-            // 6. Restaurar componentes desactivados
             CharacterController cc = GetComponent<CharacterController>();
             if (cc == null) cc = GetComponentInParent<CharacterController>();
             if (cc != null) cc.enabled = true;
@@ -670,16 +770,15 @@ public class PlayerHealth : MonoBehaviour
             if (fpInput == null) fpInput = GetComponentInParent<StarterAssetsInputs>();
             if (fpInput != null) fpInput.enabled = true;
 
-            // Reactivar Canvases
             foreach (Canvas c in disabledCanvases)
             {
                 if (c != null) c.gameObject.SetActive(true);
             }
             disabledCanvases.Clear();
 
-            // 7. Hacer fade-out SUAVE para volver a la pantalla de juego (2 segundos)
+            // 7. Transición suave de regreso al juego
             float fadeOutTimer = 0f;
-            float fadeOutDuration = 2.0f;
+            float fadeOutDuration = 1.2f;
             while (fadeOutTimer < fadeOutDuration)
             {
                 fadeOutTimer += Time.unscaledDeltaTime;
@@ -688,8 +787,8 @@ public class PlayerHealth : MonoBehaviour
                 AudioListener.volume = Mathf.Lerp(0f, 1f, t);
                 yield return null;
             }
+            blackFadeAlpha = 0f;
 
-            // 8. Reanudar tiempo de juego
             Time.timeScale = 1f;
             AudioListener.volume = 1f;
             isDead = false;
@@ -699,12 +798,11 @@ public class PlayerHealth : MonoBehaviour
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
-            // Desactivar la inmunidad de forma diferida tras 3 segundos para reingresar al juego con seguridad
             StartCoroutine(DisableInvulnerabilityDelayed(3.0f));
         }
         else
         {
-            // No quedan vidas: activar el Game Over definitivo (el código original de Update)
+            // Game Over definitivo (pantalla con botones)
             isRespawning = false;
             Time.timeScale = 0f;
             Cursor.lockState = CursorLockMode.None;
