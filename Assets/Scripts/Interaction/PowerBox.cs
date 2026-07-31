@@ -392,28 +392,28 @@ public class PowerBox : MonoBehaviour
         if (state)
         {
             // AL OCURRIR UN APAGÓN: EL MONSTRUO APARECE Y CAZA AL JUGADOR EN LA OSCURIDAD
-            // Reposicionar al enemigo LEJOS del jugador (mínimo 12 metros) antes de activarlo
+            // Reposicionar al enemigo a distancia MODERADA (10-15m) del jugador para posible encuentro en pasillo
             GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
             Vector3 playerPos = playerObj != null ? playerObj.transform.position : transform.position;
 
             EnemyAIBookHead bookHead = FindObjectOfType<EnemyAIBookHead>(true);
             if (bookHead != null)
             {
-                RelocateEnemyFarFromPlayer(bookHead.gameObject, playerPos, 12f);
+                RelocateEnemyModerateDistance(bookHead.gameObject, playerPos, 10f, 15f);
                 bookHead.gameObject.SetActive(true);
                 bookHead.detectionRange = 9.0f;   // Ligeramente mayor en la oscuridad
-                bookHead.runSpeed = 2.5f;           // Correr amenazante pero no imposible
-                Debug.Log("PowerBox: ¡Monstruo BookHead activado por el apagón lejos del jugador!");
+                bookHead.runSpeed = 2.3f;           // Correr amenazante pero equilibrado
+                Debug.Log("PowerBox: ¡Monstruo BookHead activado por el apagón a distancia moderada!");
             }
 
             EnemyAIController enemyController = FindObjectOfType<EnemyAIController>(true);
             if (enemyController != null)
             {
-                RelocateEnemyFarFromPlayer(enemyController.gameObject, playerPos, 12f);
+                RelocateEnemyModerateDistance(enemyController.gameObject, playerPos, 10f, 15f);
                 enemyController.gameObject.SetActive(true);
                 enemyController.detectionRange = 9.0f;
-                enemyController.runSpeed = 2.5f;
-                Debug.Log("PowerBox: ¡Monstruo EnemyAIController activado por el apagón lejos del jugador!");
+                enemyController.runSpeed = 2.3f;
+                Debug.Log("PowerBox: ¡Monstruo EnemyAIController activado por el apagón a distancia moderada!");
             }
 
             // Reproducir sonido impactante de chispazo y cortocircuito directo en 2D en los oídos del jugador
@@ -645,6 +645,48 @@ public class PowerBox : MonoBehaviour
         {
             Debug.LogWarning("PowerBox: No se encontró el archivo de audio 'Monstruo_Alerta' en Resources.");
         }
+    }
+
+    private void RelocateEnemyModerateDistance(GameObject enemyObj, Vector3 playerPos, float minDistance = 10f, float maxDistance = 15f)
+    {
+        if (enemyObj == null) return;
+
+        GameObject patrolHolder = GameObject.Find("[BookHead_Patrol_Points]");
+        Vector3 bestPos = enemyObj.transform.position;
+        float bestScore = 999999f;
+        float targetDistance = (minDistance + maxDistance) * 0.5f; // ~12.5 metros
+
+        if (patrolHolder != null)
+        {
+            Transform[] pts = patrolHolder.GetComponentsInChildren<Transform>();
+            foreach (Transform pt in pts)
+            {
+                if (pt != null && pt != patrolHolder.transform)
+                {
+                    float d = Vector3.Distance(pt.position, playerPos);
+                    if (d >= 8f && d <= maxDistance + 5f)
+                    {
+                        float score = Mathf.Abs(d - targetDistance);
+                        if (score < bestScore)
+                        {
+                            bestScore = score;
+                            bestPos = pt.position;
+                        }
+                    }
+                }
+            }
+        }
+
+        UnityEngine.AI.NavMeshAgent agent = enemyObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
+        if (agent != null && agent.enabled)
+        {
+            agent.Warp(bestPos);
+        }
+        else
+        {
+            enemyObj.transform.position = bestPos;
+        }
+        Debug.Log($"PowerBox: Monstruo teletransportado a distancia moderada ({Vector3.Distance(bestPos, playerPos):F1}m del jugador).");
     }
 
     private void RelocateEnemyFarFromPlayer(GameObject enemyObj, Vector3 playerPos, float minDistance)

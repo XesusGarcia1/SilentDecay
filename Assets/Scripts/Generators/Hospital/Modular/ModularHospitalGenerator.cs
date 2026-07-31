@@ -59,7 +59,7 @@ namespace ModularHospital
         public Vector2Int smallMapGridSize = new Vector2Int(10, 10);
         private Bounds currentBuildingBounds;
 
-        private List<HospitalModule> placedModules = new List<HospitalModule>();
+        public List<HospitalModule> placedModules = new List<HospitalModule>();
         private List<ModuleConnector> openConnectors = new List<ModuleConnector>();
         public int[,] gridMatrix; // 0=Empty/Wall, 1=Corridor, 2=DirectorOffice, 3=SmallRoom
         private Vector3 lastElevatorPos = new Vector3(-999f, -999f, -999f);
@@ -489,8 +489,14 @@ namespace ModularHospital
             // 10.5 ELIMINAR CUALQUIER PARED O MURO QUE SE HAYA COLADO DENTRO DEL INTERIOR DE LAS HABITACIONES
             CleanInternalRoomBlockingWalls(parent);
 
+            // 10.6 DESOBSTRUIR 100% LA ENTRADA Y EL KEYPAD DE LA OFICINA DEL DIRECTOR
+            UnblockDirectorOfficeEntrance();
+
             // 11.2 CONFIGURAR CAMAS PARA PERMITIR AL JUGADOR ESCONDERSE DEBAJO DE ELLAS
             SetupHideBeds();
+
+            // 11.3 SANITIZAR MESHCOLLIDERS CÓNCAVOS PARA EVITAR ERRORES DE TRIGGER EN PHYSX
+            SanitizeMeshColliders(parent);
 
             // 11.4 HORNEAR EL NAVMESH EN TIEMPO DE EJECUCIÓN SOBRE TODO EL HOSPITAL PROCEDURAL
             Unity.AI.Navigation.NavMeshSurface navSurface = parent.GetComponent<Unity.AI.Navigation.NavMeshSurface>();
@@ -572,6 +578,38 @@ namespace ModularHospital
             }
 
             Debug.Log($"ModularHospitalGenerator: Mapa de 10x10 generado con éxito. Módulos colocados: {placedModules.Count}. Clave del Keypad: {correctKeypadCode}");
+
+            // 13.5 SINCRONIZAR GRIDMATRIX DE FORMA 100% FIEDELIGNA CON LOS MÓDULOS 3D REALMENTE INSTANCIADOS
+            SyncGridMatrixWithPlacedModules(sizeX, sizeZ, halfW, halfD);
+
+            // 14. EJECUTAR EL TEST DEFINITIVO DE VALIDACIÓN DE MAPA (Quality Assurance)
+            HospitalMapValidator.ValidateCurrentMap(this);
+        }
+
+        private void SyncGridMatrixWithPlacedModules(int sizeX, int sizeZ, float halfW, float halfD)
+        {
+            if (gridMatrix == null) gridMatrix = new int[sizeX, sizeZ];
+
+            foreach (HospitalModule mod in placedModules)
+            {
+                if (mod == null) continue;
+                Vector3 localPos = mod.transform.position - transform.position;
+                int gx = Mathf.Clamp(Mathf.RoundToInt((localPos.x + halfW - 2.0f) / 4.0f), 0, sizeX - 1);
+                int gz = Mathf.Clamp(Mathf.RoundToInt((localPos.z + halfD - 2.0f) / 4.0f), 0, sizeZ - 1);
+
+                if (mod.moduleType == ModuleType.DirectorOffice)
+                {
+                    gridMatrix[gx, gz] = 2; // Oficina del Director
+                }
+                else if (mod.moduleType == ModuleType.SmallRoom || mod.moduleType == ModuleType.LargeRoom || mod.moduleType == ModuleType.OfficeRoom)
+                {
+                    gridMatrix[gx, gz] = 3; // Habitaciones
+                }
+                else
+                {
+                    if (gridMatrix[gx, gz] == 0) gridMatrix[gx, gz] = 1; // Pasillos (preservando pasillos del laberinto)
+                }
+            }
         }
 
         private void CleanAllBlockingRootColliders()
@@ -812,6 +850,83 @@ namespace ModularHospital
 
                 c.enabled = false;
                 t.gameObject.SetActive(false);
+            }
+        }
+
+        private void UnblockDirectorOfficeEntrance()
+        {
+            foreach (HospitalModule mod in placedModules)
+            {
+                if (mod == null || mod.moduleType != ModuleType.DirectorOffice) continue;
+
+                // 1. Localizar la bisagra de la puerta, la puerta o el teclado Keypad de la Oficina del Director
+                Vector3 frontCheckPos = mod.transform.position;
+
+                Transform keypadT = null;
+                Transform doorT = null;
+                Transform[] children = mod.GetComponentsInChildren<Transform>(true);
+                foreach (Transform t in children)
+                {
+                    if (t == null) continue;
+                    string n = t.name.ToLower();
+                    if (keypadT == null && (n.Contains("keypad") || n.Contains("teclado") || n.Contains("panel")))
+                        keypadT = t;
+                    if (doorT == null && (n.Contains("hinge") || n.Contains("puerta") || n.Contains("door")) && !n.Contains("frame") && !n.Contains("marco"))
+                        doorT = t;
+                }
+
+                if (keypadT != null)
+                {
+                    frontCheckPos = keypadT.position + keypadT.forward * 0.8f;
+                }
+                else if (doorT != null)
+                {
+                    frontCheckPos = doorT.position + doorT.forward * 0.8f;
+                }
+                else
+                {
+                    frontCheckPos = mod.transform.position + mod.transform.forward * 1.8f;
+                }
+
+                // 2. Limpiar CUALQUIER pared, pilar o bloque macizo de pasillo que esté tapando la entrada o Keypad de la Oficina del Director
+                Collider[] nearCols = Physics.OverlapSphere(frontCheckPos, 2.2f);
+                foreach (Collider col in nearCols)
+                {
+                    if (col == null || col.gameObject == mod.gameObject || col.transform.IsChildOf(mod.transform)) continue;
+
+                    string cName = col.gameObject.name.ToLower();
+                    string rName = col.transform.root.name.ToLower();
+
+                    // NUNCA deshabilitar elementos esenciales protegidos (Oficina del Director, Ascensor, Jugador, Suelo, Techo, Lámparas, Keypad, Puertas de la habitación)
+                    bool isProtected = rName.Contains("director") || rName.Contains("elevator") || rName.Contains("ascensor") ||
+                                       cName.Contains("unified_floor") || cName.Contains("unified_ceiling") ||
+                                       cName.Contains("player") || cName.Contains("lamp") || cName.Contains("keypad") || cName.Contains("door") || cName.Contains("hinge");
+
+                    if (!isProtected)
+                    {
+                        // Si es un objeto de pared, bloque macizo o pilar que se interpone frente a la Oficina del Director, desactivarlo
+                        if (cName.Contains("wall") || cName.Contains("pared") || cName.Contains("solid") || cName.Contains("pillar") || cName.Contains("cube") || cName.Contains("block"))
+                        {
+                            col.enabled = false;
+                            col.gameObject.SetActive(false);
+                            Debug.Log($"ModularHospitalGenerator: Pared/Bloque tapante '{col.gameObject.name}' desactivado con éxito frente a la Oficina del Director.");
+                        }
+                    }
+                }
+            }
+        }
+
+        private void SanitizeMeshColliders(Transform parent)
+        {
+            if (parent == null) return;
+            MeshCollider[] mcs = parent.GetComponentsInChildren<MeshCollider>(true);
+            foreach (MeshCollider mc in mcs)
+            {
+                if (mc == null) continue;
+                if (mc.isTrigger && !mc.convex)
+                {
+                    mc.convex = true;
+                }
             }
         }
 
@@ -1400,7 +1515,7 @@ namespace ModularHospital
                         // Usar raycast ignorando triggers/props
                         if (Physics.Raycast(moduleCenter, rayDir, out wallHit, 2.5f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
                         {
-                            finalFbPos = wallHit.point + wallHit.normal * 0.15f; // Adosar la base despejada de la pared
+                            finalFbPos = wallHit.point + wallHit.normal * 0.55f; // Desplazar 0.55m hacia afuera para sacar la caja metálica totalmente de la pared
                             finalFbRot = Quaternion.LookRotation(wallHit.normal, Vector3.up); // Mirar hacia el pasillo
                         }
                         else
@@ -2635,9 +2750,10 @@ namespace ModularHospital
 
             if (isProtected) return false;
 
-            return cName.Contains("solid_wall") || cName.Contains("outer_wall") ||
-                   cName.Contains("pillar") || cName.Contains("bloque") ||
-                   cName.Contains("column") || cName.Contains("blockingwall");
+            return cName.Contains("wall") || cName.Contains("pared") ||
+                   cName.Contains("solid") || cName.Contains("pillar") ||
+                   cName.Contains("bloque") || cName.Contains("column") ||
+                   cName.Contains("cube") || cName.Contains("blocking");
         }
 
         private bool HasBlockingGeometryAtRoomEntrance(HospitalModule mod)
@@ -2708,29 +2824,32 @@ namespace ModularHospital
             int removedCount = 0;
             foreach (HospitalModule mod in placedModules)
             {
-                if (mod == null || (mod.moduleType != ModuleType.SmallRoom && mod.moduleType != ModuleType.DirectorOffice)) continue;
+                if (mod == null) continue;
+                bool isRoom = mod.moduleType == ModuleType.SmallRoom || mod.moduleType == ModuleType.DirectorOffice || mod.moduleType == ModuleType.LargeRoom || mod.moduleType == ModuleType.OfficeRoom;
+                if (!isRoom) continue;
 
                 List<Vector3> scanPoints = new List<Vector3>();
                 Vector3 roomCenter = mod.transform.position + Vector3.up * 1.25f;
                 scanPoints.Add(roomCenter);
 
-                // Si es la Oficina del Director (o habitación amplia), agregar puntos de escaneo desplazados (cuadrantes interiores)
-                if (mod.moduleType == ModuleType.DirectorOffice)
-                {
-                    scanPoints.Add(roomCenter + mod.transform.forward * 1.2f);
-                    scanPoints.Add(roomCenter - mod.transform.forward * 1.2f);
-                    scanPoints.Add(roomCenter + mod.transform.right * 1.2f);
-                    scanPoints.Add(roomCenter - mod.transform.right * 1.2f);
-                }
+                // Agregar cuadrantes interiores completos de escaneo (3.0m x 3.0m de la habitación)
+                scanPoints.Add(roomCenter + mod.transform.forward * 1.2f);
+                scanPoints.Add(roomCenter - mod.transform.forward * 1.2f);
+                scanPoints.Add(roomCenter + mod.transform.right * 1.2f);
+                scanPoints.Add(roomCenter - mod.transform.right * 1.2f);
+                scanPoints.Add(roomCenter + (mod.transform.forward + mod.transform.right).normalized * 1.3f);
+                scanPoints.Add(roomCenter + (mod.transform.forward - mod.transform.right).normalized * 1.3f);
+                scanPoints.Add(roomCenter + (-mod.transform.forward + mod.transform.right).normalized * 1.3f);
+                scanPoints.Add(roomCenter + (-mod.transform.forward - mod.transform.right).normalized * 1.3f);
 
                 foreach (Vector3 p in scanPoints)
                 {
-                    float radius = mod.moduleType == ModuleType.DirectorOffice ? 1.85f : 1.6f;
+                    float radius = (mod.moduleType == ModuleType.DirectorOffice || mod.moduleType == ModuleType.LargeRoom) ? 1.95f : 1.65f;
                     Collider[] innerCols = Physics.OverlapSphere(p, radius);
                     foreach (Collider col in innerCols)
                     {
                         if (col == null) continue;
-                        if (col.transform.IsChildOf(mod.transform)) continue;
+                        if (col.transform.IsChildOf(mod.transform)) continue; // Conservar paredes propias de la habitación
                         if (!IsBlockingRoomGeometry(col)) continue;
 
                         col.enabled = false;
@@ -2738,6 +2857,7 @@ namespace ModularHospital
                         {
                             col.gameObject.SetActive(false);
                             removedCount++;
+                            Debug.Log($"CleanInternalRoomBlockingWalls: Pared invasora ajena '{col.gameObject.name}' desactivada del interior de {mod.name}");
                         }
                     }
                 }

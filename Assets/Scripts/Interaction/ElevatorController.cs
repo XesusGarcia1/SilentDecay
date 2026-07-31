@@ -22,6 +22,11 @@ public class ElevatorController : MonoBehaviour
     [Tooltip("Tiempo de espera (en segundos) antes de abrir las puertas al llegar (para dar tiempo al timbre)")]
     public float doorOpenDelay = 1.0f;
 
+    [Header("Configuración del Mapa de la Libreta")]
+    [Tooltip("Mostrar el punto verde 'TÚ' en el mapa (falso por omisión según requerimiento)")]
+    public bool showPlayerPositionOnMap = false;
+    private static System.Collections.Generic.HashSet<Vector2Int> discoveredRooms = new System.Collections.Generic.HashSet<Vector2Int>();
+
     [Header("Referencias a Puertas")]
     public Transform leftDoor;
     public Transform rightDoor;
@@ -53,8 +58,8 @@ public class ElevatorController : MonoBehaviour
     private AudioSource audioSource;
     private AudioSource sfxAudioSource;
 
-    private Transform extButtonTrans;
-    private Transform intButtonTrans;
+    public Transform extButtonTrans;
+    public Transform intButtonTrans;
     private TextMesh extTM;
     private TextMesh intTM;
     private Light cabinLight;
@@ -64,6 +69,7 @@ public class ElevatorController : MonoBehaviour
     private Renderer extScreenRenderer;
     private Renderer intScreenRenderer;
     private bool isAudioPaused = false;
+    private int activeNotepadTab = 0; // 0 = NOTAS, 1 = PLANO DEL HOSPITAL
 
     // Posiciones y escalas iniciales congeladas de las puertas
     private Vector3 originalLeftScale;
@@ -75,8 +81,8 @@ public class ElevatorController : MonoBehaviour
     private float doorWidth = 0.45f;
 
     private bool isGameEnded = false; // Estado temporal para el fin del juego
-    public static int[] foundNotes = new int[] { -1, -1, -1, -1, -1, -1, -1 }; // Notas encontradas (posiciones 1-7)
-    private bool isNotepadOpen = false; // Estado de la libreta de notas HUD
+    public static int[] foundNotes => NotepadUIManager.foundNotes;
+    public static bool isNotepadOpen => NotepadUIManager.IsOpen;
 
     // Pantalla de carga y fundido cinemático
     private float escapeFadeAlpha = 0f;
@@ -111,7 +117,15 @@ public class ElevatorController : MonoBehaviour
             sfxAudioSource.loop = false;
         }
 
-        if (startWithKeycard || bypassKeycard)
+        if (startWithKeycard)
+        {
+            hasKeycard = true;
+            keycardUsed = false;
+            isArrived = false;
+            doorsOpen = false;
+            currentDoorProgress = 0.0f;
+        }
+        else if (bypassKeycard)
         {
             hasKeycard = true;
             keycardUsed = true;
@@ -247,27 +261,6 @@ public class ElevatorController : MonoBehaviour
 #endif
             }
             return;
-        }
-
-        // Manejar libreta de notas abierta
-        if (isNotepadOpen)
-        {
-            if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.Escape))
-            {
-                ToggleNotepad();
-            }
-            return; // Pausar logica de actualizacion
-        }
-
-        // Escuchar TAB para abrir libreta si el teclado de la oficina no esta activo
-        if (Input.GetKeyDown(KeyCode.Tab) && !isEscaping)
-        {
-            KeypadController activeKeypad = FindObjectOfType<KeypadController>();
-            bool isKeypadActive = activeKeypad != null && activeKeypad.isOpened;
-            if (!isKeypadActive)
-            {
-                ToggleNotepad();
-            }
         }
 
         if (playerTransform == null)
@@ -491,8 +484,8 @@ public class ElevatorController : MonoBehaviour
         // En modo pruebas o dev (startWithKeycard/bypassKeycard/bypassPower), habilitar la energía del elevador de inmediato
         bool effectivePower = hasPower || bypassPower || bypassKeycard || startWithKeycard;
 
-        // Determinar si el jugador esta dentro o fuera de la cabina
-        bool isInside = Vector3.Distance(transform.position, playerTransform.position) <= 3.0f;
+        // Determinar si el jugador esta verdaderamente DENTRO de la cabina (solo es posible si las puertas estan abiertas)
+        bool isInside = doorsOpen && Vector3.Distance(transform.position, playerTransform.position) <= 3.0f;
 
         if (isInside)
         {
@@ -733,20 +726,11 @@ public class ElevatorController : MonoBehaviour
         }
     }
 
-    void ToggleNotepad()
+    public void ToggleNotepad()
     {
-        isNotepadOpen = !isNotepadOpen;
-        
-        var controller = playerTransform.GetComponent<StarterAssets.FirstPersonController>();
-        if (controller != null) controller.enabled = !isNotepadOpen;
-
-        if (isNotepadOpen)
+        if (NotepadUIManager.Instance != null)
         {
-            MobileInput.SetCursorState(false);
-        }
-        else
-        {
-            MobileInput.SetCursorState(true);
+            NotepadUIManager.Instance.ToggleNotepad();
         }
     }
 
@@ -823,115 +807,7 @@ public class ElevatorController : MonoBehaviour
             return;
         }
 
-        // MENU DE LIBRETA DE NOTAS
-        if (isNotepadOpen)
-        {
-            Rect padRect = new Rect(Screen.width / 2 - 180, Screen.height / 2 - 200, 360, 380);
-            
-            GUI.color = new Color(0.96f, 0.94f, 0.82f, 0.98f);
-            GUI.DrawTexture(padRect, Texture2D.whiteTexture);
-            GUI.color = Color.white;
 
-            GUIStyle titleStyle = new GUIStyle();
-            titleStyle.fontSize = 22;
-            titleStyle.fontStyle = FontStyle.Bold;
-            titleStyle.alignment = TextAnchor.UpperCenter;
-            titleStyle.normal.textColor = new Color(0.15f, 0.15f, 0.15f);
-            GUI.Box(padRect, "LIBRETA DE NOTAS", titleStyle);
-
-            GUIStyle subStyle = new GUIStyle();
-            subStyle.fontSize = 14;
-            subStyle.alignment = TextAnchor.MiddleCenter;
-            subStyle.normal.textColor = Color.gray;
-            GUI.Label(new Rect(padRect.x, padRect.y + 45, padRect.width, 30), "Codigo de la Oficina del Director:", subStyle);
-
-            float startX = padRect.x + 22f;
-            float startY = padRect.y + 85f;
-            float slotW = 38f;
-            float slotH = 45f;
-            float spacingX = 7f;
-
-            GUIStyle slotStyle = new GUIStyle();
-            slotStyle.fontSize = 22;
-            slotStyle.fontStyle = FontStyle.Bold;
-            slotStyle.alignment = TextAnchor.MiddleCenter;
-            slotStyle.normal.textColor = new Color(0.05f, 0.5f, 0.1f);
-
-            for (int i = 0; i < 7; i++)
-            {
-                Rect slotRect = new Rect(startX + i * (slotW + spacingX), startY, slotW, slotH);
-                
-                GUI.color = Color.white;
-                GUI.DrawTexture(slotRect, Texture2D.whiteTexture);
-                
-                GUI.color = Color.black;
-                GUI.Box(slotRect, "");
-                GUI.color = Color.white;
-
-                string slotVal = foundNotes[i] != -1 ? foundNotes[i].ToString() : "_";
-                GUI.Label(slotRect, slotVal, slotStyle);
-            }
-
-            GUIStyle hintStyle = new GUIStyle();
-            hintStyle.fontSize = 13;
-            hintStyle.alignment = TextAnchor.UpperLeft;
-            hintStyle.wordWrap = true;
-            hintStyle.normal.textColor = Color.black;
-
-            string hintText = "Pistas encontradas en el laberinto:\n\n";
-            int notesCount = 0;
-            for (int i = 0; i < 7; i++)
-            {
-                if (foundNotes[i] != -1)
-                {
-                    notesCount++;
-                    hintText += $"• Digito {i + 1} del codigo: {foundNotes[i]}\n";
-                }
-            }
-
-            if (notesCount == 0)
-            {
-                hintText += "(Aun no has encontrado ninguna nota. Busca papeles blancos con numeros en las consultas y oficinas del hospital).";
-            }
-            else if (notesCount == 7)
-            {
-                hintText += "¡Codigo completo descubierto! Ve a la puerta de la Oficina del Director e ingresa los 7 numeros.";
-            }
-            else
-            {
-                hintText += $"\n({notesCount} de 7 notas encontradas. Sigue explorando para rellenar los casilleros vacios).";
-            }
-
-            GUI.Label(new Rect(padRect.x + 25, padRect.y + 145, padRect.width - 50, 180), hintText, hintStyle);
-
-            Rect closeBtn = new Rect(padRect.x + padRect.width / 2 - 50, padRect.y + padRect.height - 40, 100, 30);
-            if (GUI.Button(closeBtn, "Cerrar"))
-            {
-                ToggleNotepad();
-            }
-            return;
-        }
-
-        // ICONO DE PAPEL DE LIBRETA (Siempre visible en el HUD superior derecho)
-        if (playerTransform != null && !isEscaping)
-        {
-            Rect iconRect = new Rect(Screen.width - 330, 25, 180, 45);
-            
-            GUIStyle iconStyle = new GUIStyle();
-            iconStyle.fontSize = 16;
-            iconStyle.alignment = TextAnchor.MiddleCenter;
-            iconStyle.fontStyle = FontStyle.Bold;
-            
-            GUI.color = new Color(0f, 0.1f, 0.2f, 0.7f);
-            GUI.DrawTexture(iconRect, Texture2D.whiteTexture);
-            GUI.color = Color.white;
-
-            iconStyle.normal.textColor = new Color(0.2f, 0.8f, 1f);
-            if (GUI.Button(iconRect, "📝 LIBRETA [TAB]", iconStyle))
-            {
-                ToggleNotepad();
-            }
-        }
 
         if (playerTransform == null || isEscaping) return;
 

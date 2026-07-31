@@ -68,6 +68,7 @@ public class EnemyAIController : MonoBehaviour
         if (agent != null)
         {
             agent.radius = 0.45f;
+            agent.stoppingDistance = 1.6f;
             // Asegurar que el agente controla el transform (no el motor de fisica)
             agent.updatePosition = true;
             agent.updateRotation = true;
@@ -129,6 +130,20 @@ public class EnemyAIController : MonoBehaviour
             else
             {
                 Debug.Log("EnemyAIController: Usando referencia del jugador asignada directamente en el Inspector: " + player.name);
+            }
+        }
+
+        if (player != null)
+        {
+            Collider[] pCols = player.GetComponentsInChildren<Collider>(true);
+            Collider[] myCols = GetComponentsInChildren<Collider>(true);
+            foreach (Collider mC in myCols)
+            {
+                if (mC == null) continue;
+                foreach (Collider pC in pCols)
+                {
+                    if (pC != null) Physics.IgnoreCollision(mC, pC, true);
+                }
             }
         }
 
@@ -349,10 +364,9 @@ public class EnemyAIController : MonoBehaviour
         if (player != null && audioSource != null)
         {
             float dist = Vector3.Distance(transform.position, player.position);
-            bool isChasing = currentState is EnemyChaseState;
-            bool isClose = dist <= 12f;
+            bool isChasing = (currentState is EnemyChaseState || currentState is EnemyAttackState);
 
-            if (chaseSoundClip != null && (isChasing || isClose))
+            if (chaseSoundClip != null && isChasing)
             {
                 if (audioSource.clip != chaseSoundClip)
                 {
@@ -365,23 +379,15 @@ public class EnemyAIController : MonoBehaviour
                     audioSource.Play();
                 }
 
-                if (isChasing)
-                {
-                    // Persiguiendo: rugido fuerte (0.7) — claramente aterrador
-                    audioSource.volume = Mathf.MoveTowards(audioSource.volume, 0.70f, Time.deltaTime * 2f);
-                }
-                else
-                {
-                    // Cerca pero sin perseguir: volumen basado en distancia (0.15 a 0.40)
-                    float targetVol = Mathf.Clamp01(1f - (dist - 2f) / 10f) * 0.40f;
-                    audioSource.volume = Mathf.MoveTowards(audioSource.volume, targetVol, Time.deltaTime * 2f);
-                }
+                // Persiguiendo: volumen adaptativo por distancia (0.35 a 0.75)
+                float chaseVol = Mathf.Clamp01(1f - (dist - 2f) / 20f) * 0.75f;
+                audioSource.volume = Mathf.MoveTowards(audioSource.volume, Mathf.Max(0.35f, chaseVol), Time.deltaTime * 2f);
             }
             else
             {
                 if (audioSource.clip == chaseSoundClip)
                 {
-                    audioSource.volume = Mathf.MoveTowards(audioSource.volume, 0f, Time.deltaTime * 1.2f);
+                    audioSource.volume = Mathf.MoveTowards(audioSource.volume, 0f, Time.deltaTime * 1.5f);
                     if (audioSource.volume <= 0.01f)
                     {
                         if (monsterSoundClip != null)
@@ -779,5 +785,36 @@ public class EnemyAIController : MonoBehaviour
                 Debug.Log("[EnemyAIController] Alucinación espectral de BookHead creada cerca del jugador.");
             }
         }
+    }
+
+    public void FleeFarFromPlayer()
+    {
+        if (agent == null || !agent.enabled) return;
+
+        GameObject patrolHolder = GameObject.Find("[BookHead_Patrol_Points]");
+        Vector3 farthestPos = transform.position;
+        float maxDist = -1f;
+        Vector3 pPos = player != null ? player.position : transform.position;
+
+        if (patrolHolder != null)
+        {
+            Transform[] pts = patrolHolder.GetComponentsInChildren<Transform>();
+            foreach (Transform pt in pts)
+            {
+                if (pt != null && pt != patrolHolder.transform)
+                {
+                    float d = Vector3.Distance(pt.position, pPos);
+                    if (d > maxDist)
+                    {
+                        maxDist = d;
+                        farthestPos = pt.position;
+                    }
+                }
+            }
+        }
+
+        agent.speed = runSpeed * 1.35f;
+        agent.SetDestination(farthestPos);
+        Debug.Log("BookHead: Jugador escondido debajo de cama. Retirándose rápido a punto lejano: " + farthestPos);
     }
 }

@@ -30,23 +30,27 @@ public class EnemyAIBookHead : MonoBehaviour
             agent.agentTypeID = 0; // Humanoid por defecto
             agent.height = 2.0f;   // Altura humana realista
             agent.radius = 0.40f;
+            agent.stoppingDistance = 1.6f;
             agent.baseOffset = 0f;
         }
 
         anim = GetComponent<Animator>();
 
-        // Hacer Rigidbody y BoxColliders de tipo Trigger/Kinematic para evitar fricción física contra el suelo/paredes
-        Rigidbody[] childRbs = GetComponentsInChildren<Rigidbody>();
+        // Hacer Rigidbody y Colliders de tipo Trigger/Kinematic para evitar colisión física con el jugador
+        Rigidbody[] childRbs = GetComponentsInChildren<Rigidbody>(true);
         foreach (Rigidbody rb in childRbs)
         {
-            rb.isKinematic = true;
-            rb.useGravity = false;
+            if (rb != null)
+            {
+                rb.isKinematic = true;
+                rb.useGravity = false;
+            }
         }
 
-        BoxCollider[] boxCols = GetComponentsInChildren<BoxCollider>();
-        foreach (BoxCollider bc in boxCols)
+        Collider[] childCols = GetComponentsInChildren<Collider>(true);
+        foreach (Collider c in childCols)
         {
-            bc.isTrigger = true;
+            if (c != null) c.isTrigger = true;
         }
 
         if (player == null)
@@ -54,6 +58,19 @@ public class EnemyAIBookHead : MonoBehaviour
             GameObject pObj = GameObject.FindGameObjectWithTag("Player");
             if (pObj == null) pObj = GameObject.Find("NestedParent_Unpack");
             if (pObj != null) player = pObj.transform;
+        }
+
+        if (player != null)
+        {
+            Collider[] pCols = player.GetComponentsInChildren<Collider>(true);
+            foreach (Collider mC in childCols)
+            {
+                if (mC == null) continue;
+                foreach (Collider pC in pCols)
+                {
+                    if (pC != null) Physics.IgnoreCollision(mC, pC, true);
+                }
+            }
         }
 
         // NO lanzar PatrolRoutine aquí. El generador llamará InitializePatrol() cuando el NavMesh esté listo.
@@ -286,5 +303,36 @@ public class EnemyAIBookHead : MonoBehaviour
             isPatrolling = true;
             StartCoroutine(PatrolRoutine());
         }
+    }
+
+    public void FleeFarFromPlayer()
+    {
+        if (agent == null || !agent.enabled) return;
+
+        GameObject patrolHolder = GameObject.Find("[BookHead_Patrol_Points]");
+        Vector3 farthestPos = transform.position;
+        float maxDist = -1f;
+        Vector3 pPos = player != null ? player.position : transform.position;
+
+        if (patrolHolder != null)
+        {
+            Transform[] pts = patrolHolder.GetComponentsInChildren<Transform>();
+            foreach (Transform pt in pts)
+            {
+                if (pt != null && pt != patrolHolder.transform)
+                {
+                    float d = Vector3.Distance(pt.position, pPos);
+                    if (d > maxDist)
+                    {
+                        maxDist = d;
+                        farthestPos = pt.position;
+                    }
+                }
+            }
+        }
+
+        agent.speed = runSpeed * 1.35f;
+        agent.SetDestination(farthestPos);
+        Debug.Log("BookHeadAI: Jugador escondido debajo de cama. Retirándose rápido a punto lejano: " + farthestPos);
     }
 }

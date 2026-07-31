@@ -8,8 +8,8 @@ public class CrawlerAI : MonoBehaviour
     [Header("Ajustes de Acecho y Movimiento")]
     [Tooltip("Velocidad de caminata/arrastre sigiloso (Lenta y aterradora)")]
     public float walkSpeed = 1.35f;
-    [Tooltip("Velocidad al perseguir al jugador en la oscuridad")]
-    public float chaseSpeed = 2.3f;
+    [Tooltip("Velocidad al perseguir al jugador en la oscuridad (Rápida e intensa)")]
+    public float chaseSpeed = 3.25f;
     [Tooltip("Velocidad al huir hacia las sombras")]
     public float fleeSpeed = 3.0f;
     [Tooltip("Distancia a la que empieza a perseguir al jugador en la oscuridad")]
@@ -50,6 +50,11 @@ public class CrawlerAI : MonoBehaviour
     private bool isFleeing = false;
     private float fleeTimer = 0f;
     private float stepAudioTimer = 0f;
+    private float chaseRoarTimer = 0f;
+
+    [Header("Sistema Anti-Estancamiento (Anti-Stuck)")]
+    private float stuckTimer = 0f;
+    private float stuckTimeout = 4.5f;
 
     void Start()
     {
@@ -127,11 +132,58 @@ public class CrawlerAI : MonoBehaviour
             agent.speed = walkSpeed;
             agent.angularSpeed = 180f; // Giro fluido y natural (~180 deg/s)
             agent.acceleration = 12f;   // Aceleración orgánica sin tirones
-            agent.stoppingDistance = 0.5f;
+            agent.stoppingDistance = 1.6f; // Evitar que el agente se empotre dentro de la cápsula del jugador
         }
+
+        // Configurar colisiones para que los colliders del cuerpo sean Triggers y no sirvan de rampa física al jugador
+        SetupCollisions();
 
         FindPlayerReferences();
         StartCoroutine(DeferredGeneratePerimeter());
+    }
+
+    void SetupCollisions()
+    {
+        // 1. Convertir todos los Rigidbodies del monstruo en Kinematic
+        Rigidbody[] rbs = GetComponentsInChildren<Rigidbody>(true);
+        foreach (Rigidbody rb in rbs)
+        {
+            if (rb != null)
+            {
+                rb.isKinematic = true;
+                rb.useGravity = false;
+            }
+        }
+
+        // 2. Hacer Triggers todos los Colliders del cuerpo para que no actúen como rampas o escalones
+        Collider[] myCols = GetComponentsInChildren<Collider>(true);
+        foreach (Collider col in myCols)
+        {
+            if (col != null)
+            {
+                col.isTrigger = true;
+            }
+        }
+    }
+
+    void IgnorePlayerCollisions()
+    {
+        if (playerTransform == null) return;
+
+        Collider[] playerCols = playerTransform.GetComponentsInChildren<Collider>(true);
+        Collider[] myCols = GetComponentsInChildren<Collider>(true);
+
+        foreach (Collider myCol in myCols)
+        {
+            if (myCol == null) continue;
+            foreach (Collider pCol in playerCols)
+            {
+                if (pCol != null)
+                {
+                    Physics.IgnoreCollision(myCol, pCol, true);
+                }
+            }
+        }
     }
 
     void FindPlayerReferences()
@@ -144,6 +196,75 @@ public class CrawlerAI : MonoBehaviour
             playerTransform = playerObj.transform;
             playerFlashlight = playerObj.GetComponentInChildren<FlashlightController>();
             playerSanity = playerObj.GetComponent<PlayerSanity>();
+
+            IgnorePlayerCollisions();
+        }
+    }
+
+    void TryWarpToNavMesh()
+    {
+        if (agent == null) return;
+        Vector3 origin = transform.position;
+        float[] yOffsets = { 0f, -0.5f, 0.5f, -1f, 1f, -2f, 2f, -4f, 4f };
+
+        foreach (float dy in yOffsets)
+        {
+            Vector3 testPos = new Vector3(origin.x, origin.y + dy, origin.z);
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(testPos, out hit, 3f, NavMesh.AllAreas))
+            {
+                if (agent.Warp(hit.position))
+                {
+                    agent.isStopped = false;
+                    agent.speed = walkSpeed;
+                    Debug.Log("[TheCreep] Warp exitoso al NavMesh en " + hit.position);
+                    SetNextPerimeterDestination();
+                    return;
+                }
+            }
+        }
+    }
+
+    void CheckAndOpenObstacleDoors()
+    {
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh || agent.isStopped || agent.velocity.magnitude < 0.1f) return;
+
+        Vector3 rayOrigin = transform.position + Vector3.up * 0.8f;
+        Vector3 rayDir = transform.forward;
+        RaycastHit hit;
+
+        if (Physics.Raycast(rayOrigin, rayDir, out hit, 2.2f))
+        {
+            ProceduralDoorInteract procDoor = hit.collider.GetComponentInParent<ProceduralDoorInteract>();
+            if (procDoor == null) procDoor = hit.collider.GetComponent<ProceduralDoorInteract>();
+            if (procDoor != null)
+            {
+                if (!procDoor.gameObject.name.Contains("PuertaDirector"))
+                {
+                    if (procDoor.isLocked) procDoor.isLocked = false;
+                    float angleDiff = Quaternion.Angle(procDoor.transform.localRotation, procDoor.transform.parent != null ? Quaternion.identity : transform.rotation);
+                    if (angleDiff < 10f || hit.collider.gameObject.name.Contains("Puerta_Panel"))
+                    {
+                        procDoor.ToggleDoor();
+                        Debug.Log("[TheCreep] Abrío una puerta obstáculo en su camino.");
+                    }
+                }
+            }
+
+            OpenDoor animDoor = hit.collider.GetComponentInParent<OpenDoor>();
+            if (animDoor == null) animDoor = hit.collider.GetComponent<OpenDoor>();
+            if (animDoor != null)
+            {
+                if (animDoor.isLocked) animDoor.isLocked = false;
+                if (animDoor.doorAnimator != null && !animDoor.doorAnimator.GetBool("isOpen"))
+                {
+                    animDoor.doorAnimator.SetBool("isOpen", true);
+                    if (animDoor.audioSource && animDoor.doorOpenSound)
+                    {
+                        animDoor.audioSource.PlayOneShot(animDoor.doorOpenSound, 1.0f);
+                    }
+                }
+            }
         }
     }
 
@@ -151,7 +272,17 @@ public class CrawlerAI : MonoBehaviour
     {
         if (playerTransform == null) FindPlayerReferences();
 
-        // 1. Manejo de animación de caminata/arrastre
+        // 0. Si se sale del NavMesh, re-anclar inmediatamente
+        if (agent != null && !agent.isOnNavMesh)
+        {
+            TryWarpToNavMesh();
+            return;
+        }
+
+        // 1. Abrir puertas en su trayectoria
+        CheckAndOpenObstacleDoors();
+
+        // 2. Manejo de animación de caminata/arrastre
         if (animator != null && agent != null)
         {
             float currentSpeed = agent.velocity.magnitude;
@@ -159,13 +290,38 @@ public class CrawlerAI : MonoBehaviour
             animator.SetBool("IsMoving", currentSpeed > 0.1f);
         }
 
-        // 2. Detección de luz directa de la linterna (Ángulo y visión libre)
+        // 3. Detección de luz directa de la linterna (Ángulo y visión libre)
         CheckFlashlightExposure();
 
-        // 3. Daño de Cordura y sonidos de pisadas
+        // 4. Daño de Cordura y sonidos de pisadas
         CheckSanityDrain();
 
-        // 4. Comportamiento de IA: Huida -> Persecución en Oscuridad -> Patrullaje
+        // --- SISTEMA ANTI-ESTANCAMIENTO (TIMEOUT Y PATH INVALIDO/PARCIAL) ---
+        if (agent != null && agent.enabled && agent.hasPath && !agent.pathPending && !isFleeing)
+        {
+            if (agent.pathStatus == NavMeshPathStatus.PathInvalid || agent.pathStatus == NavMeshPathStatus.PathPartial)
+            {
+                stuckTimer = 0f;
+                Debug.LogWarning("[TheCreep] Path inválido/parcial → buscando nuevo destino de patrulla.");
+                SetNextPerimeterDestination();
+            }
+            else if (agent.velocity.magnitude < 0.15f)
+            {
+                stuckTimer += Time.deltaTime;
+                if (stuckTimer >= stuckTimeout)
+                {
+                    stuckTimer = 0f;
+                    Debug.LogWarning($"[TheCreep] Atascado ({stuckTimeout}s sin avanzar) → Cambiando punto de patrulla.");
+                    SetNextPerimeterDestination();
+                }
+            }
+            else
+            {
+                stuckTimer = 0f;
+            }
+        }
+
+        // 5. Comportamiento de IA: Huida -> Persecución en Oscuridad -> Patrullaje
         if (isFleeing)
         {
             if (chaseAudioSource != null && chaseAudioSource.isPlaying) chaseAudioSource.Stop();
@@ -211,10 +367,35 @@ public class CrawlerAI : MonoBehaviour
                 agent.speed = chaseSpeed;
                 agent.SetDestination(playerTransform.position);
 
+                // Aumentar velocidad de animación para simular caminata/arrastre rápido y frenético
+                if (animator != null) animator.speed = 1.55f;
+
+                // Reproducir audio ambiental de persecución
                 if (chaseAudioSource != null && chaseSoundClip != null && !chaseAudioSource.isPlaying)
                 {
                     chaseAudioSource.clip = chaseSoundClip;
                     chaseAudioSource.Play();
+                }
+
+                // Reproducir sonidos raros/espeluznantes (rugidos, aullidos) periódicamente durante la persecución
+                chaseRoarTimer -= Time.deltaTime;
+                if (chaseRoarTimer <= 0f)
+                {
+                    chaseRoarTimer = Random.Range(3.5f, 6.0f);
+                    if (roarAudioSource != null)
+                    {
+                        AudioClip weirdSound = null;
+                        float r = Random.value;
+                        if (r < 0.45f && rugidoSound != null) weirdSound = rugidoSound;
+                        else if (r < 0.8f && aullidoSound != null) weirdSound = aullidoSound;
+                        else if (arrastreSound != null) weirdSound = arrastreSound;
+
+                        if (weirdSound != null)
+                        {
+                            roarAudioSource.pitch = Random.Range(0.85f, 1.15f);
+                            roarAudioSource.PlayOneShot(weirdSound, 1.0f);
+                        }
+                    }
                 }
 
                 // Si alcanza al jugador en cuerpo a cuerpo (menos de 1.8m), infligir daño de salud real
@@ -230,12 +411,14 @@ public class CrawlerAI : MonoBehaviour
             }
             else
             {
+                if (animator != null) animator.speed = 1.0f; // Restaurar velocidad normal de animación
+
                 if (chaseAudioSource != null && chaseAudioSource.isPlaying)
                 {
                     chaseAudioSource.Stop();
                 }
                 agent.speed = walkSpeed;
-                if (!agent.pathPending && agent.remainingDistance <= 0.8f)
+                if (!agent.pathPending && agent.remainingDistance <= 1.1f)
                 {
                     SetNextPerimeterDestination();
                 }
@@ -301,13 +484,27 @@ public class CrawlerAI : MonoBehaviour
                 return angleA.CompareTo(angleB);
             });
 
-            // Teletransportar a El Rastrero a una posición libre y caminable en el perímetro
+            // Teletransportar a El Rastrero a la esquina más alejada del jugador en el perímetro
             if (perimeterWaypoints.Count > 0 && agent != null)
             {
+                Vector3 playerPos = playerTransform != null ? playerTransform.position : transform.position;
+                Vector3 farthestCorner = perimeterWaypoints[0];
+                float maxDist = -1f;
+
+                foreach (Vector3 pt in perimeterWaypoints)
+                {
+                    float d = Vector3.Distance(pt, playerPos);
+                    if (d > maxDist)
+                    {
+                        maxDist = d;
+                        farthestCorner = pt;
+                    }
+                }
+
                 agent.enabled = false;
-                transform.position = perimeterWaypoints[0];
+                transform.position = farthestCorner;
                 agent.enabled = true;
-                agent.Warp(perimeterWaypoints[0]);
+                agent.Warp(farthestCorner);
 
                 SetNextPerimeterDestination();
             }
@@ -316,11 +513,60 @@ public class CrawlerAI : MonoBehaviour
 
     void SetNextPerimeterDestination()
     {
-        if (perimeterWaypoints.Count == 0 || agent == null || !agent.enabled) return;
+        stuckTimer = 0f;
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
 
-        currentWaypointIdx = (currentWaypointIdx + 1) % perimeterWaypoints.Count;
-        Vector3 target = perimeterWaypoints[currentWaypointIdx];
-        agent.SetDestination(target);
+        if (perimeterWaypoints.Count == 0)
+        {
+            TrySetRandomNavMeshDestination();
+            return;
+        }
+
+        int attempts = 0;
+        int maxAttempts = perimeterWaypoints.Count;
+
+        do
+        {
+            currentWaypointIdx = (currentWaypointIdx + 1) % perimeterWaypoints.Count;
+            Vector3 target = perimeterWaypoints[currentWaypointIdx];
+            attempts++;
+
+            NavMeshHit hit;
+            Vector3 finalTarget = NavMesh.SamplePosition(target, out hit, 4f, NavMesh.AllAreas) ? hit.position : target;
+
+            NavMeshPath path = new NavMeshPath();
+            if (agent.CalculatePath(finalTarget, path) && path.status == NavMeshPathStatus.PathComplete)
+            {
+                agent.SetPath(path);
+                return;
+            }
+        }
+        while (attempts < maxAttempts);
+
+        // Fallback si ningún waypoint perimetral es directamente completable
+        TrySetRandomNavMeshDestination();
+    }
+
+    private void TrySetRandomNavMeshDestination()
+    {
+        stuckTimer = 0f;
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
+
+        for (int i = 0; i < 10; i++)
+        {
+            Vector3 randomDir = Random.insideUnitSphere * 18f;
+            randomDir += transform.position;
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(randomDir, out hit, 18f, NavMesh.AllAreas))
+            {
+                NavMeshPath path = new NavMeshPath();
+                if (agent.CalculatePath(hit.position, path) && path.status == NavMeshPathStatus.PathComplete)
+                {
+                    agent.SetPath(path);
+                    return;
+                }
+            }
+        }
     }
 
     void CheckFlashlightExposure()
@@ -344,13 +590,13 @@ public class CrawlerAI : MonoBehaviour
         }
     }
 
-    void FleeToShadows()
+    public void FleeToShadows()
     {
-        if (isFleeing || agent == null || !agent.enabled) return;
+        if (agent == null || !agent.enabled) return;
 
         isFleeing = true;
-        fleeTimer = 5.0f; // Huir durante 5 segundos hacia las sombras
-        agent.speed = fleeSpeed;
+        fleeTimer = 8.0f; // Huir durante 8 segundos hacia el perímetro lejano
+        agent.speed = 3.8f; // Velocidad rápida de retirada hacia las sombras
 
         // Reproducir Aullido o Rugido de furia/dolor al ser alumbrado
         if (roarAudioSource != null)
@@ -418,10 +664,16 @@ public class CrawlerAI : MonoBehaviour
         // Reproducir pasos 3D (Cercanos vs Lejanos) según la distancia del jugador
         if (agent != null && agent.velocity.magnitude > 0.1f && Time.time >= stepAudioTimer)
         {
-            stepAudioTimer = Time.time + (isFleeing ? 0.5f : 0.85f);
+            bool isChasingPlayer = (dist <= chaseDistance && !isFleeing);
+            float stepInterval = isChasingPlayer ? 0.32f : (isFleeing ? 0.45f : 0.85f);
+            stepAudioTimer = Time.time + stepInterval;
+
             AudioClip stepClip = (dist <= 8.0f && pisadasCercanasSound != null) ? pisadasCercanasSound : pisadasLejanasSound;
+            if (stepClip == null) stepClip = arrastreSound;
+
             if (stepClip != null && spatialAudioSource != null)
             {
+                spatialAudioSource.pitch = isChasingPlayer ? Random.Range(1.15f, 1.35f) : Random.Range(0.95f, 1.05f);
                 spatialAudioSource.PlayOneShot(stepClip, Mathf.Clamp01(1.0f - (dist / 22.0f)));
             }
         }
