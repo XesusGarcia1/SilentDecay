@@ -105,6 +105,15 @@ public class PhenomenonAIController : MonoBehaviour
     private float spectralTimer = 0f;
     private bool isSpectrallyInvisible = false;
 
+    [Header("Sonidos de Jumpscare (Sting)")]
+    private AudioClip jumpscareStingBassClip;
+    private AudioClip jumpscareStingNormalClip;
+    private AudioClip jumpscareStingNormal2Clip;
+    private AudioClip jumpscareStingStrongClip;
+    private int lastJumpscareVariationIndex = -1;
+    private float lastJumpscareStingTime = 0f;
+    private Coroutine cameraGlanceCoroutine;
+
     void Start()
     {
         // Reducir la escala general del monstruo a un 65% para evitar que su cabeza choque/atraviese el techo de los túneles
@@ -241,6 +250,19 @@ public class PhenomenonAIController : MonoBehaviour
             whistleAudioSource.playOnAwake = false;
         }
 
+        // Cargar sonidos de Jumpscare Sting (Bass + Variaciones)
+        jumpscareStingBassClip = Resources.Load<AudioClip>("Audio/Monstruos/Phenomenon/jumpscareStingBass");
+        if (jumpscareStingBassClip == null) jumpscareStingBassClip = Resources.Load<AudioClip>("jumpscareStingBass");
+
+        jumpscareStingNormalClip = Resources.Load<AudioClip>("Audio/Monstruos/Phenomenon/jumpscareStingNormal");
+        if (jumpscareStingNormalClip == null) jumpscareStingNormalClip = Resources.Load<AudioClip>("jumpscareStingNormal");
+
+        jumpscareStingNormal2Clip = Resources.Load<AudioClip>("Audio/Monstruos/Phenomenon/jumpscareStingNormal2");
+        if (jumpscareStingNormal2Clip == null) jumpscareStingNormal2Clip = Resources.Load<AudioClip>("jumpscareStingNormal2");
+
+        jumpscareStingStrongClip = Resources.Load<AudioClip>("Audio/Monstruos/Phenomenon/jumpscareStingStrong");
+        if (jumpscareStingStrongClip == null) jumpscareStingStrongClip = Resources.Load<AudioClip>("jumpscareStingStrong");
+
         // Inicializar dificultad de PlayerPrefs
         string savedDifficulty = PlayerPrefs.GetString("SelectedDifficulty", "NORMAL");
         if (savedDifficulty == "FACIL")
@@ -341,8 +363,8 @@ public class PhenomenonAIController : MonoBehaviour
 
         if (isPlayerLookingNow)
         {
-            // Solo se reproduce si el jugador lleva al menos 20 segundos sin ver al monstruo (genera tensión/susto real)
-            if (timeSinceLastVisualContact >= 20f && !wasPlayerLookingLastFrame)
+            // Reproducir susto si lleva al menos 12 segundos sin ver al monstruo O si está a menos de 8 metros de frente/costado
+            if ((timeSinceLastVisualContact >= 12f || distToMonster <= 8.0f) && !wasPlayerLookingLastFrame)
             {
                 TriggerVisualImpactSound();
             }
@@ -1018,7 +1040,10 @@ public class PhenomenonAIController : MonoBehaviour
                 fl.isGlitchedByMonster = true;
             }
 
-            // Sonido de susto/ataque (ej. Apagon + Susurros de golpe a volumen alto)
+            // Sonido de susto/ataque (Bass constante + variación de Jumpscare Sting)
+            PlayJumpscareSting(1.0f);
+            TriggerJumpscareCameraGlance();
+
             AudioClip sClip = Resources.Load<AudioClip>("Audio/Compartido/Susurros");
             if (sClip != null) AudioSource.PlayClipAtPoint(sClip, player.position, 1.0f);
             
@@ -1575,7 +1600,13 @@ public class PhenomenonAIController : MonoBehaviour
                     StartCoroutine(GlitchFlashlightCoroutine(fl));
                 }
 
-                // Play warp sound (Apagon) en la posición del jugador
+                // Play warp sound (Apagon) y Jumpscare si aparece cerca
+                if (Vector3.Distance(targetPos, player.position) <= 12f)
+                {
+                    PlayJumpscareSting(0.85f);
+                    TriggerJumpscareCameraGlance();
+                }
+
                 AudioClip warpSound = Resources.Load<AudioClip>("Audio/Tuneles/Apagon_Sonido");
                 if (warpSound == null) warpSound = Resources.Load<AudioClip>("Apagon");
                 if (warpSound != null)
@@ -1881,6 +1912,10 @@ public class PhenomenonAIController : MonoBehaviour
             ResetAgentPath();
             shadowWarpCooldownTimer = 4.0f; // Cooldown de 4 segundos para evitar spam
 
+            // Jumpscare Sting + Mirada rápida de cámara al reaparecer tras el salto de sombras
+            PlayJumpscareSting(0.85f);
+            TriggerJumpscareCameraGlance();
+
             // Sonido 3D de desaparición/reaparición espectral
             AudioClip warpSound = Resources.Load<AudioClip>("Audio/Compartido/Susurros");
             if (warpSound != null)
@@ -1989,6 +2024,10 @@ public class PhenomenonAIController : MonoBehaviour
     {
         if (player == null) return;
 
+        // Ejecutar Jumpscare Sting (Bass siempre presente + variación rotativa)
+        PlayJumpscareSting(1.0f);
+        TriggerJumpscareCameraGlance();
+
         // Elegir aleatoriamente uno de los dos sonidos para evitar repetición constante
         int randSound = Random.Range(1, 3); // Retorna 1 o 2
         AudioClip impactClip = Resources.Load<AudioClip>($"Audio/Compartido/Impacto_{randSound}");
@@ -2014,14 +2053,82 @@ public class PhenomenonAIController : MonoBehaviour
         if (impactClip != null)
         {
             float dist = Vector3.Distance(transform.position, player.position);
-            // Escalar volumen: 1.0 (susto completo) a 5 metros o menos, 0.15 (susto lejano sordo) a 45 metros o más
             float volume = Mathf.Lerp(1.0f, 0.15f, Mathf.InverseLerp(5f, 45f, dist));
             volume = Mathf.Clamp(volume, 0.15f, 1.0f);
 
-            // Reproducir sonido en la cabeza del jugador
             AudioSource.PlayClipAtPoint(impactClip, player.position, volume);
             
-            Debug.Log($"[PhenomenonAIController] Susto de impacto ({impactClip.name}) reproducido a volumen {volume} (Distancia: {dist}m). Tiempo sin verse: {timeSinceLastVisualContact}s");
+            Debug.Log($"[PhenomenonAIController] Susto de impacto ({impactClip.name}) reproducido a volumen {volume} (Distancia: {dist}m).");
+        }
+    }
+
+    private void PlayJumpscareSting(float volume = 1.0f)
+    {
+        if (player == null) return;
+
+        // Cooldown de 1.2s para evitar superposición acelerada
+        if (Time.time - lastJumpscareStingTime < 1.2f) return;
+        lastJumpscareStingTime = Time.time;
+
+        // 1. Sonido de Bass: Siempre se ejecuta en todos los sustos/apariciones
+        if (jumpscareStingBassClip != null)
+        {
+            AudioSource.PlayClipAtPoint(jumpscareStingBassClip, player.position, volume);
+        }
+
+        // 2. Variaciones: Intercambiar aleatoriamente entre Normal, Normal2 y Strong sin repetir la última
+        System.Collections.Generic.List<AudioClip> variations = new System.Collections.Generic.List<AudioClip>();
+        if (jumpscareStingNormalClip != null) variations.Add(jumpscareStingNormalClip);
+        if (jumpscareStingNormal2Clip != null) variations.Add(jumpscareStingNormal2Clip);
+        if (jumpscareStingStrongClip != null) variations.Add(jumpscareStingStrongClip);
+
+        if (variations.Count > 0)
+        {
+            int randomIndex = Random.Range(0, variations.Count);
+            if (variations.Count > 1 && randomIndex == lastJumpscareVariationIndex)
+            {
+                randomIndex = (randomIndex + 1) % variations.Count;
+            }
+            lastJumpscareVariationIndex = randomIndex;
+
+            AudioClip selectedVariation = variations[randomIndex];
+            AudioSource.PlayClipAtPoint(selectedVariation, player.position, volume);
+            Debug.Log($"[PhenomenonAIController] Jumpscare Sting: Bass + {selectedVariation.name} (Vol: {volume:F2})");
+        }
+    }
+
+    private void TriggerJumpscareCameraGlance()
+    {
+        if (player == null) return;
+        if (cameraGlanceCoroutine != null)
+        {
+            StopCoroutine(cameraGlanceCoroutine);
+        }
+        cameraGlanceCoroutine = StartCoroutine(JumpscareCameraGlanceRoutine());
+    }
+
+    private IEnumerator JumpscareCameraGlanceRoutine()
+    {
+        Transform camTransform = playerCamera != null ? playerCamera : ((Camera.main != null) ? Camera.main.transform : null);
+        if (camTransform == null) yield break;
+
+        Vector3 targetPoint = transform.position + Vector3.up * 1.5f;
+        Vector3 dirToMonster = (targetPoint - camTransform.position).normalized;
+        if (dirToMonster == Vector3.zero) yield break;
+
+        Quaternion startRot = camTransform.rotation;
+        Quaternion targetRot = Quaternion.LookRotation(dirToMonster);
+
+        float duration = 0.28f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float progress = elapsed / duration;
+            // Sacudida/mirada rápida parcial (0.65f) hacia Phenomenon
+            camTransform.rotation = Quaternion.Slerp(startRot, targetRot, progress * 0.65f);
+            yield return null;
         }
     }
 
@@ -2172,6 +2279,13 @@ public class PhenomenonAIController : MonoBehaviour
                     lastKnownPlayerPosition = player.position;
                     chaseLostTimer = 0f;
                     SetAgentDestination(player.position);
+
+                    if (Vector3.Distance(targetPos, player.position) <= 10f)
+                    {
+                        PlayJumpscareSting(0.9f);
+                        TriggerJumpscareCameraGlance();
+                    }
+
                     Debug.Log("[PhenomenonAIController] Cacería/Pánico: Monstruo teletransportado súper cerca del jugador (" + Vector3.Distance(targetPos, player.position).ToString("F1") + "m)");
                 }
             }
