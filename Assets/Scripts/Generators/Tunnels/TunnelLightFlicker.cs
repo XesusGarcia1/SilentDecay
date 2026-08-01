@@ -22,9 +22,11 @@ public class TunnelLightFlicker : MonoBehaviour
 
     private bool lastForcedOff = false;
     private bool lastPanicFlicker = false;
+    private Light emergencyRedLight;
+
     void Start()
     {
-        // 1. Obtener la luz
+        // 1. Obtener la luz principal
         targetLight = GetComponentInChildren<Light>();
         if (targetLight == null) targetLight = GetComponent<Light>();
 
@@ -33,6 +35,18 @@ public class TunnelLightFlicker : MonoBehaviour
             maxIntensity = targetLight.intensity;
             maxColor = targetLight.color;
         }
+
+        // Crear la luz roja de emergencia secundaria en la lámpara para el apagón global
+        GameObject redObj = new GameObject("EmergencyRedBeacon");
+        redObj.transform.SetParent(transform);
+        redObj.transform.localPosition = new Vector3(0f, -0.5f, 0f);
+        emergencyRedLight = redObj.AddComponent<Light>();
+        emergencyRedLight.type = LightType.Point;
+        emergencyRedLight.color = new Color(1.0f, 0.08f, 0.04f);
+        emergencyRedLight.range = 14f;
+        emergencyRedLight.intensity = 1.2f;
+        emergencyRedLight.shadows = LightShadows.Soft;
+        emergencyRedLight.enabled = false;
 
         // 2. Obtener el Renderer de la bombilla para el brillo
         bulbRenderer = GetComponentInChildren<Renderer>();
@@ -74,8 +88,6 @@ public class TunnelLightFlicker : MonoBehaviour
             float waitTime = Random.Range(minFlickerInterval, maxFlickerInterval);
             yield return new WaitForSeconds(waitTime);
 
-
-
             // Iniciar sonido de corto circuito / fallo
             if (audioSource != null && flickerSound != null)
             {
@@ -113,7 +125,8 @@ public class TunnelLightFlicker : MonoBehaviour
 
     private void SetLightState(bool on)
     {
-        if (isForcedOff || TunnelsPowerOutageManager.isGlobalPowerOutage) on = false; // Forzar apagado permanente si está saboteado o hay apagón global
+        bool isOutage = TunnelsPowerOutageManager.isGlobalPowerOutage;
+        if (isForcedOff || isOutage) on = false;
 
         if (targetLight != null)
         {
@@ -123,7 +136,14 @@ public class TunnelLightFlicker : MonoBehaviour
 
         if (bulbMaterial != null)
         {
-            if (on)
+            if (isOutage)
+            {
+                // En apagón global, el foco físico brilla en ROJO DE EMERGENCIA
+                bulbMaterial.EnableKeyword("_EMISSION");
+                bulbMaterial.SetColor("_EmissionColor", new Color(1.0f, 0.06f, 0.03f) * 2.5f);
+                bulbMaterial.color = new Color(0.9f, 0.1f, 0.1f);
+            }
+            else if (on)
             {
                 bulbMaterial.EnableKeyword("_EMISSION");
                 bulbMaterial.SetColor("_EmissionColor", originalEmissionColor);
@@ -141,6 +161,19 @@ public class TunnelLightFlicker : MonoBehaviour
     void Update()
     {
         bool forceOff = isForcedOff || TunnelsPowerOutageManager.isGlobalPowerOutage;
+        
+        // Control de la luz roja de emergencia durante el apagón global
+        if (emergencyRedLight != null)
+        {
+            bool showEmergency = TunnelsPowerOutageManager.isGlobalPowerOutage;
+            emergencyRedLight.enabled = showEmergency;
+            if (showEmergency)
+            {
+                float pulse = 0.8f + Mathf.PingPong(Time.time * 2.2f, 0.6f);
+                emergencyRedLight.intensity = pulse;
+            }
+        }
+
         if (forceOff)
         {
             if (!lastForcedOff)

@@ -43,18 +43,12 @@ public class PhenomenonAnimation : MonoBehaviour
     {
         if (animator == null) return;
 
-        if (isWalking)
+        // Comportamiento Slenderman: Inmovilidad total (estatua).
+        // En lugar de caminar, mantiene poses estáticas amenazantes.
+        if (currentState == "WalkPrimary" || currentState == "")
         {
-            PlayState("WalkPrimary");
-        }
-        else
-        {
-            // Al detenerse, elegir una pose de descanso diferente para variar
-            if (currentState == "WalkPrimary" || currentState == "")
-            {
-                currentIdleName = idleStates[Random.Range(0, idleStates.Length)];
-            }
-            PlayState(currentIdleName);
+            currentIdleName = idleStates[Random.Range(0, idleStates.Length)];
+            PlayState(currentIdleName, 0.15f);
         }
     }
 

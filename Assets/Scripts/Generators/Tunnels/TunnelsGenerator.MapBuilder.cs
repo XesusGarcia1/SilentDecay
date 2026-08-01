@@ -42,24 +42,62 @@ public partial class TunnelsGenerator
 				stack.Pop();
 			}
 		}
-		for (int j = 2; j < width - 2; j += 2)
+		// 2. Braid Connected Maze: Conectar pasillos para eliminar callejones sin salida y crear vías alternativas (40% apertura de paredes)
+		for (int j = 1; j < width - 1; j++)
 		{
-			for (int k = 2; k < height - 2; k += 2)
+			for (int k = 1; k < height - 1; k++)
 			{
-				if (grid[j, k])
-				{
-					continue;
-				}
-				if (grid[j - 1, k] && grid[j + 1, k])
-				{
-					if (Random.value < 0.2f)
-					{
-						grid[j, k] = true;
-					}
-				}
-				else if (grid[j, k - 1] && grid[j, k + 1] && Random.value < 0.2f)
+				if (grid[j, k]) continue;
+
+				bool connectsHorizontal = (grid[j - 1, k] && grid[j + 1, k]);
+				bool connectsVertical = (grid[j, k - 1] && grid[j, k + 1]);
+
+				if ((connectsHorizontal || connectsVertical) && Random.value < 0.40f)
 				{
 					grid[j, k] = true;
+				}
+			}
+		}
+
+		// 3. Crear pasillo o cruz central principal para navegación fluida de cuadrante a cuadrante
+		int centerX = width / 2;
+		int centerY = height / 2;
+		for (int x = 2; x < width - 2; x++)
+		{
+			if (Random.value < 0.75f) grid[x, centerY] = true;
+		}
+		for (int cy = 2; cy < height - 2; cy++)
+		{
+			if (Random.value < 0.75f) grid[centerX, cy] = true;
+		}
+
+		// 4. Eliminar callejones sin salida (Dead-ends removal)
+		for (int j = 1; j < width - 1; j++)
+		{
+			for (int k = 1; k < height - 1; k++)
+			{
+				if (!grid[j, k]) continue;
+
+				int openNeighbors = 0;
+				if (grid[j - 1, k]) openNeighbors++;
+				if (grid[j + 1, k]) openNeighbors++;
+				if (grid[j, k - 1]) openNeighbors++;
+				if (grid[j, k + 1]) openNeighbors++;
+
+				// Si es un callejón sin salida (solo 1 salida), abrir una pared adyacente
+				if (openNeighbors == 1)
+				{
+					List<Vector2Int> candidates = new List<Vector2Int>();
+					if (j - 2 > 0) candidates.Add(new Vector2Int(j - 1, k));
+					if (j + 2 < width - 1) candidates.Add(new Vector2Int(j + 1, k));
+					if (k - 2 > 0) candidates.Add(new Vector2Int(j, k - 1));
+					if (k + 2 < height - 1) candidates.Add(new Vector2Int(j, k + 1));
+
+					if (candidates.Count > 0)
+					{
+						Vector2Int wallToBreak = candidates[Random.Range(0, candidates.Count)];
+						grid[wallToBreak.x, wallToBreak.y] = true;
+					}
 				}
 			}
 		}

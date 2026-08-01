@@ -165,11 +165,11 @@ public partial class TunnelsGenerator : MonoBehaviour
 	[Tooltip("Máxima distancia consecutiva a oscuras permitida")]
 	public float maxDarkSpacing = 40f;
 
-	private int width = 25;
+	public int width = 25;
 
-	private int height = 25;
+	public int height = 25;
 
-	private bool[,] grid;
+	public bool[,] grid;
 
 	private NavMeshSurface navMeshSurface;
 
@@ -364,21 +364,18 @@ public partial class TunnelsGenerator : MonoBehaviour
 
 	private void Update()
 	{
-		// Si existe PauseMenuManager en la escena, delegarle toda la pausa
-		if (FindAnyObjectByType<PauseMenuManager>() != null)
-		{
-			return;
-		}
-
 		if (Input.GetKeyDown(KeyCode.Escape))
 		{
-			if (isPaused)
+			if (FindAnyObjectByType<PauseMenuManager>() == null)
 			{
-				ResumeGame();
-			}
-			else
-			{
-				PauseGame();
+				if (isPaused)
+				{
+					ResumeGame();
+				}
+				else
+				{
+					PauseGame();
+				}
 			}
 		}
 		if (leverArmObj != null)
@@ -388,14 +385,19 @@ public partial class TunnelsGenerator : MonoBehaviour
 		}
 		if (escapeState == EscapeState.Idle)
 		{
-			if (Vector3.Distance(playerObjInstance.transform.position, consolePos) < 2.5f * mapScale)
+			Vector3 worldConsolePos = consolePos;
+			GameObject pObj = (playerObjInstance != null) ? playerObjInstance : GameObject.FindGameObjectWithTag("Player");
+			float dist = 9999f;
+			if (pObj != null)
 			{
-				if (TunnelsPowerOutageManager.isGlobalPowerOutage)
-				{
-					interactionTimer = 0f;
-					return;
-				}
-				if (MobileInput.GetKey(KeyCode.E) || Input.GetKey(KeyCode.E))
+				Vector3 pPos = pObj.transform.position;
+				dist = Vector3.Distance(new Vector3(pPos.x, 0f, pPos.z), new Vector3(worldConsolePos.x, 0f, worldConsolePos.z));
+			}
+
+			if (dist < 4.2f)
+			{
+				bool isHolding = MobileInput.GetKey(KeyCode.E) || Input.GetKey(KeyCode.E) || MobileInput.ePressed;
+				if (isHolding)
 				{
 					interactionTimer = Mathf.MoveTowards(interactionTimer, 2f, Time.deltaTime);
 				}
@@ -416,7 +418,7 @@ public partial class TunnelsGenerator : MonoBehaviour
 					if (audioClip == null) audioClip = Resources.Load<AudioClip>("Apagon_Sonido");
 					if (audioClip != null)
 					{
-						AudioSource.PlayClipAtPoint(audioClip, consolePos, 1f);
+						AudioSource.PlayClipAtPoint(audioClip, worldConsolePos, 1f);
 					}
 					AudioClip audioClip2 = Resources.Load<AudioClip>("Audio/Tuneles/FloodSiren");
 					if (audioClip2 == null) audioClip2 = Resources.Load<AudioClip>("FloodSiren");
@@ -430,7 +432,7 @@ public partial class TunnelsGenerator : MonoBehaviour
 			}
 			else
 			{
-				interactionTimer = Mathf.MoveTowards(interactionTimer, 0f, Time.deltaTime);
+				interactionTimer = Mathf.MoveTowards(interactionTimer, 0f, Time.deltaTime * 2.5f);
 			}
 		}
 		else if (escapeState == EscapeState.Draining)
@@ -469,13 +471,14 @@ public partial class TunnelsGenerator : MonoBehaviour
 					hatchRenderer.material.SetColor("_EmissionColor", Color.black);
 				}
 			}
-			if (Mathf.CeilToInt(currentDrainageTime) % 4 == 0 && currentDrainageTime - Mathf.Floor(currentDrainageTime) < 0.05f)
+			if (currentDrainageTime % 4f < 0.05f)
 			{
 				AudioClip audioClip3 = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Error");
 				if (audioClip3 == null) audioClip3 = Resources.Load<AudioClip>("Ascensor_Error");
-				if (audioClip3 != null && playerObjInstance != null)
+				GameObject pObj = (playerObjInstance != null) ? playerObjInstance : GameObject.FindGameObjectWithTag("Player");
+				if (audioClip3 != null && pObj != null)
 				{
-					AudioSource.PlayClipAtPoint(audioClip3, playerObjInstance.transform.position, 0.45f);
+					AudioSource.PlayClipAtPoint(audioClip3, pObj.transform.position, 0.45f);
 				}
 			}
 			if (currentDrainageTime <= 0f)
@@ -514,9 +517,19 @@ public partial class TunnelsGenerator : MonoBehaviour
 			{
 				return;
 			}
-			if (Vector3.Distance(playerObjInstance.transform.position, exitPointPos) < 3.5f * mapScale)
+			Vector3 worldExitPos = exitPointPos;
+			GameObject pObjExit = (playerObjInstance != null) ? playerObjInstance : GameObject.FindGameObjectWithTag("Player");
+			float distExit = 9999f;
+			if (pObjExit != null)
 			{
-				if (MobileInput.GetKey(KeyCode.E) || Input.GetKey(KeyCode.E))
+				Vector3 pPosE = pObjExit.transform.position;
+				distExit = Vector3.Distance(new Vector3(pPosE.x, 0f, pPosE.z), new Vector3(worldExitPos.x, 0f, worldExitPos.z));
+			}
+
+			if (distExit < 4.2f)
+			{
+				bool isHoldingExit = MobileInput.GetKey(KeyCode.E) || Input.GetKey(KeyCode.E) || MobileInput.ePressed;
+				if (isHoldingExit)
 				{
 					interactionTimer = Mathf.MoveTowards(interactionTimer, 2f, Time.deltaTime);
 				}
@@ -684,21 +697,13 @@ public partial class TunnelsGenerator : MonoBehaviour
 					alignment = TextAnchor.MiddleCenter
 				}, position: new Rect(num3 + 15f, num4 + 108f, num - 30f, 20f), text: "⚠\ufe0f ACTIVIDAD PARANORMAL DETECTADA: INFESTACIÓN ⚠\ufe0f");
 			}
-			else if (escapeState == EscapeState.Idle && playerObjInstance != null)
+			else if (escapeState == EscapeState.Idle)
 			{
-				if (!(Vector3.Distance(playerObjInstance.transform.position, consolePos) < 2.5f * mapScale))
+				GameObject pObjGui = (playerObjInstance != null) ? playerObjInstance : GameObject.FindGameObjectWithTag("Player");
+				if (pObjGui == null) return;
+				Vector3 pPosG = pObjGui.transform.position;
+				if (Vector3.Distance(new Vector3(pPosG.x, 0f, pPosG.z), new Vector3(consolePos.x, 0f, consolePos.z)) >= 4.2f)
 				{
-					return;
-				}
-				if (TunnelsPowerOutageManager.isGlobalPowerOutage)
-				{
-					GUIStyle gUIStyle2 = new GUIStyle(GUI.skin.label);
-					gUIStyle2.fontSize = 22;
-					gUIStyle2.fontStyle = FontStyle.Bold;
-					gUIStyle2.normal.textColor = Color.red;
-					gUIStyle2.alignment = TextAnchor.MiddleCenter;
-					string text = "⚠\ufe0f CONSOLA SIN ENERGÍA: RESTAURA LA CORRIENTE PRIMERO ⚠\ufe0f";
-					GUI.Label(new Rect(0f, (float)Screen.height * 0.65f, Screen.width, 60f), text, gUIStyle2);
 					return;
 				}
 				float num10 = 70f;
@@ -754,8 +759,15 @@ public partial class TunnelsGenerator : MonoBehaviour
 				gUIStyle3.alignment = TextAnchor.MiddleCenter;
 				GUI.Label(new Rect(0f, num17 + num15 + 8f, Screen.width, 30f), "MANTÉN PRESIONADO 'E' PARA REINICIAR LA BOMBA", gUIStyle3);
 			}
-			else if (escapeState == EscapeState.Ready && playerObjInstance != null && Vector3.Distance(playerObjInstance.transform.position, exitPointPos) < 3.5f * mapScale)
+			else if (escapeState == EscapeState.Ready)
 			{
+				GameObject pObjExitGui = (playerObjInstance != null) ? playerObjInstance : GameObject.FindGameObjectWithTag("Player");
+				if (pObjExitGui == null) return;
+				Vector3 pPosEG = pObjExitGui.transform.position;
+				if (Vector3.Distance(new Vector3(pPosEG.x, 0f, pPosEG.z), new Vector3(exitPointPos.x, 0f, exitPointPos.z)) >= 4.2f)
+				{
+					return;
+				}
 				float num19 = 70f;
 				float num20 = 70f;
 				float num21 = (float)Screen.width / 2f - num19 / 2f;

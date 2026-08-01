@@ -97,20 +97,24 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void ReaparecerJugador(GameObject player)
     {
-        if (!hasSpawnPoint)
-        {
-            // Fallback si no se registró spawn: intentar usar la posición actual inicial
-            Debug.LogWarning("GameManager: No se registró punto de spawn. Reapareciendo en el origen.");
-            player.transform.position = Vector3.up * 1f;
-            return;
-        }
+        if (player == null) return;
 
         // 1. Encontrar el CharacterController en la jerarquía del jugador
         CharacterController cc = player.GetComponent<CharacterController>();
         if (cc == null) cc = player.GetComponentInParent<CharacterController>();
         if (cc == null) cc = player.GetComponentInChildren<CharacterController>();
 
-        // 2. Encontrar el objeto raíz del jugador de forma segura (sin subir a carpetas del mapa/escena)
+        // 2. Desactivar temporalmente el CharacterController para evitar conflictos al teletransportar
+        if (cc != null)
+        {
+            cc.enabled = false;
+        }
+
+        // 3. Determinar posición y rotación seguras de destino
+        Vector3 targetPos = hasSpawnPoint ? playerSpawnPosition : (player.transform.position.y < -5f ? Vector3.up * 0.5f : player.transform.position);
+        Quaternion targetRot = hasSpawnPoint ? playerSpawnRotation : Quaternion.identity;
+
+        // 4. Encontrar la raíz del personaje (sin subir a la escena o generadores)
         Transform current = player.transform;
         Transform playerRoot = current;
         while (current.parent != null)
@@ -124,23 +128,29 @@ public class GameManager : MonoBehaviour
             playerRoot = current;
         }
 
-        // 3. Desactivar temporalmente el CharacterController para evitar conflictos de físicas al teletransportar
-        if (cc != null)
+        // 5. Mover directamente el personaje y su raíz a la posición exacta de spawn
+        player.transform.position = targetPos;
+        player.transform.rotation = targetRot;
+
+        if (playerRoot != player.transform)
         {
-            cc.enabled = false;
+            playerRoot.position = targetPos;
+            playerRoot.rotation = targetRot;
+            player.transform.localPosition = Vector3.zero;
         }
 
-        // 4. Calcular el offset de la cápsula respecto a la raíz del jugador
-        Vector3 offset = player.transform.position - playerRoot.position;
+        // 6. Detener físicas/fuerzas residuales de Rigidbody
+        Rigidbody rb = player.GetComponent<Rigidbody>();
+        if (rb == null) rb = player.GetComponentInParent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
 
-        // 5. Mover la raíz de manera que la cápsula quede exactamente en playerSpawnPosition
-        playerRoot.position = playerSpawnPosition - offset;
-        playerRoot.rotation = playerSpawnRotation;
-
-        // 6. Resetear rotaciones locales del FirstPersonController si existe
-        var fpc = playerRoot.GetComponentInChildren<StarterAssets.FirstPersonController>();
+        // 7. Resetear pitch vertical del FirstPersonController
+        var fpc = player.GetComponent<StarterAssets.FirstPersonController>();
         if (fpc == null) fpc = player.GetComponentInChildren<StarterAssets.FirstPersonController>();
-
         if (fpc != null)
         {
             var pitchField = fpc.GetType().GetField("_cinemachineTargetPitch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -150,14 +160,14 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // 7. Reactivar el CharacterController
+        // 8. Sincronizar transformadas y reactivar CharacterController
+        Physics.SyncTransforms();
         if (cc != null)
         {
-            Physics.SyncTransforms();
             cc.enabled = true;
             Physics.SyncTransforms();
         }
 
-        Debug.Log($"GameManager: Jugador teletransportado al spawn ({playerSpawnPosition}). Raíz movida: {playerRoot.name}, Cápsula movida: {player.name}");
+        Debug.Log($"[GameManager] Jugador reaparecido con éxito en {targetPos}. (Raíz: {playerRoot.name})");
     }
 }

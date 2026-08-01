@@ -49,6 +49,31 @@ public partial class TunnelsGenerator
 		{
 			return;
 		}
+
+		// Guía visual de orientación por color de luz:
+		Color finalLightColor = lightColor;
+		Vector3 worldCellPos = cellRoot.position;
+		float distToElevator = Vector3.Distance(worldCellPos, playerSpawnPos);
+		float distToConsole = Vector3.Distance(worldCellPos, consolePos);
+
+		if (distToElevator < 14f * mapScale)
+		{
+			finalLightColor = new Color(1.0f, 0.75f, 0.35f); // Ámbar cálido para zona del Elevador
+		}
+		else if (distToConsole < 18f * mapScale)
+		{
+			finalLightColor = new Color(1.0f, 0.25f, 0.15f); // Rojo industrial de advertencia para zona del Generador / Bomba
+		}
+		else
+		{
+			int gridX = Mathf.RoundToInt(cellRoot.localPosition.x / (segmentLength * mapScale));
+			int gridZ = Mathf.RoundToInt(cellRoot.localPosition.z / (segmentLength * mapScale));
+			if (gridX == width / 2 || gridZ == height / 2)
+			{
+				finalLightColor = new Color(0.4f, 0.88f, 0.72f); // Verde/Cian industrial para pasillos cruzados principales
+			}
+		}
+
 		float num = wallHeight * mapScale;
 		Vector3 localPosition = new Vector3(0f, num + lightVerticalOffset * mapScale, 0f);
 		GameObject gameObject = Object.Instantiate(ceilingLightPrefab, cellRoot);
@@ -82,7 +107,7 @@ public partial class TunnelsGenerator
 			obj.transform.localPosition = new Vector3(0f, -0.5f * mapScale, 0f);
 			light = obj.AddComponent<Light>();
 			light.type = LightType.Point;
-			light.color = lightColor;
+			light.color = finalLightColor;
 			light.range = lightRange * mapScale;
 			light.intensity = lightIntensity * 5f;
 			light.shadows = LightShadows.Soft;
@@ -91,7 +116,7 @@ public partial class TunnelsGenerator
 		{
 			light.type = LightType.Point;
 			light.transform.localPosition = new Vector3(0f, -0.5f * mapScale, 0f);
-			light.color = lightColor;
+			light.color = finalLightColor;
 			light.range = lightRange * mapScale;
 			light.intensity = lightIntensity * 5f;
 			light.shadows = LightShadows.Soft;
@@ -107,8 +132,8 @@ public partial class TunnelsGenerator
 			if (isCurrentlyOn)
 			{
 				material.EnableKeyword("_EMISSION");
-				material.SetColor("_EmissionColor", new Color(1f, 0.75f, 0.4f) * 2f);
-				material.color = new Color(1f, 0.75f, 0.4f);
+				material.SetColor("_EmissionColor", finalLightColor * 2f);
+				material.color = finalLightColor;
 			}
 			else
 			{
@@ -151,6 +176,16 @@ public partial class TunnelsGenerator
 		identity = ((!(wallDir == "West") && !(wallDir == "East")) ? Quaternion.Euler(0f, 0f, 90f) : Quaternion.Euler(90f, 0f, 0f));
 		float num3 = 0.08f * mapScale;
 		float num4 = segmentLength * mapScale;
+
+		// Método helper local para aplicar material de tubos con UV Tiling corregido (sin estiramiento)
+		void ApplyPipeMaterialToRenderer(Renderer rend, float pipeLength)
+		{
+			if (rend == null || wallPipeMaterial == null) return;
+			Material instMat = rend.material = new Material(wallPipeMaterial);
+			// Escalar UVs en Y proporcional al largo del tubo (1.2 repetidores por metro)
+			instMat.mainTextureScale = new Vector2(1f, Mathf.Max(1f, pipeLength * 1.2f));
+		}
+
 		switch (num2)
 		{
 		case 0:
@@ -161,10 +196,7 @@ public partial class TunnelsGenerator
 			gameObject3.transform.localPosition = localPos;
 			gameObject3.transform.localRotation = identity * Quaternion.Euler(wallPipeRotation);
 			gameObject3.transform.localScale = new Vector3(num3, num4 / 2f, num3);
-			if (wallPipeMaterial != null)
-			{
-				gameObject3.GetComponent<Renderer>().material = wallPipeMaterial;
-			}
+			ApplyPipeMaterialToRenderer(gameObject3.GetComponent<Renderer>(), num4);
 			Collider component3 = gameObject3.GetComponent<Collider>();
 			if (component3 != null)
 			{
@@ -186,11 +218,8 @@ public partial class TunnelsGenerator
 			gameObject5.transform.localPosition = localPos - new Vector3(0f, 0.12f * mapScale, 0f);
 			gameObject5.transform.localRotation = identity * Quaternion.Euler(wallPipeRotation);
 			gameObject5.transform.localScale = new Vector3(num3 * 0.9f, num4 / 2f, num3 * 0.9f);
-			if (wallPipeMaterial != null)
-			{
-				gameObject4.GetComponent<Renderer>().material = wallPipeMaterial;
-				gameObject5.GetComponent<Renderer>().material = wallPipeMaterial;
-			}
+			ApplyPipeMaterialToRenderer(gameObject4.GetComponent<Renderer>(), num4);
+			ApplyPipeMaterialToRenderer(gameObject5.GetComponent<Renderer>(), num4);
 			Collider component4 = gameObject4.GetComponent<Collider>();
 			if (component4 != null)
 			{
@@ -211,10 +240,7 @@ public partial class TunnelsGenerator
 			gameObject6.transform.localPosition = localPos;
 			gameObject6.transform.localRotation = identity * Quaternion.Euler(wallPipeRotation);
 			gameObject6.transform.localScale = new Vector3(num3, num4 / 2f, num3);
-			if (wallPipeMaterial != null)
-			{
-				gameObject6.GetComponent<Renderer>().material = wallPipeMaterial;
-			}
+			ApplyPipeMaterialToRenderer(gameObject6.GetComponent<Renderer>(), num4);
 			Collider component6 = gameObject6.GetComponent<Collider>();
 			if (component6 != null)
 			{
@@ -234,10 +260,7 @@ public partial class TunnelsGenerator
 			}
 			gameObject7.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
 			gameObject7.transform.localScale = new Vector3(num3 * 1.1f, y / 2f, num3 * 1.1f);
-			if (wallPipeMaterial != null)
-			{
-				gameObject7.GetComponent<Renderer>().material = wallPipeMaterial;
-			}
+			ApplyPipeMaterialToRenderer(gameObject7.GetComponent<Renderer>(), y);
 			Collider component7 = gameObject7.GetComponent<Collider>();
 			if (component7 != null)
 			{

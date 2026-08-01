@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using StarterAssets;
 using UnityEngine;
 using UnityEngine.AI;
@@ -55,7 +56,7 @@ public partial class TunnelsGenerator
 		GameObject gameObject = GameObject.FindGameObjectWithTag("Player");
 		// El catwalk está a Y=0 en el mundo. El piso del ascensor tiene un offset local de -0.05.
 		// Para alinear el piso del ascensor exactamente a Y=0, el pivot de la cabina en el mundo debe ser Y = 0.05.
-		Vector3 spawnPos = base.transform.TransformPoint(playerSpawnPos);
+		Vector3 spawnPos = playerSpawnPos;
 		spawnPos.y = 0.05f * mapScale;
 
 		// El pivot del personaje (pies) está en Y=0. Lo colocamos ligeramente arriba del piso del ascensor (Y=spawnPos.y + 0.05f) para evitar clipping.
@@ -66,48 +67,15 @@ public partial class TunnelsGenerator
 		int num2 = Mathf.RoundToInt(playerSpawnPos.x / num);
 		int num3 = Mathf.RoundToInt(playerSpawnPos.z / num);
 		Vector3 forward = Vector3.forward;
-		// Comprobar si la pasarela (catwalk) de la celda del jugador va de Este a Oeste
-		bool catwalkRunsEastWest = (num2 - 1 >= 0 && grid[num2 - 1, num3]) || (num2 + 1 < width && grid[num2 + 1, num3]);
-		
-		if (catwalkRunsEastWest)
+		List<Vector3> openDirections = new List<Vector3>();
+		if (num3 + 1 < height && grid[num2, num3 + 1]) openDirections.Add(Vector3.forward);
+		if (num3 - 1 >= 0 && grid[num2, num3 - 1]) openDirections.Add(Vector3.back);
+		if (num2 + 1 < width && grid[num2 + 1, num3]) openDirections.Add(Vector3.right);
+		if (num2 - 1 >= 0 && grid[num2 - 1, num3]) openDirections.Add(Vector3.left);
+
+		if (openDirections.Count > 0)
 		{
-			// Priorizar alineación Este/Oeste para que coincida con la rotación de la pasarela
-			if (num2 + 1 < width && grid[num2 + 1, num3])
-			{
-				forward = Vector3.right;
-			}
-			else if (num2 - 1 >= 0 && grid[num2 - 1, num3])
-			{
-				forward = Vector3.left;
-			}
-			else if (num3 + 1 < height && grid[num2, num3 + 1])
-			{
-				forward = Vector3.forward;
-			}
-			else if (num3 - 1 >= 0 && grid[num2, num3 - 1])
-			{
-				forward = Vector3.back;
-			}
-		}
-		else
-		{
-			// Priorizar alineación Norte/Sur
-			if (num3 + 1 < height && grid[num2, num3 + 1])
-			{
-				forward = Vector3.forward;
-			}
-			else if (num3 - 1 >= 0 && grid[num2, num3 - 1])
-			{
-				forward = Vector3.back;
-			}
-			else if (num2 + 1 < width && grid[num2 + 1, num3])
-			{
-				forward = Vector3.right;
-			}
-			else if (num2 - 1 >= 0 && grid[num2 - 1, num3])
-			{
-				forward = Vector3.left;
-			}
+			forward = openDirections[0];
 		}
 		Quaternion quaternion = Quaternion.LookRotation(forward);
 		GameObject playerTagObj = gameObject;
@@ -248,7 +216,7 @@ public partial class TunnelsGenerator
 		}
 		float num4 = 0.2f * mapScale;
 		int index = Mathf.Clamp((int)((float)patrolPoints.Count * enemySpawnDistancePercent), 0, patrolPoints.Count - 1);
-		Vector3 vector2 = base.transform.TransformPoint(patrolPoints[index] + Vector3.up * num4);
+		Vector3 vector2 = patrolPoints[index] + Vector3.up * num4;
 		if (gameObject2 == null && enemyPrefab != null)
 		{
 			if (NavMesh.SamplePosition(vector2, out var hit, 2f, -1))

@@ -315,14 +315,16 @@ public class PhenomenonAIController : MonoBehaviour
         UpdatePanicEventSystem();
 
         // --- AMBIENTE DE CACERÍA DINÁMICO (TERROR ATMOSFÉRICO) ---
-        // Durante la cacería, el ambiente se oscurece drásticamente a un tono casi negro-rojo y la niebla se vuelve el doble de densa.
-        Color targetAmbient = isPanicEventActive ? new Color(0.007f, 0.001f, 0.001f) : new Color(0.06f, 0.07f, 0.09f);
-        Color targetFog = isPanicEventActive ? new Color(0.003f, 0.0005f, 0.0005f) : new Color(0.04f, 0.05f, 0.06f);
-        float targetFogDensity = isPanicEventActive ? 0.024f : 0.011f;
+        if (!TunnelsPowerOutageManager.isGlobalPowerOutage)
+        {
+            Color targetAmbient = isPanicEventActive ? new Color(0.012f, 0.002f, 0.002f) : new Color(0.04f, 0.06f, 0.07f);
+            Color targetFog = isPanicEventActive ? new Color(0.008f, 0.001f, 0.001f) : new Color(0.03f, 0.05f, 0.06f);
+            float targetFogDensity = isPanicEventActive ? 0.032f : 0.016f;
 
-        RenderSettings.ambientLight = Color.Lerp(RenderSettings.ambientLight, targetAmbient, Time.deltaTime * 2.2f);
-        RenderSettings.fogColor = Color.Lerp(RenderSettings.fogColor, targetFog, Time.deltaTime * 2.2f);
-        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, targetFogDensity, Time.deltaTime * 2.2f);
+            RenderSettings.ambientLight = Color.Lerp(RenderSettings.ambientLight, targetAmbient, Time.deltaTime * 2.2f);
+            RenderSettings.fogColor = Color.Lerp(RenderSettings.fogColor, targetFog, Time.deltaTime * 2.2f);
+            RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, targetFogDensity, Time.deltaTime * 2.2f);
+        }
 
         // Decrementar el cooldown de observación de luz
         if (lightObserveCooldownTimer > 0f)
@@ -512,50 +514,48 @@ public class PhenomenonAIController : MonoBehaviour
         switch (currentState)
         {
             case PhenomenonState.Patrol:
-                SetAgentStopped(false);
-                agent.speed = patrolSpeed;
+                SetAgentStopped(true);
+                agent.speed = 0f;
                 isWaitingInPatrol = false;
-                anim.SetWalking(true);
+                anim.SetWalking(false);
                 anim.SetAlert(false);
-                anim.SetWalkSpeed(1.0f);
                 anim.SetAttacking(false);
-                MoveToNextPatrolPoint();
                 break;
 
             case PhenomenonState.Alert:
                 ResetAgentPath();
                 SetAgentStopped(true);
+                agent.speed = 0f;
                 anim.SetWalking(false);
-                anim.SetAlert(true); // Entra en pose thriller
+                anim.SetAlert(true);
                 break;
 
             case PhenomenonState.Investigate:
-                SetAgentStopped(false);
-                agent.speed = investigateSpeed;
-                SetAgentDestination(lastKnownPlayerPosition);
-                anim.SetWalking(true);
+                SetAgentStopped(true);
+                agent.speed = 0f;
+                anim.SetWalking(false);
                 anim.SetAlert(true);
-                anim.SetWalkSpeed(0.7f); // Camina lento
                 break;
 
             case PhenomenonState.Chase:
-                SetAgentStopped(false);
-                agent.speed = chaseSpeed;
-                anim.SetWalking(true);
+                SetAgentStopped(true);
+                agent.speed = 0f;
+                anim.SetWalking(false);
                 anim.SetAlert(true);
-                anim.SetWalkSpeed(1.4f); // Camina rápido pero sin correr
                 break;
 
             case PhenomenonState.ObservingLight:
                 ResetAgentPath();
                 SetAgentStopped(true);
+                agent.speed = 0f;
                 anim.SetWalking(false);
-                anim.SetAlert(true); // Se queda mirándolo encorvado
+                anim.SetAlert(true);
                 break;
 
             case PhenomenonState.Attack:
                 ResetAgentPath();
                 SetAgentStopped(true);
+                agent.speed = 0f;
                 anim.SetWalking(false);
                 anim.SetAttacking(true);
                 StartCoroutine(PerformGrabAttack());
@@ -722,41 +722,36 @@ public class PhenomenonAIController : MonoBehaviour
                     }
                 }
 
-                // 3. Determinar velocidad dinámica basada en la mirada del jugador y la cacería (Reverse Weeping Angel)
+                // 3. Mecánica de la Estatua (Weeping Angel): Si el jugador lo está mirando directamente, se PETRIFICA por completo y no se mueve
+                if (isPlayerLooking)
+                {
+                    SetAgentStopped(true);
+                    agent.velocity = Vector3.zero;
+                    agent.speed = 0f;
+                    anim.SetWalking(false);
+                    return;
+                }
+                else
+                {
+                    SetAgentStopped(false);
+                }
+
                 float baseSpeed = chaseSpeed;
                 float walkAnimSpeed = 1.4f;
 
                 if (isPanicEventActive)
                 {
-                    if (!isPlayerLooking)
-                    {
-                        // Cacería y NO lo mira: Velocidad extrema (10.5 m/s)
-                        baseSpeed = 10.5f;
-                        walkAnimSpeed = 3.2f;
-                        if (dragAudioSource != null) dragAudioSource.volume = 1.0f;
-                    }
-                    else
-                    {
-                        // Cacería y SÍ lo mira: Se frena sustancialmente a 3.5 m/s para incentivar mirarlo
-                        baseSpeed = 3.5f;
-                        walkAnimSpeed = 1.2f;
-                    }
+                    // Cacería y NO lo mira: Velocidad de acecho (10.5 m/s)
+                    baseSpeed = 10.5f;
+                    walkAnimSpeed = 3.2f;
+                    if (dragAudioSource != null) dragAudioSource.volume = 1.0f;
                 }
                 else
                 {
-                    if (!isPlayerLooking)
-                    {
-                        // Modo normal y NO lo mira: Carrera muy rápida (5.5 m/s)
-                        baseSpeed = 5.5f;
-                        walkAnimSpeed = 2.0f;
-                        if (dragAudioSource != null) dragAudioSource.volume = 0.9f;
-                    }
-                    else
-                    {
-                        // Modo normal y SÍ lo mira: Velocidad base (chaseSpeed = 5.0m/s)
-                        baseSpeed = chaseSpeed;
-                        walkAnimSpeed = 1.4f;
-                    }
+                    // Modo normal y NO lo mira: Carrera rápida (5.5 m/s)
+                    baseSpeed = 5.5f;
+                    walkAnimSpeed = 2.0f;
+                    if (dragAudioSource != null) dragAudioSource.volume = 0.9f;
                 }
 
                 // Mecánica de "Repulsión por Luz": Ralentiza su velocidad cuando se acerca a un foco de luz encendido (solo fuera de cacería)
@@ -2109,26 +2104,77 @@ public class PhenomenonAIController : MonoBehaviour
 
     private IEnumerator JumpscareCameraGlanceRoutine()
     {
+        if (player == null) yield break;
+
+        // Obtener FirstPersonController para manipular _cinemachineTargetPitch y la rotación del personaje
+        var fpc = player.GetComponent<StarterAssets.FirstPersonController>();
+        if (fpc == null) fpc = player.GetComponentInChildren<StarterAssets.FirstPersonController>();
+        if (fpc == null && player.parent != null) fpc = player.parent.GetComponentInChildren<StarterAssets.FirstPersonController>();
+
+        Transform playerTransform = fpc != null ? fpc.transform : player;
         Transform camTransform = playerCamera != null ? playerCamera : ((Camera.main != null) ? Camera.main.transform : null);
+        if (camTransform == null && fpc != null && fpc.CinemachineCameraTarget != null)
+        {
+            camTransform = fpc.CinemachineCameraTarget.transform;
+        }
         if (camTransform == null) yield break;
 
-        Vector3 targetPoint = transform.position + Vector3.up * 1.5f;
-        Vector3 dirToMonster = (targetPoint - camTransform.position).normalized;
+        // Apuntar al rostro/cabeza del monstruo (altura aprox 1.7m)
+        Vector3 monsterTargetPos = transform.position + Vector3.up * 1.7f;
+        Vector3 dirToMonster = (monsterTargetPos - camTransform.position).normalized;
         if (dirToMonster == Vector3.zero) yield break;
 
-        Quaternion startRot = camTransform.rotation;
-        Quaternion targetRot = Quaternion.LookRotation(dirToMonster);
+        // 1. Dirección horizontal (Yaw) directa hacia el monstruo
+        Vector3 flatDir = Vector3.ProjectOnPlane(dirToMonster, Vector3.up).normalized;
+        if (flatDir == Vector3.zero) yield break;
+        Quaternion targetBodyRot = Quaternion.LookRotation(flatDir, Vector3.up);
+        Quaternion startPlayerRot = playerTransform.rotation;
 
-        float duration = 0.28f;
+        // 2. Ángulo vertical (Pitch) directo hacia el rostro del monstruo
+        float targetPitch = -Mathf.Asin(Mathf.Clamp(dirToMonster.y, -0.99f, 0.99f)) * Mathf.Rad2Deg;
+        if (fpc != null)
+        {
+            targetPitch = Mathf.Clamp(targetPitch, fpc.BottomClamp, fpc.TopClamp);
+        }
+
+        System.Reflection.FieldInfo pitchField = null;
+        float startPitch = 0f;
+        if (fpc != null)
+        {
+            pitchField = fpc.GetType().GetField("_cinemachineTargetPitch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (pitchField != null)
+            {
+                startPitch = (float)pitchField.GetValue(fpc);
+            }
+        }
+
+        float duration = 0.16f; // Sacudida rápida, impactante e inmediata (0.16 segundos)
         float elapsed = 0f;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            float progress = elapsed / duration;
-            // Sacudida/mirada rápida parcial (0.65f) hacia Phenomenon
-            camTransform.rotation = Quaternion.Slerp(startRot, targetRot, progress * 0.65f);
+            float progress = Mathf.Clamp01(elapsed / duration);
+            float t = progress * (2f - progress);
+
+            // Girar el cuerpo del jugador directamente hacia el Phenomenon (95% directo a su rostro)
+            playerTransform.rotation = Quaternion.Slerp(startPlayerRot, targetBodyRot, t * 0.95f);
+
+            // Ajustar el pitch de la cámara del FirstPersonController
+            if (fpc != null && pitchField != null)
+            {
+                float currentPitch = Mathf.Lerp(startPitch, targetPitch, t * 0.95f);
+                pitchField.SetValue(fpc, currentPitch);
+            }
+
             yield return null;
+        }
+
+        // Asegurar posición final precisa apuntando al monstruo
+        playerTransform.rotation = Quaternion.Slerp(startPlayerRot, targetBodyRot, 0.95f);
+        if (fpc != null && pitchField != null)
+        {
+            pitchField.SetValue(fpc, Mathf.Lerp(startPitch, targetPitch, 0.95f));
         }
     }
 
