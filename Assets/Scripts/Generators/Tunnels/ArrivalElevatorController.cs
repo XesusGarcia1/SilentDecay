@@ -29,10 +29,10 @@ public class ArrivalElevatorController : MonoBehaviour
 		if (leftDoor == null) leftDoor = transform.Find("Elevator_LeftDoor");
 		if (rightDoor == null) rightDoor = transform.Find("Elevator_RightDoor");
 
-		float tileSize = 2.4f * mapScale; // 7.2f
-		float innerHeight = 2.6f * mapScale; // 7.8f
+		float tileSize = 2.8f * mapScale;
+		float innerHeight = 2.5f * mapScale;
 
-		// Posiciones exactas del ascensor del hospital (escaladas)
+		// Posiciones exactas del ascensor (escaladas)
 		leftDoorClosedPos = new Vector3(-0.25f * tileSize, innerHeight / 2f, 0.488f * tileSize);
 		rightDoorClosedPos = new Vector3(0.25f * tileSize, innerHeight / 2f, 0.488f * tileSize);
 
@@ -129,9 +129,9 @@ public class ArrivalElevatorController : MonoBehaviour
 			AudioSource.PlayClipAtPoint(arriveClip, transform.position, 0.9f);
 		}
 
-		// Esperar 1 segundo antes de empezar a abrir
+		// Esperar 0.5 segundos antes de abrir puertas
 		float waitTime = 0f;
-		while (waitTime < 1f)
+		while (waitTime < 0.5f)
 		{
 			waitTime += Mathf.Min(Time.deltaTime, 0.05f);
 			yield return null;
@@ -141,7 +141,7 @@ public class ArrivalElevatorController : MonoBehaviour
 		doorsShouldOpen = true;
 
 		float openElapsed = 0f;
-		float openDuration = 2f;
+		float openDuration = 1.5f;
 		while (openElapsed < openDuration)
 		{
 			openElapsed += Mathf.Min(Time.deltaTime, 0.05f);
@@ -151,23 +151,19 @@ public class ArrivalElevatorController : MonoBehaviour
 			yield return null;
 		}
 
-		// Forzar estado abierto al finalizar
+		// Forzar posición completamente abierta
 		if (leftDoor != null) leftDoor.transform.localPosition = leftDoorOpenPos;
 		if (rightDoor != null) rightDoor.transform.localPosition = rightDoorOpenPos;
 
-		// Devolver control al jugador
-		if (fpsController != null)
+		// Devolver control al jugador y restaurar el CharacterController
+		GameObject player = GameObject.FindGameObjectWithTag("Player");
+		if (player != null)
 		{
-			fpsController.enabled = true;
-		}
-		else
-		{
-			GameObject player = GameObject.FindGameObjectWithTag("Player");
-			if (player != null)
-			{
-				var c = player.GetComponentInChildren<StarterAssets.FirstPersonController>(true);
-				if (c != null) c.enabled = true;
-			}
+			var c = player.GetComponentInChildren<StarterAssets.FirstPersonController>(true);
+			if (c != null) c.enabled = true;
+
+			var cc = player.GetComponentInChildren<CharacterController>(true);
+			if (cc != null) cc.enabled = true;
 		}
 	}
 }

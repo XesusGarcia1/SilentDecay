@@ -77,17 +77,20 @@ public class MenuScreenPlayOptions : MonoBehaviour
         }
         GUILayout.Space(12);
 
-        // ─── Botón secundario: Túneles ────────────────────────────────────────
-        var goldBtn = new GUIStyle(s.Button);
-        goldBtn.normal.textColor = new Color(0.9f, 0.6f, 0.1f);
-        goldBtn.hover.textColor  = Color.white;
-
-        if (GUILayout.Button(tunnelBtn, goldBtn, GUILayout.Height(50)))
+        // ─── Botón secundario: Túneles (condicionado por el Inspector) ───────
+        if (ctx == null || ctx.enableTunnelsLevel)
         {
-            ctx.PlayClickSound();
-            SaveAndLoad("TunnelsMap", TunnelWidth());
+            var goldBtn = new GUIStyle(s.Button);
+            goldBtn.normal.textColor = new Color(0.9f, 0.6f, 0.1f);
+            goldBtn.hover.textColor  = Color.white;
+
+            if (GUILayout.Button(tunnelBtn, goldBtn, GUILayout.Height(50)))
+            {
+                ctx.PlayClickSound();
+                SaveAndLoad("TunnelsMap", TunnelWidth());
+            }
+            GUILayout.Space(25);
         }
-        GUILayout.Space(25);
 
         if (GUILayout.Button(backBtn, s.Button, GUILayout.Height(50)))
         {

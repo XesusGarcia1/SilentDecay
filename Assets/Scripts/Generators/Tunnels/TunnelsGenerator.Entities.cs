@@ -54,15 +54,7 @@ public partial class TunnelsGenerator
 		_ = segmentLength;
 		_ = mapScale;
 		GameObject gameObject = GameObject.FindGameObjectWithTag("Player");
-		// El catwalk está a Y=0 en el mundo. El piso del ascensor tiene un offset local de -0.05.
-		// Para alinear el piso del ascensor exactamente a Y=0, el pivot de la cabina en el mundo debe ser Y = 0.05.
-		Vector3 spawnPos = playerSpawnPos;
-		spawnPos.y = 0.05f * mapScale;
-
-		// El pivot del personaje (pies) está en Y=0. Lo colocamos ligeramente arriba del piso del ascensor (Y=spawnPos.y + 0.05f) para evitar clipping.
-		Vector3 vector = spawnPos;
-		vector.y = spawnPos.y + 0.05f;
-
+		// Determinar dirección de salida del pasillo y orientar el ascensor hacia el pasillo
 		float num = segmentLength * mapScale;
 		int num2 = Mathf.RoundToInt(playerSpawnPos.x / num);
 		int num3 = Mathf.RoundToInt(playerSpawnPos.z / num);
@@ -77,7 +69,18 @@ public partial class TunnelsGenerator
 		{
 			forward = openDirections[0];
 		}
-		Quaternion quaternion = Quaternion.LookRotation(forward);
+		
+		// El ascensor debe mirar en la dirección opuesta a la apertura del pasillo para que su puerta frontal (Z local positiva) dé hacia el pasillo
+		Quaternion elevatorRot = Quaternion.LookRotation(forward);
+		Quaternion playerRot = Quaternion.LookRotation(forward);
+
+		// Posicionar el ascensor exactamente centrado en la celda inicial del mapa
+		Vector3 spawnPos = playerSpawnPos;
+		spawnPos.y = 0.05f * mapScale;
+
+		// Posicionar al jugador en el centro de la cabina del ascensor
+		Vector3 vector = spawnPos;
+		vector.y = spawnPos.y + 0.12f;
 		GameObject playerTagObj = gameObject;
 		GameObject playerRootObj = playerTagObj;
 		if (playerTagObj != null)
@@ -97,7 +100,7 @@ public partial class TunnelsGenerator
 		{
 			if (playerPrefab != null)
 			{
-				gameObject = Object.Instantiate(playerPrefab, vector, quaternion);
+				gameObject = Object.Instantiate(playerPrefab, vector, playerRot);
 				gameObject.name = "Player";
 				cc = gameObject.GetComponentInChildren<CharacterController>(includeInactive: true);
 				if (cc != null)
@@ -123,7 +126,7 @@ public partial class TunnelsGenerator
 			}
 
 			// Rotar el ROOT completo de manera que la cápsula quede con la rotación del objetivo
-			playerRootObj.transform.rotation = quaternion * Quaternion.Inverse(localRotRelation);
+			playerRootObj.transform.rotation = playerRot * Quaternion.Inverse(localRotRelation);
 
 			// Calcular el offset de posición en el espacio del mundo tras la rotación
 			Vector3 worldOffset = playerTagObj.transform.position - playerRootObj.transform.position;
@@ -158,7 +161,7 @@ public partial class TunnelsGenerator
 			}
 
 			// Resetear Cinemachine POV
-			ResetCinemachineRotation(quaternion);
+			ResetCinemachineRotation(playerRot);
 
 			// Resetear el pitch interno del FirstPersonController usando reflexión
 			var fpc = gameObject.GetComponentInChildren<StarterAssets.FirstPersonController>();
@@ -205,9 +208,9 @@ public partial class TunnelsGenerator
 			GameManager.Instance.InicializarVidasParaMapa(vidasTunnels);
 			
 			// Registrar la posición segura a nivel del suelo de la pasarela
-			GameManager.Instance.RegistrarSpawnJugador(vector, quaternion);
+			GameManager.Instance.RegistrarSpawnJugador(vector, playerRot);
 		}
-		SpawnArrivalElevator(spawnPos, quaternion);
+		SpawnArrivalElevator(spawnPos, elevatorRot);
 		GameObject gameObject2 = null;
 		PhenomenonAIController phenomenonAIController = Object.FindObjectOfType<PhenomenonAIController>();
 		if (phenomenonAIController != null)
@@ -285,9 +288,9 @@ public partial class TunnelsGenerator
 		gameObject.transform.rotation = spawnRot;
 		gameObject.transform.SetParent(navMeshHolder.transform);
 
-		float tileSize = 2.4f * mapScale; // 7.2f
-		float innerHeight = 2.2f * mapScale; // 6.6f
-		float thickness = 0.08f * mapScale; // 0.24f
+		float tileSize = 2.8f * mapScale; // Tamaño perfecto y espacioso (8.4m)
+		float innerHeight = 2.5f * mapScale; // Altura holgada (7.5m)
+		float thickness = 0.08f * mapScale;
 
 		// Materiales del metal de la cabina (Premium - Gris/Azulado industrial con textura)
 		Material cabinaMat = Resources.Load<Material>("Materiales/Mat_Bed_Metal_01");
@@ -404,6 +407,8 @@ public partial class TunnelsGenerator
 		leftBumper.transform.localPosition = new Vector3(-0.48f * tileSize, bumperHeight, 0f);
 		leftBumper.transform.localScale = new Vector3(bumperSize, bumperSize * 1.5f, tileSize * 0.92f);
 		leftBumper.GetComponent<Renderer>().sharedMaterial = bumperMat;
+		Collider lbCol = leftBumper.GetComponent<Collider>();
+		if (lbCol != null) DestroyImmediate(lbCol);
 
 		GameObject rightBumper = GameObject.CreatePrimitive(PrimitiveType.Cube);
 		rightBumper.name = "BumperDerecho";
@@ -411,6 +416,8 @@ public partial class TunnelsGenerator
 		rightBumper.transform.localPosition = new Vector3(0.48f * tileSize, bumperHeight, 0f);
 		rightBumper.transform.localScale = new Vector3(bumperSize, bumperSize * 1.5f, tileSize * 0.92f);
 		rightBumper.GetComponent<Renderer>().sharedMaterial = bumperMat;
+		Collider rbCol = rightBumper.GetComponent<Collider>();
+		if (rbCol != null) DestroyImmediate(rbCol);
 
 		GameObject backBumper = GameObject.CreatePrimitive(PrimitiveType.Cube);
 		backBumper.name = "BumperTrasero";
@@ -418,6 +425,8 @@ public partial class TunnelsGenerator
 		backBumper.transform.localPosition = new Vector3(0f, bumperHeight, -0.48f * tileSize);
 		backBumper.transform.localScale = new Vector3(tileSize * 0.92f, bumperSize, bumperSize * 1.5f);
 		backBumper.GetComponent<Renderer>().sharedMaterial = bumperMat;
+		Collider bbCol = backBumper.GetComponent<Collider>();
+		if (bbCol != null) DestroyImmediate(bbCol);
 
 		// G. Panel de Luz Fluorescente en el techo
 		GameObject lightPanel = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -596,6 +605,8 @@ public partial class TunnelsGenerator
 		float elapsed = 0f;
 		float duration = 1.5f;
 		float startVolume = ((pumpAudioSource != null) ? pumpAudioSource.volume : 0.85f);
+
+		// 1. Fundido a negro del escenario
 		while (elapsed < duration)
 		{
 			elapsed += Time.unscaledDeltaTime;
@@ -614,16 +625,55 @@ public partial class TunnelsGenerator
 		Time.timeScale = 0f;
 		Cursor.lockState = CursorLockMode.None;
 		Cursor.visible = true;
+
 		AudioClip audioClip = Resources.Load<AudioClip>("Audio/Tuneles/SonidoEscape");
 		if (audioClip == null) audioClip = Resources.Load<AudioClip>("SonidoEscape");
 		if (audioClip != null && playerObjInstance != null)
 		{
 			AudioSource.PlayClipAtPoint(audioClip, playerObjInstance.transform.position, 1f);
 		}
-		displayWinText = true;
-		yield return new WaitForSecondsRealtime(4f);
+
+		// PASO 1: "JUEGO TERMINADO / GAME COMPLETED" (Fade in -> Mantener -> Fade out)
+		victoryStep = 1;
+		yield return StartCoroutine(FadeVictoryStepText(3.2f));
+
+		// PASO 2: "¡GRACIAS POR JUGAR! / THANK YOU FOR PLAYING!"
+		victoryStep = 2;
+		yield return StartCoroutine(FadeVictoryStepText(3.0f));
+
+		// PASO 3: REDES SOCIALES
+		victoryStep = 3;
+		yield return StartCoroutine(FadeVictoryStepText(4.5f));
+
 		Time.timeScale = 1f;
 		SceneManager.LoadScene("MainMenu");
+	}
+
+	private IEnumerator FadeVictoryStepText(float displayTime)
+	{
+		// Fade In del texto
+		float t = 0f;
+		while (t < 0.6f)
+		{
+			t += Time.unscaledDeltaTime;
+			victoryStepAlpha = Mathf.Clamp01(t / 0.6f);
+			yield return null;
+		}
+		victoryStepAlpha = 1f;
+
+		// Mantener pantalla con el texto visible
+		yield return new WaitForSecondsRealtime(displayTime);
+
+		// Fade Out del texto
+		t = 0f;
+		while (t < 0.6f)
+		{
+			t += Time.unscaledDeltaTime;
+			victoryStepAlpha = Mathf.Clamp01(1f - (t / 0.6f));
+			yield return null;
+		}
+		victoryStepAlpha = 0f;
+		yield return new WaitForSecondsRealtime(0.3f);
 	}
 
 	private IEnumerator ReenableMonoAfterFrame(MonoBehaviour mono)

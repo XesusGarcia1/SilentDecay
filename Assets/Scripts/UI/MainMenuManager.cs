@@ -20,6 +20,10 @@ public class MainMenuManager : MonoBehaviour
     [Header("Título Personalizado")]
     public string gameTitle = "SILENT DECAY";
 
+    [Header("Configuración de Niveles")]
+    [Tooltip("Si está desactivado, el botón para ir a los Túneles estará oculto o deshabilitado en el menú de partida")]
+    public bool enableTunnelsLevel = true;
+
     [Header("Redes Sociales")]
     public string instagramURL = "https://www.instagram.com/lxesusgarcial";
     public string facebookURL  = "https://www.facebook.com/lXesusGarcial";

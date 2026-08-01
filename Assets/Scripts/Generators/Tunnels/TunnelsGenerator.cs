@@ -243,7 +243,8 @@ public partial class TunnelsGenerator : MonoBehaviour
 		set { victoryFadeAlpha = value; }
 	}
 
-	private bool displayWinText;
+	private int victoryStep = 0; // 0 = Inactivo, 1 = Juego Terminado, 2 = Gracias por Jugar, 3 = Redes Sociales
+	private float victoryStepAlpha = 0f;
 
 	private void Awake()
 	{
@@ -585,34 +586,95 @@ public partial class TunnelsGenerator : MonoBehaviour
 			{
 				fadeBlackTex = MakeTex(2, 2, Color.black);
 			}
+
+			// Fondo negro completo
 			GUI.color = new Color(1f, 1f, 1f, victoryFadeAlpha);
 			GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), fadeBlackTex);
 			GUI.color = Color.white;
-			if (displayWinText)
-			{
-				GUIStyle gUIStyle = new GUIStyle(GUI.skin.label);
-				gUIStyle.fontSize = 50;
-				gUIStyle.fontStyle = FontStyle.Bold;
-				gUIStyle.normal.textColor = Color.white;
-				gUIStyle.alignment = TextAnchor.MiddleCenter;
 
-				string winMsg = "JUEGO TERMINADO";
+			if (victoryStep > 0 && victoryStepAlpha > 0f)
+			{
+				GUI.color = new Color(1f, 1f, 1f, victoryStepAlpha);
+
+				// Obtener idioma actual
+				LocalizationManager.Idioma lang = LocalizationManager.Idioma.ESPAÑOL;
 				if (LocalizationManager.Instance != null)
 				{
-					var curLang = LocalizationManager.Instance.GetIdiomaActual();
-					if (curLang == LocalizationManager.Idioma.ENGLISH) winMsg = "GAME COMPLETED";
-					else if (curLang == LocalizationManager.Idioma.PORTUGUES) winMsg = "JOGO CONCLUÍDO";
+					lang = LocalizationManager.Instance.GetIdiomaActual();
 				}
-				GUI.Label(new Rect(0f, 0f, Screen.width, Screen.height), winMsg, gUIStyle);
+
+				if (victoryStep == 1)
+				{
+					// PASO 1: JUEGO TERMINADO
+					GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
+					titleStyle.fontSize = Mathf.RoundToInt(Screen.height * 0.07f);
+					titleStyle.fontStyle = FontStyle.Bold;
+					titleStyle.normal.textColor = Color.white;
+					titleStyle.alignment = TextAnchor.MiddleCenter;
+
+					string winMsg = "JUEGO TERMINADO";
+					if (lang == LocalizationManager.Idioma.ENGLISH) winMsg = "GAME COMPLETED";
+					else if (lang == LocalizationManager.Idioma.PORTUGUES) winMsg = "JOGO CONCLUÍDO";
+
+					GUI.Label(new Rect(0f, 0f, Screen.width, Screen.height), winMsg, titleStyle);
+				}
+				else if (victoryStep == 2)
+				{
+					// PASO 2: ¡GRACIAS POR JUGAR!
+					GUIStyle thanksStyle = new GUIStyle(GUI.skin.label);
+					thanksStyle.fontSize = Mathf.RoundToInt(Screen.height * 0.065f);
+					thanksStyle.fontStyle = FontStyle.Bold;
+					thanksStyle.normal.textColor = new Color(0.95f, 0.85f, 0.4f);
+					thanksStyle.alignment = TextAnchor.MiddleCenter;
+
+					string thanksMsg = "¡GRACIAS POR JUGAR!";
+					if (lang == LocalizationManager.Idioma.ENGLISH) thanksMsg = "THANK YOU FOR PLAYING!";
+					else if (lang == LocalizationManager.Idioma.PORTUGUES) thanksMsg = "OBRIGADO POR JOGAR!";
+
+					GUI.Label(new Rect(0f, 0f, Screen.width, Screen.height), thanksMsg, thanksStyle);
+				}
+				else if (victoryStep == 3)
+				{
+					// PASO 3: REDES SOCIALES
+					float sWidth = Screen.width;
+					float sHeight = Screen.height;
+
+					GUIStyle headerStyle = new GUIStyle(GUI.skin.label);
+					headerStyle.fontSize = Mathf.RoundToInt(sHeight * 0.045f);
+					headerStyle.fontStyle = FontStyle.Bold;
+					headerStyle.normal.textColor = new Color(0.9f, 0.9f, 0.95f);
+					headerStyle.alignment = TextAnchor.MiddleCenter;
+
+					string devTitle = "SIGUE EL DESARROLLO Y NOVEDADES EN:";
+					if (lang == LocalizationManager.Idioma.ENGLISH) devTitle = "FOLLOW DEVELOPMENT & UPDATES AT:";
+					else if (lang == LocalizationManager.Idioma.PORTUGUES) devTitle = "SIGA O DESENVOLVIMENTO EM:";
+
+					GUI.Label(new Rect(0f, sHeight * 0.18f, sWidth, sHeight * 0.1f), devTitle, headerStyle);
+
+					// Tarjeta de redes sociales
+					GUIStyle cardStyle = new GUIStyle(GUI.skin.label);
+					cardStyle.fontSize = Mathf.RoundToInt(sHeight * 0.035f);
+					cardStyle.fontStyle = FontStyle.Bold;
+					cardStyle.normal.textColor = Color.white;
+					cardStyle.alignment = TextAnchor.MiddleCenter;
+
+					string socialText = "📷 Instagram: @lxesusgarcial\n\n" +
+					                    "📘 Facebook: lXesusGarcial\n\n" +
+					                    "▶️ YouTube: @Xesus_Garcia";
+
+					GUI.Label(new Rect(sWidth * 0.1f, sHeight * 0.35f, sWidth * 0.8f, sHeight * 0.45f), socialText, cardStyle);
+				}
+
+				GUI.color = Color.white;
 			}
 		}
 		else if (!isPaused)
 		{
-			if (escapeState == EscapeState.Draining)
+			if (escapeState == EscapeState.Draining || escapeState == EscapeState.Ready)
 			{
 				if (alarmBgTex == null)
 				{
-					alarmBgTex = MakeTex(2, 2, new Color(0.08f, 0.01f, 0.01f, 0.75f));
+					alarmBgTex = MakeTex(2, 2, new Color(0.08f, 0.01f, 0.01f, 0.85f));
 				}
 				if (alarmBorderTex == null)
 				{
@@ -626,78 +688,118 @@ public partial class TunnelsGenerator : MonoBehaviour
 				{
 					progressRemainingTex = MakeTex(2, 2, new Color(0.2f, 0.05f, 0.05f, 0.6f));
 				}
-				float num = 330f;
-				float num2 = 135f;
-				float num3 = (float)Screen.width - num - 20f;
-				float num4 = 80f;
-				GUI.DrawTexture(new Rect(num3, num4, num, num2), alarmBgTex);
-				GUI.DrawTexture(new Rect(num3, num4, num, 3f), alarmBorderTex);
-				GUI.DrawTexture(new Rect(num3, num4 + num2 - 3f, num, 3f), alarmBorderTex);
-				GUI.DrawTexture(new Rect(num3, num4, 3f, num2), alarmBorderTex);
-				GUI.DrawTexture(new Rect(num3 + num - 3f, num4, 3f, num2), alarmBorderTex);
-				GUI.Label(style: new GUIStyle(GUI.skin.label)
+
+				float boxWidth = 330f;
+				float boxHeight = 135f;
+				// Colocar el cuadro dejando suficiente espacio a la derecha para que no solape el botón del bloc de notas (btnSize 50 + margen)
+				float boxX = (float)Screen.width - boxWidth - 80f;
+				float boxY = 80f;
+
+				GUI.DrawTexture(new Rect(boxX, boxY, boxWidth, boxHeight), alarmBgTex);
+				GUI.DrawTexture(new Rect(boxX, boxY, boxWidth, 3f), alarmBorderTex);
+				GUI.DrawTexture(new Rect(boxX, boxY + boxHeight - 3f, boxWidth, 3f), alarmBorderTex);
+				GUI.DrawTexture(new Rect(boxX, boxY, 3f, boxHeight), alarmBorderTex);
+				GUI.DrawTexture(new Rect(boxX + boxWidth - 3f, boxY, 3f, boxHeight), alarmBorderTex);
+
+				if (escapeState == EscapeState.Draining)
 				{
-					fontSize = 15,
-					fontStyle = FontStyle.Bold,
-					normal = 
+					// LÍNEA 1: TÍTULO Y BOMBA (Separados en rectángulos independientes sin solaparse)
+					GUI.Label(new Rect(boxX + 12f, boxY + 10f, 165f, 22f), ((Time.time % 0.8f < 0.4f) ? "⚠️" : "  ") + " ALARMA DE SISTEMA", new GUIStyle(GUI.skin.label)
 					{
-						textColor = Color.red
-					},
-					alignment = TextAnchor.MiddleLeft
-				}, text: ((Time.time % 0.8f < 0.4f) ? "⚠\ufe0f" : "  ") + " ALARMA DE SISTEMA", position: new Rect(num3 + 15f, num4 + 10f, num - 30f, 25f));
-				GUI.Label(style: new GUIStyle(GUI.skin.label)
+						fontSize = 13,
+						fontStyle = FontStyle.Bold,
+						normal = { textColor = Color.red },
+						alignment = TextAnchor.MiddleLeft
+					});
+
+					GUI.Label(new Rect(boxX + boxWidth - 150f, boxY + 10f, 140f, 22f), "BOMBA HIDRÁULICA ACTIVA", new GUIStyle(GUI.skin.label)
+					{
+						fontSize = 10,
+						fontStyle = FontStyle.Bold,
+						normal = { textColor = new Color(1f, 0.6f, 0.6f, 0.8f) },
+						alignment = TextAnchor.MiddleRight
+					});
+
+					// LÍNEA 2: BARRA DE PROGRESO
+					float barWidth = boxWidth - 30f;
+					float barHeight = 14f;
+					float barX = boxX + 15f;
+					float barY = boxY + 38f;
+					GUI.DrawTexture(new Rect(barX, barY, barWidth, barHeight), progressRemainingTex);
+					float fillRatio = Mathf.Clamp01(currentDrainageTime / drainageDuration);
+					GUI.DrawTexture(new Rect(barX, barY, barWidth * fillRatio, barHeight), alarmProgressTex);
+					GUI.DrawTexture(new Rect(barX, barY, barWidth, 1f), alarmBorderTex);
+					GUI.DrawTexture(new Rect(barX, barY + barHeight - 1f, barWidth, 1f), alarmBorderTex);
+					GUI.DrawTexture(new Rect(barX, barY, 1f, barHeight), alarmBorderTex);
+					GUI.DrawTexture(new Rect(barX + barWidth - 1f, barY, 1f, barHeight), alarmBorderTex);
+
+					// LÍNEA 3: EVACUANDO AGUA Y TIEMPO RESTANTE
+					GUI.Label(new Rect(boxX + 15f, boxY + 58f, boxWidth - 30f, 22f), "EVACUANDO AGUA" + ((Time.time % 1.2f < 0.4f) ? "." : ((Time.time % 1.2f < 0.8f) ? ".." : "...")), new GUIStyle(GUI.skin.label)
+					{
+						fontSize = 12,
+						fontStyle = FontStyle.Bold,
+						normal = { textColor = Color.white },
+						alignment = TextAnchor.MiddleLeft
+					});
+
+					GUI.Label(new Rect(boxX + 15f, boxY + 58f, boxWidth - 30f, 22f), $"{Mathf.CeilToInt(currentDrainageTime)}s RESTANTES", new GUIStyle(GUI.skin.label)
+					{
+						fontSize = 12,
+						fontStyle = FontStyle.Bold,
+						normal = { textColor = Color.red },
+						alignment = TextAnchor.MiddleRight
+					});
+
+					// LÍNEA 4: ADVERTENCIA INFESTACIÓN
+					GUI.Label(new Rect(boxX + 15f, boxY + 95f, boxWidth - 30f, 25f), "⚠️ ACTIVIDAD PARANORMAL DETECTADA: INFESTACIÓN ⚠️", new GUIStyle(GUI.skin.label)
+					{
+						fontSize = 10,
+						fontStyle = FontStyle.Bold,
+						normal = { textColor = new Color(1f, 0.3f, 0.3f, 0.9f) },
+						alignment = TextAnchor.MiddleCenter
+					});
+				}
+				else if (escapeState == EscapeState.Ready)
 				{
-					fontSize = 11,
-					fontStyle = FontStyle.Bold,
-					normal = 
+					// ESTADO COMPLETADO: ALERTA DE EVACUACIÓN / BUSCAR SALIDA
+					bool blink = Time.time % 0.8f < 0.4f;
+
+					// LÍNEA 1: SISTEMA DRENADO (Izquierda) Y ESCOTILLA ABIERTA (Derecha) bien separados
+					GUI.Label(new Rect(boxX + 12f, boxY + 12f, 180f, 25f), (blink ? "⚠️" : "  ") + " SISTEMA DRENADO", new GUIStyle(GUI.skin.label)
 					{
-						textColor = new Color(1f, 0.6f, 0.6f, 0.8f)
-					},
-					alignment = TextAnchor.MiddleRight
-				}, position: new Rect(num3 + 15f, num4 + 28f, num - 30f, 25f), text: "BOMBA HIDRÁULICA ACTIVA");
-				float num5 = num - 30f;
-				float num6 = 16f;
-				float num7 = num3 + 15f;
-				float num8 = num4 + 52f;
-				GUI.DrawTexture(new Rect(num7, num8, num5, num6), progressRemainingTex);
-				float num9 = currentDrainageTime / drainageDuration;
-				GUI.DrawTexture(new Rect(num7, num8, num5 * num9, num6), alarmProgressTex);
-				GUI.DrawTexture(new Rect(num7, num8, num5, 1f), alarmBorderTex);
-				GUI.DrawTexture(new Rect(num7, num8 + num6 - 1f, num5, 1f), alarmBorderTex);
-				GUI.DrawTexture(new Rect(num7, num8, 1f, num6), alarmBorderTex);
-				GUI.DrawTexture(new Rect(num7 + num5 - 1f, num8, 1f, num6), alarmBorderTex);
-				GUI.Label(style: new GUIStyle(GUI.skin.label)
-				{
-					fontSize = 13,
-					fontStyle = FontStyle.Bold,
-					normal = 
+						fontSize = 13,
+						fontStyle = FontStyle.Bold,
+						normal = { textColor = Color.green },
+						alignment = TextAnchor.MiddleLeft
+					});
+
+					GUI.Label(new Rect(boxX + boxWidth - 145f, boxY + 12f, 135f, 25f), "ESCOTILLA ABIERTA", new GUIStyle(GUI.skin.label)
 					{
-						textColor = Color.white
-					},
-					alignment = TextAnchor.MiddleLeft
-				}, text: "EVACUANDO AGUA" + ((Time.time % 1.2f < 0.4f) ? "." : ((Time.time % 1.2f < 0.8f) ? ".." : "...")), position: new Rect(num3 + 15f, num4 + 80f, num - 30f, 25f));
-				GUI.Label(style: new GUIStyle(GUI.skin.label)
-				{
-					fontSize = 13,
-					fontStyle = FontStyle.Bold,
-					normal = 
+						fontSize = 11,
+						fontStyle = FontStyle.Bold,
+						normal = { textColor = Color.yellow },
+						alignment = TextAnchor.MiddleRight
+					});
+
+					// MENSAJE PARPANDEANTE DE INSTRUCCIÓN DE SALIDA
+					GUI.Label(new Rect(boxX + 15f, boxY + 50f, boxWidth - 30f, 35f), "¡AGUA EVACUADA!\nBUSCA LA ESCOTILLA DE SALIDA", new GUIStyle(GUI.skin.label)
 					{
-						textColor = Color.red
-					},
-					alignment = TextAnchor.MiddleRight
-				}, position: new Rect(num3 + 15f, num4 + 80f, num - 30f, 25f), text: $"{Mathf.CeilToInt(currentDrainageTime)}s RESTANTES");
-				GUI.Label(style: new GUIStyle(GUI.skin.label)
-				{
-					fontSize = 11,
-					fontStyle = FontStyle.Italic,
-					normal = 
+						fontSize = 13,
+						fontStyle = FontStyle.Bold,
+						normal = { textColor = Color.white },
+						alignment = TextAnchor.MiddleCenter
+					});
+
+					GUI.Label(new Rect(boxX + 15f, boxY + 95f, boxWidth - 30f, 25f), (blink ? "⚠️ ¡EVACÚA INMEDIATAMENTE! ⚠️" : "  ¡EVACÚA INMEDIATAMENTE!  "), new GUIStyle(GUI.skin.label)
 					{
-						textColor = new Color(1f, 0.3f, 0.3f, 0.9f)
-					},
-					alignment = TextAnchor.MiddleCenter
-				}, position: new Rect(num3 + 15f, num4 + 108f, num - 30f, 20f), text: "⚠\ufe0f ACTIVIDAD PARANORMAL DETECTADA: INFESTACIÓN ⚠\ufe0f");
+						fontSize = 11,
+						fontStyle = FontStyle.Bold,
+						normal = { textColor = new Color(1f, 0.8f, 0.2f, 1f) },
+						alignment = TextAnchor.MiddleCenter
+					});
+				}
 			}
-			else if (escapeState == EscapeState.Idle)
+			if (escapeState == EscapeState.Idle)
 			{
 				GameObject pObjGui = (playerObjInstance != null) ? playerObjInstance : GameObject.FindGameObjectWithTag("Player");
 				if (pObjGui == null) return;

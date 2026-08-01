@@ -294,12 +294,22 @@ public class NotepadUIManager : MonoBehaviour
         inactiveTabStyle.normal.textColor = new Color(0.2f, 0.2f, 0.2f);
 
         // Pestaña 1: NOTAS
-        GUI.color = (activeTab == 0) ? new Color(0.12f, 0.35f, 0.25f, 0.95f) : new Color(0.85f, 0.82f, 0.70f, 0.9f);
+        bool isTunnelsMode = tunnelsGen != null && tunnelsGen.grid != null;
+
+        GUI.color = isTunnelsMode ? new Color(0.6f, 0.6f, 0.6f, 0.6f) : ((activeTab == 0) ? new Color(0.12f, 0.35f, 0.25f, 0.95f) : new Color(0.85f, 0.82f, 0.70f, 0.9f));
         GUI.DrawTexture(tab1Rect, Texture2D.whiteTexture);
         GUI.color = Color.white;
-        if (GUI.Button(tab1Rect, "📝 NOTAS (CLAVE)", activeTab == 0 ? activeTabStyle : inactiveTabStyle))
+        
+        string tab1Title = isTunnelsMode ? "<s>📝 NOTAS (N/A)</s>" : "📝 NOTAS (CLAVE)";
+        if (GUI.Button(tab1Rect, tab1Title, activeTab == 0 ? activeTabStyle : inactiveTabStyle))
         {
             activeTab = 0;
+        }
+
+        // Si estamos en túneles y el usuario entra por defecto a notas, cambiar automáticamente a mapa
+        if (isTunnelsMode && activeTab == 0)
+        {
+            // O si hace clic en la pestaña, mostramos la versión rayada de la nota
         }
 
         // Pestaña 2: PLANO DEL MAPA
@@ -313,7 +323,7 @@ public class NotepadUIManager : MonoBehaviour
 
         if (activeTab == 0)
         {
-            RenderNotesTab(padRect);
+            RenderNotesTab(padRect, isTunnelsMode);
         }
         else
         {
@@ -327,7 +337,7 @@ public class NotepadUIManager : MonoBehaviour
         }
     }
 
-    private void RenderNotesTab(Rect padRect)
+    private void RenderNotesTab(Rect padRect, bool isTunnelsMode = false)
     {
         GUIStyle subStyle = new GUIStyle();
         subStyle.fontSize = 14;
@@ -345,7 +355,7 @@ public class NotepadUIManager : MonoBehaviour
         slotStyle.fontSize = 24;
         slotStyle.fontStyle = FontStyle.Bold;
         slotStyle.alignment = TextAnchor.MiddleCenter;
-        slotStyle.normal.textColor = new Color(0.05f, 0.5f, 0.1f);
+        slotStyle.normal.textColor = isTunnelsMode ? new Color(0.4f, 0.4f, 0.4f) : new Color(0.05f, 0.5f, 0.1f);
 
         for (int i = 0; i < 7; i++)
         {
@@ -368,31 +378,63 @@ public class NotepadUIManager : MonoBehaviour
         hintStyle.wordWrap = true;
         hintStyle.normal.textColor = Color.black;
 
-        string hintText = "Pistas encontradas en el laberinto:\n\n";
-        int notesCount = 0;
-        for (int i = 0; i < 7; i++)
+        string hintText = "";
+        if (isTunnelsMode)
         {
-            if (foundNotes[i] != -1)
-            {
-                notesCount++;
-                hintText += $"• Digito {i + 1} del codigo: {foundNotes[i]}\n";
-            }
-        }
-
-        if (notesCount == 0)
-        {
-            hintText += "(Aun no has encontrado ninguna nota. Busca papeles blancos con numeros en las consultas y oficinas del hospital).";
-        }
-        else if (notesCount == 7)
-        {
-            hintText += "¡Codigo completo descubierto! Ve a la puerta de la Oficina del Director e ingresa los 7 numeros.";
+            hintText = "Pistas del Hospital:\n\n" +
+                       "(Esta sección correspondía al Hospital. En los túneles no se requieren notas clave para avanzar).\n\n" +
+                       "⚠️ Tu objetivo actual en el sector de túneles es localizar la consola de drenaje, accionar la palanca de bombeo y evacuar por la escotilla principal.";
         }
         else
         {
-            hintText += $"\n({notesCount} de 7 notas encontradas. Sigue explorando para rellenar los casilleros vacios).";
+            hintText = "Pistas encontradas en el laberinto:\n\n";
+            int notesCount = 0;
+            for (int i = 0; i < 7; i++)
+            {
+                if (foundNotes[i] != -1)
+                {
+                    notesCount++;
+                    hintText += $"• Digito {i + 1} del codigo: {foundNotes[i]}\n";
+                }
+            }
+
+            if (notesCount == 0)
+            {
+                hintText += "(Aun no has encontrado ninguna nota. Busca papeles blancos con numeros en las consultas y oficinas del hospital).";
+            }
+            else if (notesCount == 7)
+            {
+                hintText += "¡Codigo completo descubierto! Ve a la puerta de la Oficina del Director e ingresa los 7 numeros.";
+            }
+            else
+            {
+                hintText += $"\n({notesCount} de 7 notas encontradas. Sigue explorando para rellenar los casilleros vacios).";
+            }
         }
 
         GUI.Label(new Rect(padRect.x + 25, padRect.y + 155, padRect.width - 50, 180), hintText, hintStyle);
+
+        // Si estamos en túneles, dibujar una gran X o líneas rayadas rojas sobre toda la hoja de notas
+        if (isTunnelsMode)
+        {
+            GUI.color = new Color(0.85f, 0.1f, 0.1f, 0.45f);
+            
+            // Línea diagonal 1
+            DrawLine(new Vector2(padRect.x + 20, padRect.y + 60), new Vector2(padRect.x + padRect.width - 20, padRect.y + 340), 4f);
+            // Línea diagonal 2
+            DrawLine(new Vector2(padRect.x + padRect.width - 20, padRect.y + 60), new Vector2(padRect.x + 20, padRect.y + 340), 4f);
+
+            GUI.color = Color.white;
+        }
+    }
+
+    private void DrawLine(Vector2 start, Vector2 end, float width)
+    {
+        Vector2 d = end - start;
+        float a = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
+        GUIUtility.RotateAroundPivot(a, start);
+        GUI.DrawTexture(new Rect(start.x, start.y - width / 2f, d.magnitude, width), Texture2D.whiteTexture);
+        GUIUtility.RotateAroundPivot(-a, start);
     }
 
     private void RenderMapTab(Rect padRect, ModularHospital.ModularHospitalGenerator gen, TunnelsGenerator tunnelsGen)
