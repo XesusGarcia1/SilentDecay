@@ -286,7 +286,7 @@ public partial class TunnelsGenerator
 		gameObject.transform.SetParent(navMeshHolder.transform);
 
 		float tileSize = 2.4f * mapScale; // 7.2f
-		float innerHeight = 2.6f * mapScale; // 7.8f
+		float innerHeight = 2.2f * mapScale; // 6.6f
 		float thickness = 0.08f * mapScale; // 0.24f
 
 		// Materiales del metal de la cabina (Premium - Gris/Azulado industrial con textura)
