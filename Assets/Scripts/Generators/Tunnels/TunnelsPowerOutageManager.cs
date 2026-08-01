@@ -65,8 +65,9 @@ public class TunnelsPowerOutageManager : MonoBehaviour
 
     private IEnumerator PowerCycleRoutine()
     {
-        // Espera inicial breve antes del primer apagón
-        yield return new WaitForSeconds(Random.Range(10f, 18f));
+        // Período de gracia inicial: Esperar 2 minutos (120s) de tensión inicial antes del primer apagón
+        Debug.Log("[TunnelsPowerOutageManager] Período de gracia inicial iniciado (120s de energía garantizada).");
+        yield return new WaitForSeconds(120f);
 
         while (true)
         {

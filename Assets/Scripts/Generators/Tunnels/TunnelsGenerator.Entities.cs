@@ -54,33 +54,41 @@ public partial class TunnelsGenerator
 		_ = segmentLength;
 		_ = mapScale;
 		GameObject gameObject = GameObject.FindGameObjectWithTag("Player");
-		// Determinar dirección de salida del pasillo y orientar el ascensor hacia el pasillo
+
+		// Determinar la celda del jugador en el grid
 		float num = segmentLength * mapScale;
 		int num2 = Mathf.RoundToInt(playerSpawnPos.x / num);
 		int num3 = Mathf.RoundToInt(playerSpawnPos.z / num);
-		Vector3 forward = Vector3.forward;
-		List<Vector3> openDirections = new List<Vector3>();
-		if (num3 + 1 < height && grid[num2, num3 + 1]) openDirections.Add(Vector3.forward);
-		if (num3 - 1 >= 0 && grid[num2, num3 - 1]) openDirections.Add(Vector3.back);
-		if (num2 + 1 < width && grid[num2 + 1, num3]) openDirections.Add(Vector3.right);
-		if (num2 - 1 >= 0 && grid[num2 - 1, num3]) openDirections.Add(Vector3.left);
 
-		if (openDirections.Count > 0)
+		// Detectar la dirección real del pasillo abierto evaluando los vecinos del grid
+		Vector3 openDirection = Vector3.forward;
+		List<Vector3> validDirs = new List<Vector3>();
+
+		if (num3 + 1 < height && grid[num2, num3 + 1]) validDirs.Add(Vector3.forward);
+		if (num3 - 1 >= 0 && grid[num2, num3 - 1]) validDirs.Add(Vector3.back);
+		if (num2 + 1 < width && grid[num2 + 1, num3]) validDirs.Add(Vector3.right);
+		if (num2 - 1 >= 0 && grid[num2 - 1, num3]) validDirs.Add(Vector3.left);
+
+		if (validDirs.Count > 0)
 		{
-			forward = openDirections[0];
+			openDirection = validDirs[0];
 		}
-		
-		// El ascensor debe mirar en la dirección opuesta a la apertura del pasillo para que su puerta frontal (Z local positiva) dé hacia el pasillo
-		Quaternion elevatorRot = Quaternion.LookRotation(forward);
-		Quaternion playerRot = Quaternion.LookRotation(forward);
 
-		// Posicionar el ascensor exactamente centrado en la celda inicial del mapa
-		Vector3 spawnPos = playerSpawnPos;
-		spawnPos.y = 0.05f * mapScale;
+		// En el Prefab del Hospital, las puertas deslizantes se encuentran a -90° respecto al frontal del modelo
+		Quaternion elevatorRot = Quaternion.LookRotation(openDirection) * Quaternion.Euler(0f, -90f, 0f);
+		Quaternion playerRot = Quaternion.LookRotation(openDirection);
 
-		// Posicionar al jugador en el centro de la cabina del ascensor
-		Vector3 vector = spawnPos;
-		vector.y = spawnPos.y + 0.12f;
+		// Posición exacta centrada en la celda del grid
+		Vector3 exactCellCenter = new Vector3((float)num2 * num, 0.05f * mapScale, (float)num3 * num);
+		Vector3 spawnPos = exactCellCenter;
+
+		// El jugador se coloca en el centro exacto de la cabina
+		Vector3 vector = new Vector3(spawnPos.x, spawnPos.y + 0.12f, spawnPos.z);
+
+		// Guardar datos de la celda del jugador para el validador
+		playerSpawnGridX = num2;
+		playerSpawnGridZ = num3;
+		playerSpawnCellSize = num;
 		GameObject playerTagObj = gameObject;
 		GameObject playerRootObj = playerTagObj;
 		if (playerTagObj != null)
@@ -146,7 +154,6 @@ public partial class TunnelsGenerator
 			}
 			Transform camTarget = gameObject.transform.Find("PlayerCameraRoot");
 			if (camTarget == null) camTarget = gameObject.transform.Find("CinemachineCameraTarget");
-			// Buscar también de forma recursiva por si está dentro de la cápsula o anidado
 			if (camTarget == null)
 			{
 				var fpcComponent = gameObject.GetComponentInChildren<StarterAssets.FirstPersonController>(true);
@@ -171,7 +178,6 @@ public partial class TunnelsGenerator
 				if (pitchField != null)
 				{
 					pitchField.SetValue(fpc, 0f);
-					UnityEngine.Debug.Log("[TunnelsGenerator] _cinemachineTargetPitch del FirstPersonController reseteado a 0.");
 				}
 			}
 		}
@@ -181,11 +187,9 @@ public partial class TunnelsGenerator
 			Physics.SyncTransforms();
 			cc.enabled = true;
 			Physics.SyncTransforms();
-			UnityEngine.Debug.Log("[TunnelsGenerator] CharacterController del jugador habilitado con seguridad tras teletransporte.");
 		}
 		playerObjInstance = gameObject;
 
-		// Registrar spawn e inicializar vidas dinámicamente en GameManager
 		if (playerObjInstance != null)
 		{
 			if (GameManager.Instance == null)
@@ -194,23 +198,20 @@ public partial class TunnelsGenerator
 				gmObj.AddComponent<GameManager>();
 			}
 
-			// Calcular vidas dinámicas basadas en la escala del mapa
 			int vidasTunnels = 3;
-			if (mapScale >= 1.5f)
-			{
-				vidasTunnels = 5;
-			}
-			else if (mapScale >= 1.2f)
-			{
-				vidasTunnels = 4;
-			}
+			if (mapScale >= 1.5f) vidasTunnels = 5;
+			else if (mapScale >= 1.2f) vidasTunnels = 4;
 			
 			GameManager.Instance.InicializarVidasParaMapa(vidasTunnels);
-			
-			// Registrar la posición segura a nivel del suelo de la pasarela
 			GameManager.Instance.RegistrarSpawnJugador(vector, playerRot);
 		}
+
 		SpawnArrivalElevator(spawnPos, elevatorRot);
+
+		// Guardar la posición y rotación de spawn del jugador para reposicionamiento post-física
+		playerSpawnTargetPos = vector;
+		playerSpawnTargetRot = playerRot;
+		StartCoroutine(ForcePlayerPositionAfterPhysics(gameObject, vector, playerRot));
 		GameObject gameObject2 = null;
 		PhenomenonAIController phenomenonAIController = Object.FindObjectOfType<PhenomenonAIController>();
 		if (phenomenonAIController != null)
@@ -250,7 +251,13 @@ public partial class TunnelsGenerator
 			{
 				gameObject2.transform.position = vector2;
 			}
+			phenomenonAIController = gameObject2.GetComponent<PhenomenonAIController>();
+		}
+
+		if (phenomenonAIController != null)
+		{
 			gameObject2.transform.localScale = Vector3.one * mapScale * 1.8f;
+			StartCoroutine(ActivatePhenomenonHuntAfterDelay(phenomenonAIController, (gameObject != null) ? gameObject.transform : null, 120f));
 		}
 		if (gameObject2 != null && phenomenonAIController != null)
 		{
@@ -271,16 +278,98 @@ public partial class TunnelsGenerator
 		}
 	}
 
+	private IEnumerator ActivatePhenomenonHuntAfterDelay(PhenomenonAIController ai, Transform playerTarget, float delaySeconds)
+	{
+		if (ai != null)
+		{
+			// Guardar el rango de detección original y reducirlo a 0 para impedir teletransporte y acecho
+			float originalDetectionRange = ai.detectionRange;
+
+			ai.detectionRange = 0f;
+			ai.player = null;
+
+			UnityEngine.Debug.Log($"[TunnelsGenerator] El Fenómeno en modo pacífico sin teletransporte por {delaySeconds}s.");
+			yield return new WaitForSeconds(delaySeconds);
+
+			if (ai != null)
+			{
+				ai.detectionRange = originalDetectionRange > 0f ? originalDetectionRange : 15f;
+				ai.player = playerTarget;
+				UnityEngine.Debug.Log("[TunnelsGenerator] ¡Comportamiento tipo Slender (Teletransporte y Acecho) ACTIVADO!");
+			}
+		}
+	}
+
 	private void SpawnArrivalElevator(Vector3 spawnPos, Quaternion spawnRot)
 	{
 		// Destruir cualquier cabina existente para evitar duplicaciones (incluyendo inactivas)
 		foreach (GameObject go in Resources.FindObjectsOfTypeAll<GameObject>())
 		{
-			if (go != null && go.name == "ArrivalElevatorCabin" && go.scene.name != null)
+			if (go != null && (go.name == "ArrivalElevatorCabin" || go.name.StartsWith("ArrivalElevatorPrefab")) && go.scene.name != null)
 			{
 				UnityEngine.Debug.LogWarning("[TunnelsGenerator] Se detectó una cabina de ascensor existente (activa o inactiva). Destruyéndola para evitar duplicados.");
 				Object.DestroyImmediate(go);
 			}
+		}
+
+		if (arrivalElevatorPrefab != null)
+		{
+			GameObject prefabInst = Object.Instantiate(arrivalElevatorPrefab, spawnPos, spawnRot, navMeshHolder.transform);
+			prefabInst.name = "ArrivalElevatorCabin";
+			prefabInst.transform.localScale = Vector3.one * mapScale;
+
+			// DESACTIVAR/DESTRUIR EL CASCARÓN EXTERIOR (Module_CulDeSac) DEL PREFAB DEL HOSPITAL
+			foreach (Transform child in prefabInst.GetComponentsInChildren<Transform>(true))
+			{
+				if (child != null && child.name.Contains("CulDeSac"))
+				{
+					Object.DestroyImmediate(child.gameObject);
+					break;
+				}
+			}
+
+			// CENTRAR EL MODELO BASADO EN SUS BOUNDS REALES (Corrige offsets del pivote 3D)
+			Renderer[] rends = prefabInst.GetComponentsInChildren<Renderer>();
+			if (rends.Length > 0)
+			{
+				Bounds b = rends[0].bounds;
+				for (int i = 1; i < rends.Length; i++)
+				{
+					b.Encapsulate(rends[i].bounds);
+				}
+
+				// Offset entre el punto de spawn deseado y el centro real del modelo 3D
+				Vector3 centerOffset = spawnPos - b.center;
+				centerOffset.y = 0f; // Mantener la altura intacta
+
+				// Desplazar el prefab para que el centro visual coincida exactamente con la celda del túnel
+				prefabInst.transform.position += centerOffset;
+			}
+
+			// Asegurar que cuente con el componente ArrivalElevatorController
+			var ctrl = prefabInst.GetComponent<ArrivalElevatorController>();
+			if (ctrl == null) ctrl = prefabInst.AddComponent<ArrivalElevatorController>();
+			ctrl.mapScale = mapScale;
+
+			// Buscar referencias de puertas en cualquier nivel de jerarquía del Prefab
+			if (ctrl.leftDoor == null || ctrl.rightDoor == null)
+			{
+				foreach (Transform t in prefabInst.GetComponentsInChildren<Transform>(true))
+				{
+					string tName = t.name.ToLower();
+					if (ctrl.leftDoor == null && (tName.Contains("left") || tName.Contains("izq")) && tName.Contains("door"))
+					{
+						ctrl.leftDoor = t;
+					}
+					else if (ctrl.rightDoor == null && (tName.Contains("right") || tName.Contains("der")) && tName.Contains("door"))
+					{
+						ctrl.rightDoor = t;
+					}
+				}
+			}
+
+			UnityEngine.Debug.Log($"[TunnelsGenerator] Prefab de ascensor de llegada instanciado con éxito. Puertas encontradas: Izq={(ctrl.leftDoor != null)}, Der={(ctrl.rightDoor != null)}");
+			return;
 		}
 
 		GameObject gameObject = new GameObject("ArrivalElevatorCabin");
@@ -598,6 +687,44 @@ public partial class TunnelsGenerator
 		controller.leftDoor = lDoor.transform;
 		controller.rightDoor = rDoor.transform;
 		controller.mapScale = mapScale;
+	}
+
+	/// <summary>
+	/// Espera 3 frames de física y fuerza al jugador de regreso al centro exacto del ascensor.
+	/// Esto evita que el CharacterController o la física del primer frame expulse al jugador fuera.
+	/// </summary>
+	private IEnumerator ForcePlayerPositionAfterPhysics(GameObject playerObj, Vector3 targetPos, Quaternion targetRot)
+	{
+		if (playerObj == null) yield break;
+
+		// Esperar 3 frames para que la física procese la posición inicial
+		yield return null;
+		yield return null;
+		yield return null;
+
+		if (playerObj == null) yield break;
+
+		CharacterController cc = playerObj.GetComponentInChildren<CharacterController>(includeInactive: true);
+		GameObject rootObj = playerObj.transform.root.gameObject;
+
+		// Deshabilitar temporalmente para reposicionar sin resistencia de la física
+		if (cc != null) cc.enabled = false;
+		Physics.SyncTransforms();
+
+		// Calcular el offset igual que en SpawnEntities
+		Quaternion localRelation = Quaternion.Inverse(rootObj.transform.rotation) * playerObj.transform.rotation;
+		Quaternion desiredRootRot = targetRot * Quaternion.Inverse(localRelation);
+		rootObj.transform.rotation = desiredRootRot;
+		Vector3 worldOffset = playerObj.transform.position - rootObj.transform.position;
+		rootObj.transform.position = targetPos - worldOffset;
+
+		Physics.SyncTransforms();
+		yield return null;
+
+		if (cc != null) cc.enabled = true;
+		Physics.SyncTransforms();
+
+		UnityEngine.Debug.Log($"[TunnelsGenerator] Post-física: Jugador reposicionado en {targetPos}. Posición real: {playerObj.transform.position}");
 	}
 
 	private IEnumerator HandleVictory()

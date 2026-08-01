@@ -127,6 +127,9 @@ public partial class TunnelsGenerator : MonoBehaviour
 
 	public GameObject enemyPrefab;
 
+	[Tooltip("Prefab del Ascensor de Llegada (si se asigna, se usará este prefab en lugar de construir uno procedimental)")]
+	public GameObject arrivalElevatorPrefab;
+
 	[Range(0.05f, 1f)]
 	[Tooltip("Porcentaje de distancia en el laberinto para spawnear el enemigo (0.05 = muy cerca del jugador, 1.0 = extremo opuesto)")]
 	public float enemySpawnDistancePercent = 0.35f;
@@ -210,6 +213,13 @@ public partial class TunnelsGenerator : MonoBehaviour
 	private Vector3 consolePos;
 
 	private Vector3 playerSpawnPos;
+
+	// Datos de la celda del jugador para validación y reposicionamiento post-física
+	[HideInInspector] public int playerSpawnGridX;
+	[HideInInspector] public int playerSpawnGridZ;
+	[HideInInspector] public float playerSpawnCellSize;
+	[HideInInspector] public Vector3 playerSpawnTargetPos;
+	[HideInInspector] public Quaternion playerSpawnTargetRot;
 
 	private float interactionTimer;
 
@@ -326,6 +336,7 @@ public partial class TunnelsGenerator : MonoBehaviour
 		GenerateMazeTunnelsMap();
 		stopwatch.Stop();
 		UnityEngine.Debug.Log($"[Performance] Paso 2: Generación física del laberinto: {stopwatch.ElapsedMilliseconds} ms");
+
 		stopwatch.Restart();
 		if (navMeshSurface != null)
 		{
@@ -339,8 +350,12 @@ public partial class TunnelsGenerator : MonoBehaviour
 		}
 		stopwatch.Stop();
 		UnityEngine.Debug.Log($"[Performance] Paso 3: Horneado del NavMesh: {stopwatch.ElapsedMilliseconds} ms");
+
 		stopwatch.Restart();
 		SpawnEntities();
+		stopwatch.Stop();
+		UnityEngine.Debug.Log($"[Performance] Paso 4: Spawn de entidades: {stopwatch.ElapsedMilliseconds} ms");
+
 		AudioClip audioClip = Resources.Load<AudioClip>("Audio/Tuneles/AmbienteTunel");
 		if (audioClip == null) audioClip = Resources.Load<AudioClip>("AmbienteTunel");
 		if (audioClip != null)
@@ -352,15 +367,63 @@ public partial class TunnelsGenerator : MonoBehaviour
 			audioSource.volume = 0.45f;
 			audioSource.playOnAwake = true;
 			audioSource.Play();
-			UnityEngine.Debug.Log("[TunnelsGenerator] Loop de música ambiental 'AmbienteTunel' iniciado.");
 		}
-		else
-		{
-			UnityEngine.Debug.LogWarning("[TunnelsGenerator] No se encontró el sonido de ambiente 'AmbienteTunel' en Resources.");
-		}
+
 		base.gameObject.AddComponent<TunnelsPowerOutageManager>();
-		stopwatch.Stop();
-		UnityEngine.Debug.Log($"[Performance] Paso 4: Spawn y configuración de entidades: {stopwatch.ElapsedMilliseconds} ms");
+	}
+
+	/// <summary>
+	/// Validación estricta en tiempo real durante la pantalla de carga:
+	/// Retorna true únicamente si el ascensor está 100% encajado dentro de una celda interna y con salida despejada.
+	/// </summary>
+	private bool FastValidateMapPlacement()
+	{
+		GameObject arrivalElevator = GameObject.Find("ArrivalElevatorCabin");
+		if (arrivalElevator == null) return false;
+
+		// 1. Verificar celda estrictamente central (margen mínimo de 5 celdas de distancia de los bordes)
+		float num = segmentLength * mapScale;
+		int gx = Mathf.RoundToInt(playerSpawnPos.x / num);
+		int gz = Mathf.RoundToInt(playerSpawnPos.z / num);
+
+		int minMargin = 5; // Margen de seguridad estricto (entre 5 y 20 en un mapa de 25)
+		if (gx < minMargin || gx >= width - minMargin || gz < minMargin || gz >= height - minMargin)
+		{
+			return false; // Rechazar cualquier celda cercana al borde exterior
+		}
+
+		// 2. Comprobar que la celda actual y sus 4 celdas circundantes sean pasillos válidos creados
+		if (grid == null || !grid[gx, gz] || !grid[gx - 1, gz] || !grid[gx + 1, gz] || !grid[gx, gz - 1] || !grid[gx, gz + 1])
+		{
+			return false; // Falta alguna pared o módulo vecino de túnel
+		}
+
+		// 2. Verificar que exista el GameObject de la celda de túnel en la escena
+		GameObject cellObj = GameObject.Find($"Cell_{gx}_{gz}");
+		if (cellObj == null)
+		{
+			return false; // La celda física no se instanció
+		}
+
+		// 3. Raycast frontal: comprobar que la puerta del ascensor no esté tapada por una pared ciega
+		GameObject player = GameObject.FindGameObjectWithTag("Player");
+		if (player != null)
+		{
+			Vector3 playerHead = player.transform.position + Vector3.up * 1.2f;
+			if (Physics.Raycast(playerHead, player.transform.forward, out RaycastHit hit, 1.8f))
+			{
+				if (hit.collider != null && !hit.collider.transform.IsChildOf(arrivalElevator.transform) && !hit.collider.transform.IsChildOf(player.transform.root))
+				{
+					string hName = hit.collider.name.ToLower();
+					if (hName.Contains("wall") || hName.Contains("corner") || hName.Contains("filler") || hName.Contains("solid"))
+					{
+						return false; // Hay una pared tapando la salida
+					}
+				}
+			}
+		}
+
+		return true; // ¡Mapa 100% verificado y perfecto!
 	}
 
 	private void Update()

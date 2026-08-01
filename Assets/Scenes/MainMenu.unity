@@ -151,7 +151,7 @@ MonoBehaviour:
   currentState: 0
   modularGenerator: {fileID: 1143851915}
   gameTitle: SILENT DECAY
-  enableTunnelsLevel: 0
+  enableTunnelsLevel: 1
   instagramURL: https://www.instagram.com/lxesusgarcial
   facebookURL: https://www.facebook.com/lXesusGarcial
   youtubeURL: https://www.youtube.com/@Xesus_Garcia

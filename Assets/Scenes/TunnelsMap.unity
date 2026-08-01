@@ -1361,6 +1361,7 @@ MonoBehaviour:
   lightVerticalOffset: -0.1
   playerPrefab: {fileID: 1478299288}
   enemyPrefab: {fileID: 1412722735}
+  arrivalElevatorPrefab: {fileID: 3118693395269842937, guid: 01e1d1b7113115c49a0fcfff115c7090, type: 3}
   enemySpawnDistancePercent: 0.35
   ceilingLightPrefab: {fileID: 169710, guid: dc8f3955c063af240afd23143f496335, type: 3}
   mapScale: 3
@@ -1372,6 +1373,8 @@ MonoBehaviour:
   lightSpacing: 15
   safeLightProbability: 0.5
   maxDarkSpacing: 30
+  width: 25
+  height: 25
   drainageDuration: 45
 --- !u!4 &1712105328
 Transform:

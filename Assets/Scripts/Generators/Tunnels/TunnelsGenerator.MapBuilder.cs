@@ -180,80 +180,35 @@ public partial class TunnelsGenerator
 			list2 = patrolPoints;
 		}
 
-		// Encontrar celdas candidatas para el spawn del jugador (callejones sin salida / esquinas)
-		List<Vector3> playerCandidates = new List<Vector3>();
-		int maxWallsPlayer = 0;
-		foreach (Vector3 patrolPoint in patrolPoints)
-		{
-			int num4 = Mathf.RoundToInt(patrolPoint.x / num2);
-			int num5 = Mathf.RoundToInt(patrolPoint.z / num2);
-			int num6 = 0;
-			if (num4 - 1 < 0 || !grid[num4 - 1, num5]) num6++;
-			if (num4 + 1 >= width || !grid[num4 + 1, num5]) num6++;
-			if (num5 - 1 < 0 || !grid[num4, num5 - 1]) num6++;
-			if (num5 + 1 >= height || !grid[num4, num5 + 1]) num6++;
-			if (num6 > maxWallsPlayer)
-			{
-				maxWallsPlayer = num6;
-			}
-		}
-		foreach (Vector3 patrolPoint2 in patrolPoints)
-		{
-			int num7 = Mathf.RoundToInt(patrolPoint2.x / num2);
-			int num8 = Mathf.RoundToInt(patrolPoint2.z / num2);
-			int num9 = 0;
-			if (num7 - 1 < 0 || !grid[num7 - 1, num8]) num9++;
-			if (num7 + 1 >= width || !grid[num7 + 1, num8]) num9++;
-			if (num8 - 1 < 0 || !grid[num7, num8 - 1]) num9++;
-			if (num8 + 1 >= height || !grid[num7, num8 + 1]) num9++;
-			if (num9 == maxWallsPlayer)
-			{
-				playerCandidates.Add(patrolPoint2);
-			}
-		}
-		if (playerCandidates.Count == 0)
-		{
-			playerCandidates = patrolPoints;
-		}
+		// 1. Fijar el Spawn del ascensor/jugador en la celda del pasillo central
+		int spawnGridX = width / 2;
+		int spawnGridY = height / 2;
+		grid[spawnGridX, spawnGridY] = true;
+		grid[spawnGridX, spawnGridY + 1] = true;
+		grid[spawnGridX, spawnGridY - 1] = true;
+		Vector3 fixedCenterPos = new Vector3((float)spawnGridX * num, 0.2f * mapScale, (float)spawnGridY * num);
+		vector4 = fixedCenterPos;
 
-		if (patrolPoints.Count >= 3)
-		{
-			float num10 = 0f;
-			int num11 = Mathf.Min(150, patrolPoints.Count * 2);
-			for (int n = 0; n < num11; n++)
-			{
-				int index = Random.Range(0, list2.Count);
-				Vector3 vector5 = list2[index];
-				int index2 = Random.Range(0, patrolPoints.Count);
-				int index3 = Random.Range(0, playerCandidates.Count);
-				Vector3 candidatePlayerPos = playerCandidates[index3];
+		// 2. Fijar la Trampilla de Escape (exitPointPos) en una celda abierta interna lejana (esquina Noreste interna)
+		int exitGridX = width - 4;
+		int exitGridY = height - 4;
+		grid[exitGridX, exitGridY] = true;
+		grid[exitGridX - 1, exitGridY] = true;
+		Vector3 fixedExitPos = new Vector3((float)exitGridX * num, 0.2f * mapScale, (float)exitGridY * num);
+		vector2 = fixedExitPos;
 
-				if (!(patrolPoints[index2] == vector5) && !(candidatePlayerPos == vector5) && !(patrolPoints[index2] == candidatePlayerPos))
-				{
-					float num12 = Vector3.Distance(vector5, patrolPoints[index2]);
-					float num13 = Vector3.Distance(patrolPoints[index2], candidatePlayerPos);
-					float num14 = Vector3.Distance(candidatePlayerPos, vector5);
-					float num15 = num12 + num13 + num14;
-					if (num15 > num10)
-					{
-						num10 = num15;
-						vector2 = vector5;
-						vector3 = patrolPoints[index2];
-						vector4 = candidatePlayerPos;
-					}
-				}
-			}
-		}
-		else
-		{
-			float num16 = segmentLength * mapScale;
-			vector2 = new Vector3((float)(width - 2) * num16, 0.2f * mapScale, (float)(height - 2) * num16);
-			vector3 = new Vector3(2f * num16, 0.2f * mapScale, 2f * num16);
-			vector4 = new Vector3(1f * num16, 0.2f * mapScale, 1f * num16);
-		}
+		// 3. Fijar la Consola de Activación de Escape (consolePos) en otra celda abierta interna (esquina Sudoeste interna)
+		int consoleGridX = 4;
+		int consoleGridY = 4;
+		grid[consoleGridX, consoleGridY] = true;
+		grid[consoleGridX + 1, consoleGridY] = true;
+		Vector3 fixedConsolePos = new Vector3((float)consoleGridX * num, 0.2f * mapScale, (float)consoleGridY * num);
+		vector3 = fixedConsolePos;
+
+		// Asignar todas las posiciones oficiales del mapa
+		playerSpawnPos = vector4;
 		exitPointPos = vector2;
 		consolePos = vector3;
-		playerSpawnPos = vector4;
 		float num17 = segmentLength * mapScale;
 		int playerCellX = Mathf.RoundToInt(playerSpawnPos.x / num17);
 		int playerCellZ = Mathf.RoundToInt(playerSpawnPos.z / num17);
@@ -496,6 +451,15 @@ public partial class TunnelsGenerator
 		bool flag2 = gx + 1 >= width || !grid[gx + 1, gz];
 		bool flag3 = gz - 1 < 0 || !grid[gx, gz - 1];
 		bool flag4 = gz + 1 >= height || !grid[gx, gz + 1];
+		// Si es la celda inicial del jugador, remover la pared que queda justo frente a la salida del ascensor
+		if (isPlayerCell)
+		{
+			// Determinar la dirección de salida abierta (misma prioridad que SpawnEntities)
+			if (gz + 1 < height && grid[gx, gz + 1]) flag4 = false;     // Abrir pared North (Norte +Z)
+			else if (gz - 1 >= 0 && grid[gx, gz - 1]) flag3 = false;    // Abrir pared South (Sur -Z)
+			else if (gx + 1 < width && grid[gx + 1, gz]) flag2 = false; // Abrir pared East (Este +X)
+			else if (gx - 1 >= 0 && grid[gx - 1, gz]) flag = false;     // Abrir pared West (Oeste -X)
+		}
 		SpawnFloorAndCeiling(gameObject, num, num4, flag, flag2, flag3, flag4, num2);
 		float num5 = num3 * 0.6f;
 		float num6 = num3 - num5;
@@ -663,26 +627,7 @@ public partial class TunnelsGenerator
 			SpawnFillerWall(gameObject, new Vector3(0f - num12_fill, num3 / 2f, num / 2f), new Vector3(num11_fill, num3, num4), "North_West");
 			SpawnFillerWall(gameObject, new Vector3(num12_fill, num3 / 2f, num / 2f), new Vector3(num11_fill, num3, num4), "North_East");
 		}
-		if (isPlayerCell)
-		{
-			GameObject flatBridge = GameObject.CreatePrimitive(PrimitiveType.Cube);
-			flatBridge.name = "Catwalk_Bridge";
-			flatBridge.transform.SetParent(gameObject.transform);
-			flatBridge.transform.localPosition = Vector3.zero;
-			if ((gx - 1 >= 0 && grid[gx - 1, gz]) || (gx + 1 < width && grid[gx + 1, gz]))
-			{
-				flatBridge.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
-			}
-			else
-			{
-				flatBridge.transform.localRotation = Quaternion.identity;
-			}
-			float bridgeWidth = 2.4f * mapScale;
-			float bridgeLength = num;
-			flatBridge.transform.localScale = new Vector3(bridgeWidth, 0.1f * mapScale, bridgeLength);
-			ApplyProceduralMaterial(flatBridge, floorMaterial, flatBridge.transform.localScale);
-		}
-		else if (floorCatwalkPrefab != null)
+		if (floorCatwalkPrefab != null)
 		{
 			GameObject gameObject10 = Object.Instantiate(floorCatwalkPrefab, gameObject.transform);
 			gameObject10.name = "Catwalk";

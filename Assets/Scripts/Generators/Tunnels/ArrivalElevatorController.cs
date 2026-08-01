@@ -29,16 +29,17 @@ public class ArrivalElevatorController : MonoBehaviour
 		if (leftDoor == null) leftDoor = transform.Find("Elevator_LeftDoor");
 		if (rightDoor == null) rightDoor = transform.Find("Elevator_RightDoor");
 
-		float tileSize = 2.8f * mapScale;
-		float innerHeight = 2.5f * mapScale;
+		// Posiciones iniciales cerradas tomadas directamente del Prefab asignado
+		if (leftDoor != null) leftDoorClosedPos = leftDoor.localPosition;
+		else leftDoorClosedPos = new Vector3(-0.25f * 2.8f * mapScale, 1.25f * mapScale, 0.488f * 2.8f * mapScale);
 
-		// Posiciones exactas del ascensor (escaladas)
-		leftDoorClosedPos = new Vector3(-0.25f * tileSize, innerHeight / 2f, 0.488f * tileSize);
-		rightDoorClosedPos = new Vector3(0.25f * tileSize, innerHeight / 2f, 0.488f * tileSize);
+		if (rightDoor != null) rightDoorClosedPos = rightDoor.localPosition;
+		else rightDoorClosedPos = new Vector3(0.25f * 2.8f * mapScale, 1.25f * mapScale, 0.488f * 2.8f * mapScale);
 
-		float slideDistance = 0.44f * tileSize;
-		leftDoorOpenPos = leftDoorClosedPos - new Vector3(slideDistance, 0f, 0f);
-		rightDoorOpenPos = rightDoorClosedPos + new Vector3(slideDistance, 0f, 0f);
+		// Desplazamiento lateral suave coincidiendo con las dimensiones del marco del Prefab
+		float slideDistance = 0.45f;
+		leftDoorOpenPos = leftDoorClosedPos + new Vector3(0f, 0f, slideDistance);
+		rightDoorOpenPos = rightDoorClosedPos - new Vector3(0f, 0f, slideDistance);
 
 		// Forzar posición cerrada al inicio
 		if (leftDoor != null) leftDoor.transform.localPosition = leftDoorClosedPos;
@@ -137,17 +138,43 @@ public class ArrivalElevatorController : MonoBehaviour
 			yield return null;
 		}
 
-		// Activar apertura
+		// Activar apertura suave exactamente igual que en el Hospital
 		doorsShouldOpen = true;
 
 		float openElapsed = 0f;
-		float openDuration = 1.5f;
+		float openDuration = 2.5f; // Duración idéntica al hospital
 		while (openElapsed < openDuration)
 		{
 			openElapsed += Mathf.Min(Time.deltaTime, 0.05f);
-			float t = Mathf.Clamp01(openElapsed / openDuration);
-			if (leftDoor != null) leftDoor.transform.localPosition = Vector3.Lerp(leftDoorClosedPos, leftDoorOpenPos, t);
-			if (rightDoor != null) rightDoor.transform.localPosition = Vector3.Lerp(rightDoorClosedPos, rightDoorOpenPos, t);
+			float rawT = Mathf.Clamp01(openElapsed / openDuration);
+			float smoothT = Mathf.SmoothStep(0f, 1f, rawT);
+
+			// Desplazamiento sobre X local (igual que en ElevatorController.cs del Hospital)
+			float slideOffset = 0.015f;
+			bool fullyOpen = rawT >= 0.95f;
+
+			if (leftDoor != null)
+			{
+				float targetX = leftDoorClosedPos.x - slideOffset;
+				leftDoor.localPosition = new Vector3(Mathf.Lerp(leftDoorClosedPos.x, targetX, smoothT), leftDoorClosedPos.y, leftDoorClosedPos.z);
+				if (fullyOpen)
+				{
+					foreach (Renderer r in leftDoor.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
+					foreach (Collider c in leftDoor.GetComponentsInChildren<Collider>(true)) c.enabled = false;
+				}
+			}
+
+			if (rightDoor != null)
+			{
+				float targetX = rightDoorClosedPos.x + slideOffset;
+				rightDoor.localPosition = new Vector3(Mathf.Lerp(rightDoorClosedPos.x, targetX, smoothT), rightDoorClosedPos.y, rightDoorClosedPos.z);
+				if (fullyOpen)
+				{
+					foreach (Renderer r in rightDoor.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
+					foreach (Collider c in rightDoor.GetComponentsInChildren<Collider>(true)) c.enabled = false;
+				}
+			}
+
 			yield return null;
 		}
 
