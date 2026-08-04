@@ -4,7 +4,7 @@ using System.Collections;
 
 public class SceneLoader : MonoBehaviour
 {
-    public static string SceneToLoad = "SampleScene"; // Escena de destino por defecto (hospital procedural)
+    public static string SceneToLoad = "Test_ModularHospital"; // Escena de destino por defecto (hospital procedural)
     private string currentTip = "";
     private float loadProgress = 0f;
     private bool canStartTransition = false;

@@ -148,13 +148,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4f7bae82b3c9b042a54722e3c822683, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  generator: {fileID: 0}
+  currentState: 0
   modularGenerator: {fileID: 1143851915}
   gameTitle: SILENT DECAY
-  menuMusic: {fileID: 8300000, guid: e975e6b85b3ee874c90aa36076ad0e06, type: 3}
+  enableTunnelsLevel: 1
   instagramURL: https://www.instagram.com/lxesusgarcial
   facebookURL: https://www.facebook.com/lXesusGarcial
   youtubeURL: https://www.youtube.com/@Xesus_Garcia
+  menuMusic: {fileID: 8300000, guid: e975e6b85b3ee874c90aa36076ad0e06, type: 3}
+  menuAudioSource: {fileID: 0}
+  sfxAudioSource: {fileID: 0}
+  buttonClickSound: {fileID: 0}
+  mouseSensitivity: 2
+  masterVolume: 1
+  isFullscreen: 1
+  sidebarTex: {fileID: 0}
 --- !u!4 &105978373
 Transform:
   m_ObjectHideFlags: 0
@@ -458,59 +466,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2918947c2d0404d4ea77df2ef781e6b2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  floorPrefab: {fileID: 4721582044208928572, guid: 38b86ce468ce72248b1142531e0a61d5, type: 3}
-  wallPrefab: {fileID: 8804488804994453933, guid: e55e90382c6ecc449ab2a05a10e723cf, type: 3}
-  roomPrefab: {fileID: 368922600365900383, guid: c770ec26487a2874a8c77c10f947518d, type: 3}
-  ceilingPrefab: {fileID: 2130378095388358900, guid: 8e2816e45b56bc543a719a416af50185, type: 3}
-  ceilingLightPrefab: {fileID: 6307288783237500102, guid: 4ce30203c82669d4d8ab2f2e26ff60cb, type: 3}
-  ceilingHeight: 2.9
-  ceilingScaleMultiplier: 1.15
-  mapScale: 1
-  wallThicknessMultiplier: 2
-  width: 25
-  height: 25
-  baseTileSize: 4
-  tileSize: 4
-  autoDetectTileSize: 1
-  numberOfSpecialRooms: 7
-  numberOfLobbies: 6
-  lobbySize: 5
-  loopPercentage: 0.35
-  lightProbability: 0.15
-  playerObj: {fileID: 0}
-  enemyObj: {fileID: 0}
-  powerBoxObj: {fileID: 0}
-  fusePrefab: {fileID: 0}
-  batteryPrefab: {fileID: 0}
-  batteriesToSpawn: 0
-  elevatorPrefab: {fileID: 0}
-  keycardPrefab: {fileID: 0}
-  bedPrefab: {fileID: 0}
-  officeDeskPrefab: {fileID: 0}
-  officeChairPrefab: {fileID: 0}
-  officeCabinetPrefab: {fileID: 0}
-  bathroomToiletPrefab: {fileID: 0}
-  bathroomSinkPrefab: {fileID: 0}
-  bathroomMirrorPrefab: {fileID: 0}
-  medCabinetPrefab: {fileID: 0}
-  hallucinationEnemyPrefab: {fileID: 0}
-  elevatorCallTime: 30
-  elevatorDoorSpeed: 15
-  elevatorCallSoundOffset: 1.5
-  elevatorArriveSoundOffset: 2
-  elevatorDoorOpenDelay: 2
-  elevatorBypassKeycard: 0
-  minPatrolSpacing: 4
-  enemySpawnMinDist: 8
-  enemySpawnMaxDist: 15
-  enemyScaleMultiplier: 1.1
-  enemyNavMeshRadius: 1.5
-  fusesToSpawn: 0
-  playerSpawnCell: {x: 1, y: 1}
-  correctKeypadCode: 
-  isMenuMode: 1
-  gameAmbientColor: {r: 0.045, g: 0.045, b: 0.045, a: 1}
-  generatorCells: []
 --- !u!4 &1143851914
 Transform:
   m_ObjectHideFlags: 0
@@ -566,6 +521,7 @@ MonoBehaviour:
   customCeilingMaterial: {fileID: 2100000, guid: 230aa8a77c2083946a797ce1b5c0eb28, type: 2}
   customWallMaterial: {fileID: 2100000, guid: 0bd4b243598b70e4f826b3654b94d931, type: 2}
   smallMapGridSize: {x: 10, y: 10}
+  placedModules: []
 --- !u!1 &1750977064
 GameObject:
   m_ObjectHideFlags: 0

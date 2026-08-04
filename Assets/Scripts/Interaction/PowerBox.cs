@@ -262,6 +262,9 @@ public class PowerBox : MonoBehaviour
                 TriggerPowerOutage(false);
                 currentPowerCapacity = Random.Range(maxPowerCapacity * 0.8f, maxPowerCapacity);
 
+                // Sonido de clic/interruptor
+                PlayInteractAudio();
+
                 string msg = LocalizationManager.Instance != null 
                     ? string.Format(LocalizationManager.Instance.Get("msg_fuse_repaired"), repairsCount, maxFreeRepairs)
                     : $"Fusibles rearmados. ({repairsCount}/{maxFreeRepairs} reparaciones libres usadas)";
@@ -278,6 +281,9 @@ public class PowerBox : MonoBehaviour
                     lastPowerState = false;
                     TriggerPowerOutage(false);
                     currentPowerCapacity = Random.Range(maxPowerCapacity * 0.8f, maxPowerCapacity);
+
+                    // Sonido de clic/interruptor
+                    PlayInteractAudio();
 
                     string msg = LocalizationManager.Instance != null 
                         ? string.Format(LocalizationManager.Instance.Get("msg_fuse_placed"), fusesCount)
@@ -392,28 +398,28 @@ public class PowerBox : MonoBehaviour
         if (state)
         {
             // AL OCURRIR UN APAGÓN: EL MONSTRUO APARECE Y CAZA AL JUGADOR EN LA OSCURIDAD
-            // Reposicionar al enemigo LEJOS del jugador (mínimo 12 metros) antes de activarlo
+            // Reposicionar al enemigo a distancia MODERADA (10-15m) del jugador para posible encuentro en pasillo
             GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
             Vector3 playerPos = playerObj != null ? playerObj.transform.position : transform.position;
 
             EnemyAIBookHead bookHead = FindObjectOfType<EnemyAIBookHead>(true);
             if (bookHead != null)
             {
-                RelocateEnemyFarFromPlayer(bookHead.gameObject, playerPos, 12f);
+                RelocateEnemyModerateDistance(bookHead.gameObject, playerPos, 10f, 15f);
                 bookHead.gameObject.SetActive(true);
                 bookHead.detectionRange = 9.0f;   // Ligeramente mayor en la oscuridad
-                bookHead.runSpeed = 2.5f;           // Correr amenazante pero no imposible
-                Debug.Log("PowerBox: ¡Monstruo BookHead activado por el apagón lejos del jugador!");
+                bookHead.runSpeed = 2.3f;           // Correr amenazante pero equilibrado
+                Debug.Log("PowerBox: ¡Monstruo BookHead activado por el apagón a distancia moderada!");
             }
 
             EnemyAIController enemyController = FindObjectOfType<EnemyAIController>(true);
             if (enemyController != null)
             {
-                RelocateEnemyFarFromPlayer(enemyController.gameObject, playerPos, 12f);
+                RelocateEnemyModerateDistance(enemyController.gameObject, playerPos, 10f, 15f);
                 enemyController.gameObject.SetActive(true);
                 enemyController.detectionRange = 9.0f;
-                enemyController.runSpeed = 2.5f;
-                Debug.Log("PowerBox: ¡Monstruo EnemyAIController activado por el apagón lejos del jugador!");
+                enemyController.runSpeed = 2.3f;
+                Debug.Log("PowerBox: ¡Monstruo EnemyAIController activado por el apagón a distancia moderada!");
             }
 
             // Reproducir sonido impactante de chispazo y cortocircuito directo en 2D en los oídos del jugador
@@ -576,7 +582,7 @@ public class PowerBox : MonoBehaviour
             }
         }
 
-        // 3. HUD de Fusibles (Esquina Superior Derecha - Icono + Contador Elegante)
+        // --- HUD de Fusibles (Esquina Superior Derecha - Icono + Contador Elegante) ---
         Rect hudRect = new Rect(Screen.width - 135, 25, 110, 65);
         
         // Dibujar caja de fondo oscura y semitransparente
@@ -596,7 +602,6 @@ public class PowerBox : MonoBehaviour
 #endif
         }
 
-        // Dibujar Icono del Fusible transparente (sin fondo negro de caja)
         Rect iconRect = new Rect(hudRect.x + 8, hudRect.y + 6, 44, 52);
         if (fuseIcon != null)
         {
@@ -604,13 +609,11 @@ public class PowerBox : MonoBehaviour
         }
         else
         {
-            // Dibujar icono gráfico procedimental de fusible si no hay textura cargada
             Rect fGraphic = new Rect(hudRect.x + 18, hudRect.y + 16, 20, 32);
-            GUI.color = new Color(0.85f, 0.65f, 0.13f); // Tapas metálicas doradas
+            GUI.color = new Color(0.85f, 0.65f, 0.13f);
             GUI.DrawTexture(new Rect(fGraphic.x, fGraphic.y, fGraphic.width, 4), Texture2D.whiteTexture);
             GUI.DrawTexture(new Rect(fGraphic.x, fGraphic.y + fGraphic.height - 4, fGraphic.width, 4), Texture2D.whiteTexture);
-
-            GUI.color = fusesCount > 0 ? new Color(0.1f, 0.85f, 0.1f) : new Color(0.8f, 0.2f, 0.2f); // Cuerpo verde o rojo
+            GUI.color = fusesCount > 0 ? new Color(0.1f, 0.85f, 0.1f) : new Color(0.8f, 0.2f, 0.2f);
             GUI.DrawTexture(new Rect(fGraphic.x, fGraphic.y + 4, fGraphic.width, fGraphic.height - 8), Texture2D.whiteTexture);
             GUI.color = Color.white;
         }
@@ -620,7 +623,6 @@ public class PowerBox : MonoBehaviour
         GUI.Label(textRect, "x" + fusesCount, hudStyle);
     }
 
-    // Provocar apagón forzado inmediato y reproducir el rugido del monstruo en 2D en toda la escena
     public void ForceKeycardBlackoutAndRoar()
     {
         isPowerOut = true;
@@ -628,22 +630,61 @@ public class PowerBox : MonoBehaviour
         currentPowerCapacity = 0f;
         TriggerPowerOutage(true);
 
-        // Cargar y reproducir el rugido del monstruo (Monstruo_Alerta) en 2D (Auriculares) a volumen máximo
-        AudioClip roar = Resources.Load<AudioClip>("Monstruo_Alerta");
+        AudioClip roar = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/Monstruo_Alerta");
+        if (roar == null) roar = Resources.Load<AudioClip>("Audio/Monstruos/TheCreep/RugidoRastrero");
+        if (roar == null) roar = Resources.Load<AudioClip>("Audio/Compartido/Impacto_1");
+
         if (roar != null)
         {
             GameObject roarObj = new GameObject("Keycard_Roar_Source");
             AudioSource aSrc = roarObj.AddComponent<AudioSource>();
             aSrc.clip = roar;
-            aSrc.spatialBlend = 0f; // Sonido 2D
+            aSrc.spatialBlend = 0f; // 2D en auriculares
             aSrc.volume = 1.0f;     // Volumen máximo
             aSrc.Play();
             Destroy(roarObj, roar.length + 0.5f);
-            Debug.Log("PowerBox: Rugido del monstruo por tarjeta del director reproducido fuerte y claro en 2D.");
+            Debug.Log("PowerBox: Rugido estruendoso del apagón reproducido en 2D.");
+        }
+    }
+
+    private void RelocateEnemyModerateDistance(GameObject enemyObj, Vector3 playerPos, float minDistance = 10f, float maxDistance = 15f)
+    {
+        if (enemyObj == null) return;
+
+        GameObject patrolHolder = GameObject.Find("[BookHead_Patrol_Points]");
+        Vector3 bestPos = enemyObj.transform.position;
+        float bestScore = 999999f;
+        float targetDistance = (minDistance + maxDistance) * 0.5f;
+
+        if (patrolHolder != null)
+        {
+            Transform[] pts = patrolHolder.GetComponentsInChildren<Transform>();
+            foreach (Transform pt in pts)
+            {
+                if (pt != null && pt != patrolHolder.transform)
+                {
+                    float d = Vector3.Distance(pt.position, playerPos);
+                    if (d >= 8f && d <= maxDistance + 5f)
+                    {
+                        float score = Mathf.Abs(d - targetDistance);
+                        if (score < bestScore)
+                        {
+                            bestScore = score;
+                            bestPos = pt.position;
+                        }
+                    }
+                }
+            }
+        }
+
+        UnityEngine.AI.NavMeshAgent agent = enemyObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
+        if (agent != null && agent.enabled)
+        {
+            agent.Warp(bestPos);
         }
         else
         {
-            Debug.LogWarning("PowerBox: No se encontró el archivo de audio 'Monstruo_Alerta' en Resources.");
+            enemyObj.transform.position = bestPos;
         }
     }
 
@@ -651,7 +692,6 @@ public class PowerBox : MonoBehaviour
     {
         if (enemyObj == null) return;
 
-        // Buscar el holder de puntos de patrulla creados en el mapa
         GameObject patrolHolder = GameObject.Find("[BookHead_Patrol_Points]");
         Vector3 bestPos = enemyObj.transform.position;
         float maxDist = -1f;
@@ -673,7 +713,6 @@ public class PowerBox : MonoBehaviour
             }
         }
 
-        // Si la distancia al punto más lejano es al menos minDistance, reposicionar
         if (maxDist >= minDistance || Vector3.Distance(enemyObj.transform.position, playerPos) < minDistance)
         {
             UnityEngine.AI.NavMeshAgent agent = enemyObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
@@ -686,6 +725,20 @@ public class PowerBox : MonoBehaviour
                 enemyObj.transform.position = bestPos;
             }
             Debug.Log($"PowerBox: Monstruo teletransportado a punto distante ({maxDist:F1}m del jugador).");
+        }
+    }
+
+    private void PlayInteractAudio()
+    {
+        AudioClip clip = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
+        if (clip == null) clip = Resources.Load<AudioClip>("Interruptor");
+        if (clip == null) clip = Resources.Load<AudioClip>("Audio/Compartido/Bateria_Pickup");
+        if (clip == null) clip = Resources.Load<AudioClip>("Click");
+
+        if (clip != null)
+        {
+            Vector3 pos = Camera.main != null ? Camera.main.transform.position : transform.position;
+            AudioSource.PlayClipAtPoint(clip, pos, 1.0f);
         }
     }
 }

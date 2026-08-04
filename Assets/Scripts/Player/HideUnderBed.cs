@@ -106,6 +106,8 @@ public class HideUnderBed : MonoBehaviour
             nearBed = false;
             targetBed = null;
 
+            if (ElevatorController.isNotepadOpen) return;
+
             // Detección de cama limpia y directa por proximidad y ángulo de mirada
             Bed[] beds = FindObjectsOfType<Bed>();
             Bed closestBed = null;
@@ -184,6 +186,8 @@ public class HideUnderBed : MonoBehaviour
 
     void LateUpdate()
     {
+        if (ElevatorController.isNotepadOpen) return;
+
         if (isHiding)
         {
             #if UNITY_ANDROID || UNITY_IOS
@@ -214,6 +218,9 @@ public class HideUnderBed : MonoBehaviour
         if (isHiding && activeBed != null)
         {
             Debug.Log("🛌 Escondiéndose bajo la cama...");
+
+            // Forzar a los monstruos a retirarse rápidamente a un punto lejano del mapa
+            EvictEnemiesFarFromPlayer();
 
             bedHidePosition = activeBed.hidePosition;
             originalPlayerPosition = player.transform.position;
@@ -315,6 +322,8 @@ public class HideUnderBed : MonoBehaviour
 
     void OnGUI()
     {
+        if (ElevatorController.isNotepadOpen) return;
+
         if (isHiding)
         {
             GUIStyle style = new GUIStyle();
@@ -367,6 +376,38 @@ public class HideUnderBed : MonoBehaviour
                     style.normal.textColor = new Color(0.3f, 0.75f, 1f);
                     GUI.Label(rect, "[E]  Esconderse bajo la Cama", style);
                 }
+            }
+        }
+    }
+
+    void EvictEnemiesFarFromPlayer()
+    {
+        // 1. Evacuar a El Rastrero / CrawlerAI hacia las sombras alejadas del mapa
+        CrawlerAI[] crawlers = FindObjectsOfType<CrawlerAI>(true);
+        foreach (var c in crawlers)
+        {
+            if (c != null && c.gameObject.activeInHierarchy)
+            {
+                c.FleeToShadows();
+            }
+        }
+
+        // 2. Evacuar a BookHead / EnemyAIController & EnemyAIBookHead hacia puntos de patrulla distantes
+        EnemyAIController[] b1s = FindObjectsOfType<EnemyAIController>(true);
+        foreach (var b in b1s)
+        {
+            if (b != null && b.gameObject.activeInHierarchy)
+            {
+                b.FleeFarFromPlayer();
+            }
+        }
+
+        EnemyAIBookHead[] b2s = FindObjectsOfType<EnemyAIBookHead>(true);
+        foreach (var b in b2s)
+        {
+            if (b != null && b.gameObject.activeInHierarchy)
+            {
+                b.FleeFarFromPlayer();
             }
         }
     }

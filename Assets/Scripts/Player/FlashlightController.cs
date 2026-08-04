@@ -104,6 +104,8 @@ public class FlashlightController : MonoBehaviour
 
     private void Update()
     {
+        bool isTunnelsLevel = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "TunnelsMap";
+
         // SISTEMA ANTIBUG DE ESCENAS: Si cambiamos de escena y la luz se rompió o perdió la cámara activa
         if (flashlightLight == null || (Camera.main != null && flashlightLight.transform.parent != Camera.main.transform))
         {
@@ -120,12 +122,11 @@ public class FlashlightController : MonoBehaviour
         if (useBattery && flashlightLight != null && flashlightLight.enabled)
         {
             float activeDrainRate = drainRate;
-            bool isTunnelsLevel = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "TunnelsMap";
 
             if (isTunnelsLevel)
             {
-                // En los túneles el consumo es 4 veces más lento (dura 500 segundos)
-                activeDrainRate = drainRate * 0.25f;
+                // En los túneles el consumo es mucho más lento (~20 minutos de batería continua)
+                activeDrainRate = drainRate * 0.08f;
             }
 
             float batteryPercent = (currentBattery / maxBattery) * 100f;
@@ -206,9 +207,12 @@ public class FlashlightController : MonoBehaviour
             }
             else if (flashlightLight.intensity != baseIntensity)
             {
-                // Restaurar intensidad si la cordura es normal
-                flashlightLight.intensity = baseIntensity;
-                if (fillLight != null) fillLight.intensity = 1.8f;
+                // Restaurar intensidad si la cordura es normal (solo si la batería > 0 o no es nivel de túneles)
+                if (currentBattery > 0f || !isTunnelsLevel)
+                {
+                    flashlightLight.intensity = baseIntensity;
+                    if (fillLight != null) fillLight.intensity = 1.8f;
+                }
             }
         }
     }
@@ -217,15 +221,25 @@ public class FlashlightController : MonoBehaviour
     {
         if (flashlightLight == null) return;
 
-        // No encender si no hay batera
-        if (useBattery && currentBattery <= 0f && !flashlightLight.enabled)
+        bool isTunnelsLevel = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "TunnelsMap";
+
+        // En otros niveles no se puede encender sin batería, pero en TunnelsMap SIEMPRE puedes encenderla en modo tenue de emergencia
+        if (useBattery && currentBattery <= 0f && !flashlightLight.enabled && !isTunnelsLevel)
         {
-            Debug.Log("Flashlight: No hay suficiente batera.");
+            Debug.Log("Flashlight: No hay suficiente batería.");
             return;
         }
 
         flashlightLight.enabled = !flashlightLight.enabled;
         if (fillLight != null) fillLight.enabled = flashlightLight.enabled;
+
+        if (flashlightLight.enabled && currentBattery <= 0f && isTunnelsLevel)
+        {
+            // Al encender con 0% de batería en los túneles, arranca directamente en luz tenue de emergencia (30% de intensidad)
+            flashlightLight.intensity = baseIntensity * 0.3f;
+            if (fillLight != null) fillLight.intensity = 0.5f;
+        }
+
         PlayClickSound();
     }
 

@@ -42,20 +42,21 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 1f;
         AudioListener.volume = 1f;
         
-        // Al cargar el menú principal, reiniciamos las vidas
+        // Solo reiniciar vidas al volver al menú principal.
+        // IMPORTANTE: LoadingScene NO debe reiniciar vidas, porque es una pantalla intermedia
+        // que se usa tanto para el primer acceso como para los reintentos mid-game.
         if (scene.name == "MainMenu")
         {
             vidasActuales = maxVidas;
+            Debug.Log("GameManager: Vidas de sesión reiniciadas a " + maxVidas + " (vuelta al Menú).");
         }
-
-        // Al cargar la pantalla de carga o el hospital de nuevo, reiniciar vidas para que el retry funcione
-        if (scene.name == "LoadingScene" || scene.name == "SampleScene")
+        else if (scene.name != "LoadingScene")
         {
-            // Solo reiniciar si están en 0 (venimos de un Game Over)
+            // Al entrar a cualquier mapa de juego, si las vidas son 0 (corrupción) → dejar en 1 como fallback
             if (vidasActuales <= 0)
             {
-                vidasActuales = maxVidas;
-                Debug.Log("GameManager: Vidas reiniciadas al detectar Game Over + retry.");
+                vidasActuales = 1;
+                Debug.LogWarning("GameManager: vidasActuales era 0 al entrar al mapa. Forzando a 1.");
             }
         }
     }
@@ -96,23 +97,77 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void ReaparecerJugador(GameObject player)
     {
-        if (!hasSpawnPoint)
+        if (player == null) return;
+
+        // 1. Encontrar el CharacterController en la jerarquía del jugador
+        CharacterController cc = player.GetComponent<CharacterController>();
+        if (cc == null) cc = player.GetComponentInParent<CharacterController>();
+        if (cc == null) cc = player.GetComponentInChildren<CharacterController>();
+
+        // 2. Desactivar temporalmente el CharacterController para evitar conflictos al teletransportar
+        if (cc != null)
         {
-            // Fallback si no se registró spawn: intentar usar la posición actual inicial
-            Debug.LogWarning("GameManager: No se registró punto de spawn. Reapareciendo en el origen.");
-            player.transform.position = Vector3.up * 1f;
-            return;
+            cc.enabled = false;
         }
 
-        // Desactivar temporalmente el CharacterController para evitar conflictos de físicas al teletransportar
-        CharacterController cc = player.GetComponent<CharacterController>();
-        if (cc != null) cc.enabled = false;
+        // 3. Determinar posición y rotación seguras de destino
+        Vector3 targetPos = hasSpawnPoint ? playerSpawnPosition : (player.transform.position.y < -5f ? Vector3.up * 0.5f : player.transform.position);
+        Quaternion targetRot = hasSpawnPoint ? playerSpawnRotation : Quaternion.identity;
 
-        player.transform.position = playerSpawnPosition;
-        player.transform.rotation = playerSpawnRotation;
+        // 4. Encontrar la raíz del personaje (sin subir a la escena o generadores)
+        Transform current = player.transform;
+        Transform playerRoot = current;
+        while (current.parent != null)
+        {
+            string pName = current.parent.name.ToLower();
+            if (pName.Contains("generator") || pName.Contains("map") || pName.Contains("tunnels") || pName.Contains("hospital") || pName.Contains("scene") || pName.Contains("manager"))
+            {
+                break;
+            }
+            current = current.parent;
+            playerRoot = current;
+        }
 
-        if (cc != null) cc.enabled = true;
+        // 5. Mover directamente el personaje y su raíz a la posición exacta de spawn
+        player.transform.position = targetPos;
+        player.transform.rotation = targetRot;
 
-        Debug.Log("GameManager: Jugador teletransportado de vuelta al punto de spawn del nivel.");
+        if (playerRoot != player.transform)
+        {
+            playerRoot.position = targetPos;
+            playerRoot.rotation = targetRot;
+            player.transform.localPosition = Vector3.zero;
+        }
+
+        // 6. Detener físicas/fuerzas residuales de Rigidbody
+        Rigidbody rb = player.GetComponent<Rigidbody>();
+        if (rb == null) rb = player.GetComponentInParent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        // 7. Resetear pitch vertical del FirstPersonController
+        var fpc = player.GetComponent<StarterAssets.FirstPersonController>();
+        if (fpc == null) fpc = player.GetComponentInChildren<StarterAssets.FirstPersonController>();
+        if (fpc != null)
+        {
+            var pitchField = fpc.GetType().GetField("_cinemachineTargetPitch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (pitchField != null)
+            {
+                pitchField.SetValue(fpc, 0f);
+            }
+        }
+
+        // 8. Sincronizar transformadas y reactivar CharacterController
+        Physics.SyncTransforms();
+        if (cc != null)
+        {
+            cc.enabled = true;
+            Physics.SyncTransforms();
+        }
+
+        Debug.Log($"[GameManager] Jugador reaparecido con éxito en {targetPos}. (Raíz: {playerRoot.name})");
     }
 }

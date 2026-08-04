@@ -1662,7 +1662,7 @@ MonoBehaviour:
   aullidoSound: {fileID: 8300000, guid: bf9c0ac953f0a8a4080aeb834a475dc1, type: 3}
   pisadasCercanasSound: {fileID: 8300000, guid: 0c6ceb94283ef004981d7003a6cff2d4, type: 3}
   pisadasLejanasSound: {fileID: 8300000, guid: b109e2c8d19b0c3409da340afff9c2b3, type: 3}
-  chaseSoundClip: {fileID: 0}
+  chaseSoundClip: {fileID: 8300000, guid: 96c6f180d541e034fb8ca20eabd13588, type: 3}
 --- !u!4 &1421901082
 Transform:
   m_ObjectHideFlags: 0
@@ -2297,6 +2297,7 @@ MonoBehaviour:
   customCeilingMaterial: {fileID: 2100000, guid: 230aa8a77c2083946a797ce1b5c0eb28, type: 2}
   customWallMaterial: {fileID: 2100000, guid: 0bd4b243598b70e4f826b3654b94d931, type: 2}
   smallMapGridSize: {x: 11, y: 11}
+  placedModules: []
 --- !u!1001 &2646963072504151074
 PrefabInstance:
   m_ObjectHideFlags: 0

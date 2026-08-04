@@ -42,6 +42,8 @@ public class InteractionFocusManager : MonoBehaviour
 
     public static bool IsFocused(GameObject obj, float maxDist = 3.8f)
     {
+        if (ElevatorController.isNotepadOpen) return false;
+
         Camera cam = Camera.main;
         if (cam == null || obj == null) return false;
 

@@ -17,28 +17,33 @@ public class TunnelsPowerOutageManager : MonoBehaviour
 
     private void Start()
     {
+        // Forzar la activación de niebla volumétrica y luz ambiental de Unity en el mapa de túneles
+        RenderSettings.fog = true;
+        RenderSettings.fogMode = FogMode.ExponentialSquared;
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+
         // Escalar los tiempos de apagón según la dificultad elegida
         string savedDifficulty = PlayerPrefs.GetString("SelectedDifficulty", "NORMAL");
         if (savedDifficulty == "FACIL")
         {
-            minTimeBetweenOutages = 60f;
-            maxTimeBetweenOutages = 100f;
-            minOutageDuration = 8f;
-            maxOutageDuration = 15f;
+            minTimeBetweenOutages = 50f;
+            maxTimeBetweenOutages = 90f;
+            minOutageDuration = 10f;
+            maxOutageDuration = 18f;
         }
         else if (savedDifficulty == "DIFICIL")
         {
-            minTimeBetweenOutages = 25f;
-            maxTimeBetweenOutages = 45f;
-            minOutageDuration = 18f;
-            maxOutageDuration = 32f;
+            minTimeBetweenOutages = 20f;
+            maxTimeBetweenOutages = 40f;
+            minOutageDuration = 20f;
+            maxOutageDuration = 35f;
         }
         else // NORMAL
         {
-            minTimeBetweenOutages = 40f;
-            maxTimeBetweenOutages = 75f;
-            minOutageDuration = 12f;
-            maxOutageDuration = 22f;
+            minTimeBetweenOutages = 30f;
+            maxTimeBetweenOutages = 60f;
+            minOutageDuration = 14f;
+            maxOutageDuration = 25f;
         }
 
         // Crear un AudioSource 2D para reproducir los sonidos en la cabeza del jugador
@@ -60,14 +65,15 @@ public class TunnelsPowerOutageManager : MonoBehaviour
 
     private IEnumerator PowerCycleRoutine()
     {
-        // Espera inicial antes del primer apagón
-        yield return new WaitForSeconds(Random.Range(30f, 50f));
+        // Período de gracia inicial: Esperar 2 minutos (120s) de tensión inicial antes del primer apagón
+        Debug.Log("[TunnelsPowerOutageManager] Período de gracia inicial iniciado (120s de energía garantizada).");
+        yield return new WaitForSeconds(120f);
 
         while (true)
         {
             // --- INICIAR APAGÓN ---
             isGlobalPowerOutage = true;
-            Debug.Log("[TunnelsPowerOutageManager] ¡Corte de energía global! Luces apagadas.");
+            Debug.Log("[TunnelsPowerOutageManager] ¡Corte de energía global! Luces encendidas en rojo de emergencia.");
 
             // Reproducir sonido de apagón
             if (globalAudioSource != null && outageStartClip != null)
@@ -81,7 +87,7 @@ public class TunnelsPowerOutageManager : MonoBehaviour
 
             // --- RESTAURAR ENERGÍA ---
             isGlobalPowerOutage = false;
-            Debug.Log("[TunnelsPowerOutageManager] ¡Energía restaurada! Luces encendidas.");
+            Debug.Log("[TunnelsPowerOutageManager] ¡Energía restaurada! Luces normales encendidas.");
 
             // Reproducir sonido de interruptor
             if (globalAudioSource != null && outageEndClip != null)
@@ -93,6 +99,18 @@ public class TunnelsPowerOutageManager : MonoBehaviour
             float cooldown = Random.Range(minTimeBetweenOutages, maxTimeBetweenOutages);
             yield return new WaitForSeconds(cooldown);
         }
+    }
+
+    private void Update()
+    {
+        // Control de atmósfera y niebla industrial roja de pánico según el estado del apagón global
+        Color targetAmbient = isGlobalPowerOutage ? new Color(0.08f, 0.015f, 0.015f) : new Color(0.05f, 0.07f, 0.08f);
+        Color targetFog = isGlobalPowerOutage ? new Color(0.06f, 0.008f, 0.008f) : new Color(0.035f, 0.05f, 0.06f);
+        float targetFogDensity = isGlobalPowerOutage ? 0.040f : 0.022f;
+
+        RenderSettings.ambientLight = Color.Lerp(RenderSettings.ambientLight, targetAmbient, Time.deltaTime * 2.5f);
+        RenderSettings.fogColor = Color.Lerp(RenderSettings.fogColor, targetFog, Time.deltaTime * 2.5f);
+        RenderSettings.fogDensity = Mathf.Lerp(RenderSettings.fogDensity, targetFogDensity, Time.deltaTime * 2.5f);
     }
 
     private void OnDestroy()
