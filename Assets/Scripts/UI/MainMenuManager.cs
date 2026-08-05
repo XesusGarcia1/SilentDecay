@@ -216,15 +216,7 @@ public class MainMenuManager : MonoBehaviour
             GUI.DrawTexture(new Rect(0, 0, 1920f, 1080f), Texture2D.whiteTexture);
             GUI.color = prevColor;
         }
-        else if (currentGamma > 1.00f)
-        {
-            // Dibujar una capa blanca semitransparente para simular brillo alto
-            float opacity = Mathf.Lerp(0f, 0.40f, (currentGamma - 1.00f) / 1.00f);
-            Color prevColor = GUI.color;
-            GUI.color = new Color(1f, 1f, 1f, opacity);
-            GUI.DrawTexture(new Rect(0, 0, 1920f, 1080f), Texture2D.whiteTexture);
-            GUI.color = prevColor;
-        }
+
 
         // Estilos compartidos
         var styles = new MenuStyles();

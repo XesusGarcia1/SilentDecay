@@ -2269,12 +2269,15 @@ namespace ModularHospital
                     GameObject noteObj = Instantiate(notePrefab, spawnPos, Quaternion.Euler(90f, Random.Range(0f, 360f), 0f), parent);
                     noteObj.name = $"[Hospital_Note_Digit_{assignedNotes + 1}]";
 
-                    MeshRenderer mrNote = noteObj.GetComponentInChildren<MeshRenderer>();
-                    if (mrNote != null)
+                    // Alinear a ras de suelo o superficie usando un raycast descendente seguro
+                    RaycastHit noteHit;
+                    if (Physics.Raycast(spawnPos + Vector3.up * 1.0f, Vector3.down, out noteHit, 3.0f))
                     {
-                        float minY = mrNote.bounds.min.y;
-                        float yOffset = spawnPos.y - minY;
-                        noteObj.transform.position += new Vector3(0, yOffset + 0.002f, 0);
+                        noteObj.transform.position = noteHit.point + Vector3.up * 0.012f; // Z-fighting safe offset
+                    }
+                    else
+                    {
+                        noteObj.transform.position = new Vector3(spawnPos.x, transform.position.y + 0.015f, spawnPos.z);
                     }
 
                     NoteItem oldN = noteObj.GetComponent<NoteItem>();
@@ -2378,28 +2381,25 @@ namespace ModularHospital
 
                     if (!foundWall)
                     {
+                        // Alineación perfecta sobre el suelo del pasillo
                         RaycastHit noteHit;
-                        if (Physics.Raycast(wallPos + Vector3.up * 1.5f, Vector3.down, out noteHit, 3.0f))
+                        if (Physics.Raycast(wallPos + Vector3.up * 1.0f, Vector3.down, out noteHit, 4.0f))
                         {
-                            noteObj.transform.position = noteHit.point;
-                            MeshRenderer mrN = noteObj.GetComponentInChildren<MeshRenderer>();
-                            if (mrN != null)
-                            {
-                                float bottomY = mrN.bounds.min.y;
-                                float diffY = noteHit.point.y - bottomY;
-                                noteObj.transform.position += new Vector3(0, diffY, 0);
-                            }
+                            noteObj.transform.position = noteHit.point + Vector3.up * 0.015f; // Un pequeño offset vertical para evitar Z-fighting
+                            noteObj.transform.rotation = Quaternion.Euler(90f, Random.Range(0f, 360f), 0f); // Acostada plana en el suelo
+                        }
+                        else
+                        {
+                            // Fallback seguro: colocar a ras de suelo del hospital
+                            noteObj.transform.position = new Vector3(wallPos.x, transform.position.y + 0.015f, wallPos.z);
+                            noteObj.transform.rotation = Quaternion.Euler(90f, Random.Range(0f, 360f), 0f);
                         }
                     }
                     else
                     {
-                        MeshRenderer mrNote = noteObj.GetComponentInChildren<MeshRenderer>();
-                        if (mrNote != null)
-                        {
-                            float minY = mrNote.bounds.min.y;
-                            float yOffset = wallPos.y - minY;
-                            noteObj.transform.position += new Vector3(0, yOffset + 0.002f, 0);
-                        }
+                        // Pegar plana contra la pared vertical a altura fija de los ojos del jugador (evita que flote a Y = 4.1)
+                        noteObj.transform.position = wallPos;
+                        noteObj.transform.rotation = wallRot; // Mirando hacia el pasillo perpendicularmente
                     }
 
                     NoteItem oldN2 = noteObj.GetComponent<NoteItem>();

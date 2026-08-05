@@ -12,6 +12,11 @@ public class PauseMenuManager : MonoBehaviour
     // Ajustes de gráficos y pestañas en el menú de pausa
     private int activeSettingsTab = 0; // 0 = Audio y Sensibilidad, 1 = Gráficos y Rendimiento
     private int selectedQualityIndex = 2; // 0 = Bajo, 1 = Medio, 2 = Alto
+    
+    // --- VARIABLES DE CALIBRACIÓN DE BRILLO ---
+    private bool isCalibratingGamma = false;
+    private float tempGamma = 1.0f;
+
     #if !UNITY_ANDROID && !UNITY_IOS
     private System.Collections.Generic.List<Resolution> pcResolutions = new System.Collections.Generic.List<Resolution>();
     private int selectedResIndex = 0;
@@ -172,6 +177,18 @@ public class PauseMenuManager : MonoBehaviour
             {
                 PauseGame();
             }
+
+            // --- FILTRO DE BRILLO / GAMMA UI EN TIEMPO REAL IN-GAME ---
+            float currentGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
+            if (currentGamma < 1.00f)
+            {
+                float opacity = Mathf.Lerp(0f, 0.85f, (1.00f - currentGamma) / 0.50f);
+                Color prevCol = GUI.color;
+                GUI.color = new Color(0f, 0f, 0f, opacity);
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+                GUI.color = prevCol;
+            }
+
             return;
         }
 
@@ -210,6 +227,17 @@ public class PauseMenuManager : MonoBehaviour
         buttonStyle.normal.textColor = new Color(0.9f, 0.9f, 0.9f);
         buttonStyle.hover.textColor = Color.red;
         buttonStyle.active.textColor = Color.red;
+
+        // --- RENDER DE LA PANTALLA DE CALIBRACIÓN DE BRILLO EN PARTIDA ---
+        if (isCalibratingGamma)
+        {
+            int calibW = 700;
+            int calibH = 580;
+            GUILayout.BeginArea(new Rect(Screen.width / 2 - calibW / 2, Screen.height / 2 - calibH / 2, calibW, calibH));
+            DrawGammaCalibrationArea(labelStyle, buttonStyle, sectionHeaderStyle);
+            GUILayout.EndArea();
+            return;
+        }
 
         // Título del menú de pausa
         GUILayout.BeginArea(new Rect(0, 80, Screen.width, 150));
@@ -386,6 +414,17 @@ public class PauseMenuManager : MonoBehaviour
                     GUILayout.Label($"{Screen.width}x{Screen.height}", labelStyle);
                 }
                 #endif
+
+                GUILayout.Space(25);
+
+                // Botón para calibración dedicada
+                float savedGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
+                if (GUILayout.Button($"🔧 AJUSTAR BRILLO / GAMMA... (Actual: {savedGamma:F1}x)", buttonStyle, GUILayout.Height(45)))
+                {
+                    PlayClickSound();
+                    tempGamma = savedGamma;
+                    isCalibratingGamma = true;
+                }
             }
 
             GUILayout.Space(30);
@@ -403,5 +442,116 @@ public class PauseMenuManager : MonoBehaviour
         }
 
         GUILayout.EndArea();
+    }
+
+    // ─── PANTALLA GIGANTE DE CALIBRACIÓN DE BRILLO IN-GAME ────────────────────
+    private void DrawGammaCalibrationArea(GUIStyle labelStyle, GUIStyle buttonStyle, GUIStyle headerStyle)
+    {
+        // 1. Título e Instrucciones
+        GUILayout.Label("CALIBRACIÓN DE BRILLO / GAMMA", headerStyle, GUILayout.Height(30));
+        GUILayout.Space(10);
+
+        string instructions = "Ajusta el brillo hasta que el icono del engranaje de la derecha sea apenas visible sobre el fondo oscuro.";
+        GUIStyle instStyle = new GUIStyle(labelStyle);
+        instStyle.fontSize = 15;
+        instStyle.fontStyle = FontStyle.Normal;
+        instStyle.wordWrap = true;
+        instStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
+        
+        GUILayout.Label(instructions, instStyle, GUILayout.Width(680));
+        GUILayout.Space(15);
+
+        // 2. Controles horizontales (Slider + Caja de calibración)
+        GUILayout.BeginHorizontal(GUILayout.Width(680));
+
+        // Subpanel Izquierdo: Controles finos y Slider (Ancho 380)
+        GUILayout.BeginVertical(GUILayout.Width(380));
+        GUILayout.Space(25);
+
+        GUILayout.Label($"Brillo del Juego: {tempGamma:F2}x", labelStyle);
+        GUILayout.Space(5);
+
+        // Slider de Brillo
+        float newGamma = GUILayout.HorizontalSlider(tempGamma, 0.5f, 2.0f, GUILayout.Height(30), GUILayout.Width(360));
+        if (Mathf.Abs(newGamma - tempGamma) > 0.005f)
+        {
+            tempGamma = newGamma;
+            GammaManager.AplicarGamma(tempGamma); // Aplicar cambios a la luz 3D de inmediato
+        }
+        GUILayout.Space(10);
+
+        // Botones finos [-] y [+]
+        GUILayout.BeginHorizontal(GUILayout.Width(360));
+        if (GUILayout.Button(" - 0.1 ", GUILayout.Width(90), GUILayout.Height(40)))
+        {
+            PlayClickSound();
+            tempGamma = Mathf.Clamp(tempGamma - 0.1f, 0.5f, 2.0f);
+            GammaManager.AplicarGamma(tempGamma);
+        }
+        GUILayout.FlexibleSpace();
+        if (GUILayout.Button(" + 0.1 ", GUILayout.Width(90), GUILayout.Height(40)))
+        {
+            PlayClickSound();
+            tempGamma = Mathf.Clamp(tempGamma + 0.1f, 0.5f, 2.0f);
+            GammaManager.AplicarGamma(tempGamma);
+        }
+        GUILayout.EndHorizontal();
+
+        GUILayout.EndVertical();
+
+        GUILayout.Space(40);
+
+        // Subpanel Derecho: Caja de calibración con engranaje (Ancho 220)
+        GUIStyle darkBoxStyle = new GUIStyle(GUI.skin.box);
+        darkBoxStyle.normal.background = Texture2D.whiteTexture;
+
+        float colorFactor = Mathf.Clamp01((tempGamma - 0.5f) / 1.5f); // 0 a 1
+        float iconColorValue = Mathf.Lerp(0.02f, 0.40f, colorFactor); // De casi negro a gris medio
+        Color dynamicGearColor = new Color(iconColorValue, iconColorValue, iconColorValue, 1f);
+
+        GUIStyle gearIconStyle = new GUIStyle(labelStyle);
+        gearIconStyle.fontSize = 110;
+        gearIconStyle.alignment = TextAnchor.MiddleCenter;
+        gearIconStyle.normal.textColor = dynamicGearColor;
+
+        Color prevColor = GUI.backgroundColor;
+        GUI.backgroundColor = new Color(0.015f, 0.015f, 0.015f, 1f); // Fondo muy oscuro
+        GUILayout.BeginVertical(darkBoxStyle, GUILayout.Width(220), GUILayout.Height(220));
+        GUI.backgroundColor = prevColor;
+
+        GUILayout.FlexibleSpace();
+        GUILayout.Label("⚙", gearIconStyle);
+        GUILayout.FlexibleSpace();
+
+        GUILayout.EndVertical();
+
+        GUILayout.EndHorizontal();
+
+        GUILayout.Space(30);
+
+        // 3. Botones inferiores: Guardar y Cancelar
+        GUILayout.BeginHorizontal(GUILayout.Width(680));
+
+        if (GUILayout.Button("  CONFIRMAR Y GUARDAR", buttonStyle, GUILayout.Width(330), GUILayout.Height(55)))
+        {
+            PlayClickSound();
+            PlayerPrefs.SetFloat("GammaLevel", tempGamma);
+            PlayerPrefs.Save();
+            GammaManager.AplicarGamma(tempGamma);
+            isCalibratingGamma = false;
+        }
+
+        GUILayout.Space(20);
+
+        if (GUILayout.Button("  CANCELAR", buttonStyle, GUILayout.Width(330), GUILayout.Height(55)))
+        {
+            PlayClickSound();
+            // Revertir al valor original antes de abrir el menú de calibración
+            float originalGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
+            GammaManager.AplicarGamma(originalGamma);
+            isCalibratingGamma = false;
+        }
+
+        GUILayout.EndHorizontal();
     }
 }
