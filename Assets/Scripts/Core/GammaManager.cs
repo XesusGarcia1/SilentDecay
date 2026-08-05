@@ -21,6 +21,22 @@ public class GammaManager : MonoBehaviour
         }
     }
 
+    private void OnEnable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        // Aplicar la configuración de Gamma guardada tan pronto como se cargue cualquier escena
+        AplicarGamma(PlayerPrefs.GetFloat("GammaLevel", 1.0f));
+    }
+
     public static void AplicarGamma(float gammaValue)
     {
         float clamped = Mathf.Clamp(gammaValue, 0.5f, 2.0f);
