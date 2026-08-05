@@ -87,7 +87,6 @@ public class InteractionFocusManager : MonoBehaviour
                     MonoBehaviour itemScript = obj.GetComponent<MonoBehaviour>();
                     if (itemScript != null && hitObj.transform.parent == obj.transform.parent && hitObj.transform.parent != null)
                     {
-                        // Evitar emparejamientos accidentales a través del suelo o paredes del módulo/mapa modular
                         string parentName = hitObj.transform.parent.name.ToLower();
                         bool isGenericMapContainer = parentName.Contains("hospital") || 
                                                      parentName.Contains("generator") || 
@@ -105,25 +104,29 @@ public class InteractionFocusManager : MonoBehaviour
 
                 if (isMatch)
                 {
-                    // Verificar que no haya una pared física interpuesta
+                    // VERIFICACIÓN ESTRICTA DE OBSTRUCCIÓN DE PAREDES O PILARES FÍSICOS
+                    // Lanzar un rayo físico de prueba para ver si colisiona con una pared/muro antes del objeto
                     Vector3 camPos = cam.transform.position;
                     Vector3 targetPos = hit.point;
                     Vector3 dir = (targetPos - camPos).normalized;
-                    float distToHit = Vector3.Distance(camPos, targetPos);
+                    float distToTarget = Vector3.Distance(camPos, targetPos);
 
                     RaycastHit wallHit;
-                    if (Physics.Raycast(camPos, dir, out wallHit, distToHit - 0.1f, -1, QueryTriggerInteraction.Ignore))
+                    // Probar si choca con cualquier collider con colisión física (excluyendo triggers)
+                    if (Physics.Raycast(camPos, dir, out wallHit, distToTarget - 0.05f, -1, QueryTriggerInteraction.Ignore))
                     {
-                        if (wallHit.collider != null && wallHit.collider.gameObject != hitObj && !wallHit.collider.transform.IsChildOf(obj.transform))
+                        if (wallHit.collider != null)
                         {
-                            // Ignorar si el obstáculo detectado es el propio jugador o su cápsula
-                            bool isPlayer = wallHit.collider.CompareTag("Player") || 
-                                            wallHit.collider.gameObject.name.ToLower().Contains("player") || 
-                                            wallHit.collider.gameObject.name.ToLower().Contains("capsule");
-
-                            if (!isPlayer && wallHit.normal.y < 0.7f && !wallHit.collider.gameObject.name.ToLower().Contains("floor"))
+                            GameObject obstacle = wallHit.collider.gameObject;
+                            
+                            // Si el obstáculo no pertenece al objeto interactuable
+                            if (obstacle != obj && !obstacle.transform.IsChildOf(obj.transform) && !obj.transform.IsChildOf(obstacle.transform))
                             {
-                                return false; // Pared interpuesta
+                                string oName = obstacle.name.ToLower();
+                                if (oName.Contains("wall") || oName.Contains("pared") || oName.Contains("solid") || oName.Contains("pillar") || oName.Contains("column") || oName.Contains("bloque"))
+                                {
+                                    return false; // Pared interpuesta detectada. Denegar interacción.
+                                }
                             }
                         }
                     }

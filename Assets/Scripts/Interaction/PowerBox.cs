@@ -435,7 +435,25 @@ public class PowerBox : MonoBehaviour
             }
 
             ShowMessage("¡CORTE ELÉCTRICO! Los fusibles han fallado. Activa Subgeneradores A y B para rearmar.", Color.red, 5.0f);
-            Debug.Log("PowerBox: Sonido e impacto de apagón 2D ejecutado.");
+            // 1. Garantizar una penumbra ambiental de emergencia visible y constante (Evita pantalla 100% negra)
+            float curGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.15f * curGamma, 0.16f * curGamma, 0.19f * curGamma);
+            RenderSettings.ambientIntensity = Mathf.Max(0.6f, curGamma * 0.8f);
+
+            // 2. Activar chispas dinámicas en lámparas apagadas del pasillo del Hospital
+            Renderer[] hospitalRenderers = FindObjectsOfType<Renderer>(true);
+            foreach (Renderer r in hospitalRenderers)
+            {
+                if (r != null && r.gameObject != null)
+                {
+                    string rName = r.gameObject.name.ToLower();
+                    if ((rName.Contains("lamp") || rName.Contains("lampara") || rName.Contains("luz")) && r.gameObject.GetComponent<TunnelElectricSparks>() == null)
+                    {
+                        r.gameObject.AddComponent<TunnelElectricSparks>();
+                    }
+                }
+            }
 
             // Si es un apagón, comprobar e instanciar fusible de emergencia inmediatamente
             CheckAndSpawnEmergencyFuseInstant();
@@ -459,19 +477,24 @@ public class PowerBox : MonoBehaviour
                 Debug.Log("PowerBox: Monstruo EnemyAIController desactivado al restablecer las luces.");
             }
 
-            if (!isInitializing)
-            {
-                AudioClip onClip = Resources.Load<AudioClip>("Interruptor");
-                if (onClip != null)
+                float curGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
+                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+                RenderSettings.ambientLight = new Color(0.35f * curGamma, 0.36f * curGamma, 0.38f * curGamma);
+                RenderSettings.ambientIntensity = curGamma;
+
+                if (!isInitializing)
                 {
-                    Vector3 playPos = Camera.main != null ? Camera.main.transform.position : transform.position;
-                    AudioSource.PlayClipAtPoint(onClip, playPos, 1.0f);
+                    AudioClip onClip = Resources.Load<AudioClip>("Interruptor");
+                    if (onClip != null)
+                    {
+                        Vector3 playPos = Camera.main != null ? Camera.main.transform.position : transform.position;
+                        AudioSource.PlayClipAtPoint(onClip, playPos, 1.0f);
+                    }
+                    ShowMessage("¡RED ELÉCTRICA RESTABLECIDA! Energía alimentando el hospital.", Color.green, 5.0f);
                 }
-                ShowMessage("¡RED ELÉCTRICA RESTABLECIDA! Energía alimentando el hospital.", Color.green, 5.0f);
+                Debug.Log("PowerBox: Energía restablecida.");
             }
-            Debug.Log("PowerBox: Energía restablecida.");
         }
-    }
 
     /// <summary>
     /// Verifica al instante si el jugador está bloqueado sin fusibles y genera uno de emergencia.

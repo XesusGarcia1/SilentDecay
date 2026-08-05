@@ -180,13 +180,15 @@ public partial class TunnelsGenerator
 			list2 = patrolPoints;
 		}
 
+		float num17 = segmentLength * mapScale;
+
 		// 1. Fijar el Spawn del ascensor/jugador en la celda del pasillo central
 		int spawnGridX = width / 2;
 		int spawnGridY = height / 2;
 		grid[spawnGridX, spawnGridY] = true;
 		grid[spawnGridX, spawnGridY + 1] = true;
 		grid[spawnGridX, spawnGridY - 1] = true;
-		Vector3 fixedCenterPos = new Vector3((float)spawnGridX * num, 0.2f * mapScale, (float)spawnGridY * num);
+		Vector3 fixedCenterPos = new Vector3((float)spawnGridX * num17, 0.2f * mapScale, (float)spawnGridY * num17);
 		vector4 = fixedCenterPos;
 
 		// 2. Fijar la Trampilla de Escape (exitPointPos) en una celda abierta interna lejana (esquina Noreste interna)
@@ -194,7 +196,7 @@ public partial class TunnelsGenerator
 		int exitGridY = height - 4;
 		grid[exitGridX, exitGridY] = true;
 		grid[exitGridX - 1, exitGridY] = true;
-		Vector3 fixedExitPos = new Vector3((float)exitGridX * num, 0.2f * mapScale, (float)exitGridY * num);
+		Vector3 fixedExitPos = new Vector3((float)exitGridX * num17, 0.2f * mapScale, (float)exitGridY * num17);
 		vector2 = fixedExitPos;
 
 		// 3. Fijar la Consola de Activación de Escape (consolePos) en otra celda abierta interna (esquina Sudoeste interna)
@@ -202,14 +204,13 @@ public partial class TunnelsGenerator
 		int consoleGridY = 4;
 		grid[consoleGridX, consoleGridY] = true;
 		grid[consoleGridX + 1, consoleGridY] = true;
-		Vector3 fixedConsolePos = new Vector3((float)consoleGridX * num, 0.2f * mapScale, (float)consoleGridY * num);
+		Vector3 fixedConsolePos = new Vector3((float)consoleGridX * num17, 0.2f * mapScale, (float)consoleGridY * num17);
 		vector3 = fixedConsolePos;
 
 		// Asignar todas las posiciones oficiales del mapa
 		playerSpawnPos = vector4;
 		exitPointPos = vector2;
 		consolePos = vector3;
-		float num17 = segmentLength * mapScale;
 		int playerCellX = Mathf.RoundToInt(playerSpawnPos.x / num17);
 		int playerCellZ = Mathf.RoundToInt(playerSpawnPos.z / num17);
 

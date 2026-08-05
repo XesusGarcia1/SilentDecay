@@ -818,7 +818,12 @@ PrefabInstance:
       propertyPath: m_LocalPosition.z
       value: -0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    - target: {fileID: 5866666021909216657, guid: c88b8bdce9040bf41816bc0d416c938a, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 5866666021909216657, guid: c88b8bdce9040bf41816bc0d416c938a, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -1048,7 +1053,7 @@ NavMeshAgent:
   m_AutoBraking: 1
   m_AutoRepath: 1
   m_Height: 2
-  m_BaseOffset: 0
+  m_BaseOffset: -0.1
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
 --- !u!95 &1412722737
@@ -1376,6 +1381,11 @@ MonoBehaviour:
   width: 25
   height: 25
   drainageDuration: 45
+  playerSpawnGridX: 0
+  playerSpawnGridZ: 0
+  playerSpawnCellSize: 0
+  playerSpawnTargetPos: {x: 0, y: 0, z: 0}
+  playerSpawnTargetRot: {x: 0, y: 0, z: 0, w: 0}
 --- !u!4 &1712105328
 Transform:
   m_ObjectHideFlags: 0

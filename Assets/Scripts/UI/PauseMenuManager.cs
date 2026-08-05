@@ -53,6 +53,10 @@ public class PauseMenuManager : MonoBehaviour
         selectedQualityIndex = PlayerPrefs.GetInt("QualityLevel", 2);
         QualitySettings.SetQualityLevel(selectedQualityIndex, true);
 
+        // Aplicar nivel de Gamma / Brillo ambiental en la partida en tiempo real
+        float savedGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
+        GammaManager.AplicarGamma(savedGamma);
+
         // Inicializar resoluciones únicas en PC
         #if !UNITY_ANDROID && !UNITY_IOS
         pcResolutions.Clear();

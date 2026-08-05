@@ -172,6 +172,18 @@ public class MenuScreenSettings : MonoBehaviour
 #else
         DrawResolutionSelector(s);
 #endif
+
+        GUILayout.Space(25);
+
+        // ─── Brillo / Gamma ──────────────────────────────────────────────────
+        float curGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
+        string gammaTitle = GetLocalized("BRILLO / GAMMA", "BRIGHTNESS / GAMMA", "BRILHO / GAMMA");
+        GUILayout.Label($"{gammaTitle}: {curGamma:F1}x", s.Label);
+        float newGamma = GUILayout.HorizontalSlider(curGamma, 0.5f, 2.0f);
+        if (Mathf.Abs(newGamma - curGamma) > 0.01f)
+        {
+            GammaManager.AplicarGamma(newGamma);
+        }
     }
 
 #if !UNITY_ANDROID && !UNITY_IOS

@@ -428,8 +428,12 @@ public class PlayerHealth : MonoBehaviour
 
     void OnGUI()
     {
-        // 1. Renderizar Vignette roja (solo si está vivo y dañado)
-        if (!isDead && health < 100f && vignetteTex != null)
+        // 1. Renderizar Vignette roja (solo si está vivo, dañado y no ha completado el juego)
+        bool winTriggered = false;
+        TunnelsGenerator tunnels = FindObjectOfType<TunnelsGenerator>();
+        if (tunnels != null && tunnels.VictoryFadeAlpha > 0f) winTriggered = true;
+
+        if (!isDead && health < 100f && vignetteTex != null && !winTriggered)
         {
             float healthPercent = health / 100f;
             float baseAlpha = Mathf.Lerp(0.85f, 0f, healthPercent);
@@ -660,88 +664,41 @@ public class PlayerHealth : MonoBehaviour
                 GameManager.Instance.ReaparecerJugador(gameObject);
             }
 
-            // 5. Reposicionar monstruo lejos del jugador y reactivarlo
             if (monsterObj != null)
             {
-                // Intentar alejarlo del jugador al punto de patrulla más lejano disponible
-                Vector3 farPosition = transform.position + Vector3.back * 60f; // Fallback: 60m atrás
+                // Simplificación absoluta: Reactivar el GameObject del monstruo exactamente como BookHead
+                monsterObj.SetActive(true);
 
-                // Caso A: Phenomenon (Túneles)
+                // Forzar rebind de animación para evitar que se congele en la pose de ataque anterior
+                Animator monsterAnimator = monsterObj.GetComponentInChildren<Animator>();
+                if (monsterAnimator != null)
+                {
+                    monsterAnimator.applyRootMotion = false;
+                    monsterAnimator.Rebind();
+                    monsterAnimator.Update(0f);
+                }
+
+                // El período de gracia y recolocación se delegarán internamente al script de cada monstruo
                 var phenomenonCtrl = monsterObj.GetComponent<PhenomenonAIController>();
-                if (phenomenonCtrl != null && phenomenonCtrl.patrolPoints != null && phenomenonCtrl.patrolPoints.Length > 0)
+                if (phenomenonCtrl != null)
                 {
-                    Transform bestPoint = phenomenonCtrl.patrolPoints[0];
-                    float maxDist = 0f;
-                    foreach (Transform pt in phenomenonCtrl.patrolPoints)
-                    {
-                        if (pt != null)
-                        {
-                            float d = Vector3.Distance(transform.position, pt.position);
-                            if (d > maxDist) { maxDist = d; bestPoint = pt; }
-                        }
-                    }
-                    farPosition = bestPoint.position;
+                    phenomenonCtrl.TriggerRespawnGracePeriod(90f);
                 }
 
-                // Caso B: BookHead (Hospital) — usar sus patrol points
-                var bookHeadCtrl = monsterObj.GetComponent<EnemyAIController>();
-                if (bookHeadCtrl != null && bookHeadCtrl.patrolPoints != null && bookHeadCtrl.patrolPoints.Length > 0)
+                var bookHeadCtrl2 = monsterObj.GetComponent<EnemyAIController>();
+                if (bookHeadCtrl2 != null)
                 {
-                    Transform bestPoint = bookHeadCtrl.patrolPoints[0];
-                    float maxDist = 0f;
-                    foreach (Transform pt in bookHeadCtrl.patrolPoints)
-                    {
-                        if (pt != null)
-                        {
-                            float d = Vector3.Distance(transform.position, pt.position);
-                            if (d > maxDist) { maxDist = d; bestPoint = pt; }
-                        }
-                    }
-                    farPosition = bestPoint.position;
+                    bookHeadCtrl2.detectionRange = 0f;
+                    bookHeadCtrl2.StartCoroutine(ActivateBookHeadGraceDelay(bookHeadCtrl2, 90f));
                 }
 
-                // Caso C: TheCreep (CrawlerAI) — alejar al extremo opuesto de la posición de spawn del jugador
                 var crawlerCtrl = monsterObj.GetComponent<CrawlerAI>();
                 if (crawlerCtrl != null)
                 {
-                    // Buscar una posición 45 metros en dirección opuesta
-                    Vector3 oppositeDir = (transform.position - monsterObj.transform.position).normalized;
-                    if (oppositeDir.sqrMagnitude < 0.01f) oppositeDir = Vector3.back;
-                    farPosition = transform.position - oppositeDir * 45f;
+                    crawlerCtrl.TriggerRespawnGracePeriod(90f);
                 }
-
-                // Asegurar que farPosition esté en el NavMesh
-                UnityEngine.AI.NavMeshHit navHit;
-                if (UnityEngine.AI.NavMesh.SamplePosition(farPosition, out navHit, 40f, UnityEngine.AI.NavMesh.AllAreas))
-                {
-                    farPosition = navHit.position;
-                }
-                else
-                {
-                    // Fallback: usar la posición del jugador + offset y buscar en el NavMesh
-                    if (UnityEngine.AI.NavMesh.SamplePosition(transform.position + Vector3.forward * 25f, out navHit, 30f, UnityEngine.AI.NavMesh.AllAreas))
-                    {
-                        farPosition = navHit.position;
-                    }
-                }
-
-                // Mover y reactivar
-                monsterObj.SetActive(true);
-                monsterObj.transform.position = farPosition;
-
-                UnityEngine.AI.NavMeshAgent agentReactivate = monsterObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
-                if (agentReactivate != null)
-                {
-                    agentReactivate.enabled = true;
-                    agentReactivate.Warp(farPosition);
-                    agentReactivate.ResetPath();
-                }
-
-                // Restablecer estado de patrulla (Phenomenon)
-                if (phenomenonCtrl != null)
-                    phenomenonCtrl.currentState = PhenomenonAIController.PhenomenonState.Patrol;
-
-                Debug.Log("PlayerHealth: Monstruo reposicionado y reactivado en " + farPosition);
+ 
+                Debug.Log("PlayerHealth: Monstruo reactivado de forma simple. IA toma el control de su reposicionamiento.");
             }
 
             // 6. Restaurar salud y controles
@@ -815,5 +772,13 @@ public class PlayerHealth : MonoBehaviour
         yield return new WaitForSeconds(delay);
         isInvulnerable = false;
         Debug.Log("PlayerHealth: Inmunidad de reaparición desactivada.");
+    }
+
+    private System.Collections.IEnumerator ActivateBookHeadGraceDelay(EnemyAIController controller, float delay)
+    {
+        controller.detectionRange = 0f;
+        yield return new WaitForSeconds(delay);
+        controller.detectionRange = 7.5f;
+        Debug.Log("[PlayerHealth] Período de gracia del BookHead finalizado. Detección activada.");
     }
 }

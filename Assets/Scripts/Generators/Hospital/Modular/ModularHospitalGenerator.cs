@@ -3179,51 +3179,136 @@ namespace ModularHospital
         private Light targetLight;
         private AudioSource audioSource;
         private AudioClip flickerClip;
+        private ParticleSystem sparkParticles;
+        private Color originalColor;
+        private float originalRange;
         private float nextFlickerTime;
+
+        // --- CACHE DE RENDIMIENTO HOSPITAL ---
+        private PowerBox cachedPowerBox;
+        private Transform cachedPlayerCamera;
+
+        private void Start()
+        {
+            cachedPowerBox = FindObjectOfType<PowerBox>();
+        }
 
         private void Awake()
         {
             targetLight = GetComponent<Light>();
+            if (targetLight != null)
+            {
+                originalColor = targetLight.color;
+                originalRange = targetLight.range;
+            }
             
             // Cargar el clip de audio de zumbido/chispazo de lámpara
             flickerClip = Resources.Load<AudioClip>("Audio/Hospital/ErrorLightSound");
             if (flickerClip == null) flickerClip = Resources.Load<AudioClip>("ErrorLightSound");
+            if (flickerClip == null) flickerClip = Resources.Load<AudioClip>("Audio/Compartido/Chispa");
 
             if (flickerClip != null)
             {
                 audioSource = gameObject.AddComponent<AudioSource>();
                 audioSource.clip = flickerClip;
                 audioSource.spatialBlend = 1.0f; // Sonido 3D realista
-                audioSource.minDistance = 1.0f;
-                audioSource.maxDistance = 10.0f;
+                audioSource.minDistance = 1.5f;
+                audioSource.maxDistance = 12.0f;
                 audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
                 audioSource.playOnAwake = false;
-                audioSource.volume = 0.35f; // Volumen tétrico ambiental calibrado (35%)
+                audioSource.volume = 0.45f;
             }
+
+            // Crear emisor de partículas 3D de chispas cayendo para el Hospital
+            GameObject pObj = new GameObject("HospitalSparkParticles");
+            pObj.transform.SetParent(transform, false);
+            pObj.transform.localPosition = new Vector3(0f, -0.1f, 0f);
+
+            sparkParticles = pObj.AddComponent<ParticleSystem>();
+            var main = sparkParticles.main;
+            main.startLifetime = 0.45f;
+            main.startSpeed = 3.2f;
+            main.startSize = 0.06f;
+            main.startColor = new Color(1.0f, 0.85f, 0.25f); // Ámbar/Amarillo eléctrico de hospital
+            main.gravityModifier = 1.6f; // Las chispas caen despedidas al suelo por gravedad
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.playOnAwake = false;
+
+            var emission = sparkParticles.emission;
+            emission.enabled = false;
+
+            var shape = sparkParticles.shape;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 35f;
+            shape.radius = 0.25f;
         }
 
         private void Update()
         {
-            if (targetLight == null || !targetLight.enabled) return;
+            if (targetLight == null) return;
+
+            // No parpadear si el juego está pausado
+            if (Time.timeScale <= 0f) return;
+
+            // Obtener la cámara del jugador para calcular distancia y aplicar LOD
+            if (cachedPlayerCamera == null && Camera.main != null)
+            {
+                cachedPlayerCamera = Camera.main.transform;
+            }
+
+            bool playerIsNear = false;
+            if (cachedPlayerCamera != null)
+            {
+                playerIsNear = Vector3.Distance(transform.position, cachedPlayerCamera.position) <= 12f;
+            }
+
+            // Usar PowerBox cacheado para evitar FindObjectOfType pesado cada frame
+            if (cachedPowerBox == null) cachedPowerBox = FindObjectOfType<PowerBox>();
+            bool isBlackout = (cachedPowerBox != null && cachedPowerBox.isPowerOut);
+
+            if (isBlackout)
+            {
+                targetLight.enabled = true; // Luz activada en penumbra
+                targetLight.color = new Color(0.9f, 0.7f, 0.35f); // Tinte ámbar tenue
+                targetLight.range = 6.0f;
+            }
+            else
+            {
+                targetLight.color = originalColor != Color.clear ? originalColor : new Color(0.95f, 0.95f, 0.85f);
+                targetLight.range = originalRange > 0f ? originalRange : 8.0f;
+            }
+
+            // OPTIMIZACIÓN LOD: Si el jugador está lejos, no parpadeamos, no hacemos chispas ni ejecutamos cálculos complejos
+            if (!playerIsNear)
+            {
+                targetLight.intensity = isBlackout ? 0.35f : baseIntensity;
+                return;
+            }
 
             if (Time.time >= nextFlickerTime)
             {
-                if (Random.value < 0.20f)
+                if (Random.value < (isBlackout ? 0.45f : 0.20f))
                 {
-                    // Bajón tenue de tensión / parpadeo tétrico
-                    targetLight.intensity = baseIntensity * Random.Range(0.08f, 0.35f);
-                    nextFlickerTime = Time.time + Random.Range(0.05f, 0.18f);
+                    // Chispazo y parpadeo (Solo si el jugador está cerca)
+                    targetLight.intensity = isBlackout ? Random.Range(0.6f, 1.8f) : baseIntensity * Random.Range(0.08f, 0.35f);
+                    nextFlickerTime = Time.time + Random.Range(0.05f, 0.2f);
 
-                    // Reproducir el sonido de chispazo/error cuando la lámpara sufre el bajón
+                    // Disparar de 3 a 7 chispas 3D volando hacia el suelo
+                    if (sparkParticles != null)
+                    {
+                        sparkParticles.Emit(Random.Range(3, 8));
+                    }
+
+                    // Reproducir el sonido 3D de chispazo
                     if (audioSource != null && flickerClip != null && !audioSource.isPlaying)
                     {
-                        audioSource.pitch = Random.Range(0.9f, 1.1f);
-                        audioSource.PlayOneShot(flickerClip, Random.Range(0.25f, 0.45f));
+                        audioSource.pitch = Random.Range(0.85f, 1.15f);
+                        audioSource.PlayOneShot(flickerClip, Random.Range(0.35f, 0.6f));
                     }
                 }
                 else
                 {
-                    targetLight.intensity = baseIntensity * Random.Range(0.85f, 1.1f);
+                    targetLight.intensity = isBlackout ? 0.35f : baseIntensity * Random.Range(0.85f, 1.1f);
                     nextFlickerTime = Time.time + Random.Range(0.3f, 1.8f);
                 }
             }
