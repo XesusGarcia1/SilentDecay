@@ -68,7 +68,6 @@ namespace StarterAssets
         private CharacterController _controller;
         private StarterAssetsInputs _input;
         private GameObject _mainCamera;
-        private Transform _headBone; // Referencia al hueso de la cabeza del personaje
         private string _currentAnimName = "Idle_Player"; // Almacena el nombre de la animación actual
         private Animator _animator; // Referencia al animador del modelo de personaje
 
@@ -133,15 +132,6 @@ namespace StarterAssets
                 _animator.applyRootMotion = false;
             }
 
-            // Buscar el hueso de la cabeza de Ethan para poder escalarlo e invisibilizarlo
-            foreach (Transform child in GetComponentsInChildren<Transform>(true))
-            {
-                if (child.name.ToLower() == "head")
-                {
-                    _headBone = child;
-                    break;
-                }
-            }
 
             // reset our timeouts on start
             _jumpTimeoutDelta = JumpTimeout;
@@ -162,11 +152,6 @@ namespace StarterAssets
         {
             CameraRotation();
 
-            // Encoger la cabeza a cero cada frame (después de las animaciones) para hacerla invisible
-            if (_headBone != null)
-            {
-                _headBone.localScale = Vector3.zero;
-            }
         }
 
         private void GroundedCheck()
