@@ -507,6 +507,7 @@ public class ElevatorController : MonoBehaviour
                 {
                     PlaySound(errorSound);
                     ShowScreenMsg("PANEL DE CONTROL SIN ENERGIA", Color.red);
+                    PlayerMonologueManager.ShowDialogue("No hay energía eléctrica en el panel. Necesito restaurar los fusibles de la subestación principal.", 5f);
                 }
             }
         }
@@ -531,12 +532,14 @@ public class ElevatorController : MonoBehaviour
                     else
                     {
                         ShowScreenMsg("TARJETA ACEPTADA. BOTONERA SIN ENERGIA.", Color.yellow);
+                        PlayerMonologueManager.ShowDialogue("La tarjeta fue aceptada, pero el ascensor sigue sin recibir electricidad.", 4.5f);
                     }
                 }
                 else
                 {
                     PlaySound(errorSound);
                     ShowScreenMsg("REQUIERE TARJETA DE ACCESO DEL DIRECTOR", Color.yellow);
+                    PlayerMonologueManager.ShowDialogue("Necesito la tarjeta de acceso de la oficina del director para llamar al ascensor...", 5f);
                 }
             }
             else if (!isCalling && !isArrived)

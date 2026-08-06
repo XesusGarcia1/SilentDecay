@@ -2413,6 +2413,121 @@ namespace ModularHospital
                     assignedNotes++;
                 }
             }
+
+            // 4. Montar exactamente 3 Notas de Historia (Lore) en el Hospital
+            if (notePrefab != null)
+            {
+                // Recopilar todas las habitaciones del hospital (excepto DirectorOffice y Elevator)
+                List<HospitalModule> allRooms = new List<HospitalModule>();
+                foreach (HospitalModule mod in placedModules)
+                {
+                    if (mod != null && (mod.moduleType == ModuleType.SmallRoom || mod.moduleType == ModuleType.LargeRoom || mod.moduleType == ModuleType.OfficeRoom))
+                    {
+                        allRooms.Add(mod);
+                    }
+                }
+
+                // Mezclar la lista de habitaciones para aleatorizar
+                for (int j = allRooms.Count - 1; j > 0; j--)
+                {
+                    int r = Random.Range(0, j + 1);
+                    HospitalModule tmp = allRooms[j];
+                    allRooms[j] = allRooms[r];
+                    allRooms[r] = tmp;
+                }
+
+                // Textos de lore
+                string[] loreTitles = new string[]
+                {
+                    "Diario del Bibliotecario (BookHead)",
+                    "Informe de Psiquiatría (TheCreep)",
+                    "Memorándum de Evacuación"
+                };
+                string[] loreBodies = new string[]
+                {
+                    "<b>REGISTRO DEL DIARIO - 18 DE OCTUBRE:</b>\n\n" +
+                    "Ese maldito monstruo... la criatura con cabeza de libro que merodea la biblioteca principal.\n" +
+                    "Confirmado: <i>NO TIENE OJOS</i>. Es completamente ciego.\n" +
+                    "Sin embargo, su oído es increíblemente agudo.\n" +
+                    "Si caminas despacio, te ignorará por completo. Pero si entras en pánico y corres <b>(sprint)</b>,\n" +
+                    "sabrá exactamente dónde estás al instante y te perseguirá.\n" +
+                    "Guarda silencio si quieres conservar la cabeza.",
+
+                    "<b>EXPEDIENTE ANÓMALO #09-B:</b>\n\n" +
+                    "Los pacientes del Pabellón Este reportan avistamientos de un ser deforme en el suelo.\n" +
+                    "Se arrastra como un insecto y lo llaman 'TheCreep' (El Rastrero).\n" +
+                    "El personal reporta que prefiere quedarse en las esquinas más oscuras del hospital.\n" +
+                    "Es extremadamente agresivo. Si te encuentra, intentará acorralarte y atacarte.\n" +
+                    "Para escapar de él, debes correr hacia el spawn o buscar zonas iluminadas.\n" +
+                    "Nunca te quedes quieto en los callejones oscuros.",
+
+                    "<b>ORDEN DE EVACUACIÓN INTERNA:</b>\n\n" +
+                    "A todo el personal administrativo:\n" +
+                    "La fuga biológica ha alcanzado los niveles subterráneos del ala oeste.\n" +
+                    "El ascensor de escape principal de la oficina del director ha sido bloqueado por el protocolo de cuarentena.\n" +
+                    "Se requiere una contraseña cifrada de 7 dígitos para restablecerlo.\n" +
+                    "Las hojas de códigos de seguridad se han esparcido por las habitaciones para evitar que los sujetos de prueba las encuentren.\n" +
+                    "Busca los 7 dígitos y evacua inmediatamente."
+                };
+
+                int loreSpawned = 0;
+                int roomIndex = 0;
+
+                while (loreSpawned < 3 && roomIndex < allRooms.Count)
+                {
+                    HospitalModule chosenRoom = allRooms[roomIndex];
+                    roomIndex++;
+
+                    // Calcular posición dentro de la habitación con un offset aleatorio para no caer en el centro exacto
+                    Vector3 roomCenter = chosenRoom.transform.position;
+                    Vector3 offset = new Vector3(Random.Range(-1.2f, 1.2f), 0f, Random.Range(-1.2f, 1.2f));
+                    Vector3 spawnPos = roomCenter + offset;
+
+                    // Verificar que no esté demasiado cerca de otra nota ya colocada
+                    bool tooClose = false;
+                    foreach (Vector3 existingP in spawnedItemPositions)
+                    {
+                        if (Vector3.Distance(spawnPos, existingP) < 3.5f)
+                        {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+                    if (tooClose) continue;
+
+                    // Raycast para encontrar el suelo exacto
+                    Vector3 finalPos;
+                    RaycastHit hit;
+                    if (Physics.Raycast(spawnPos + Vector3.up * 2.0f, Vector3.down, out hit, 5.0f))
+                    {
+                        finalPos = hit.point + Vector3.up * 0.015f;
+                    }
+                    else
+                    {
+                        finalPos = new Vector3(spawnPos.x, transform.position.y + 0.015f, spawnPos.z);
+                    }
+
+                    GameObject loreObj = Instantiate(notePrefab, finalPos, Quaternion.Euler(90f, Random.Range(0f, 360f), 0f), parent);
+                    loreObj.name = $"[Hospital_Lore_Note_{loreSpawned + 1}]";
+
+                    spawnedItemPositions.Add(finalPos);
+
+                    // Remover NoteItem del prefab original y reemplazar con LoreNoteItem
+                    NoteItem oldNoteComp = loreObj.GetComponent<NoteItem>();
+                    if (oldNoteComp != null) DestroyImmediate(oldNoteComp);
+
+                    // Corregir el BoxCollider: isTrigger = false para que el raycast del jugador lo detecte
+                    BoxCollider box = loreObj.GetComponent<BoxCollider>();
+                    if (box != null) box.isTrigger = false;
+
+                    LoreNoteItem loreComp = loreObj.AddComponent<LoreNoteItem>();
+                    loreComp.loreId = loreSpawned + 1;
+                    loreComp.noteTitle = loreTitles[loreSpawned];
+                    loreComp.noteBody = loreBodies[loreSpawned];
+
+                    loreSpawned++;
+                }
+            }
         }
 
         private void SetupDirectorOfficeDesk()
@@ -3088,6 +3203,9 @@ namespace ModularHospital
                 hideScript.interactDistance = 3.8f;
 
                 Debug.Log($"ModularHospitalGenerator: Jugador posicionado con éxito en el pasillo principal del búnker: {spawnPos}");
+                
+                // Disparar monólogo inicial narrativo adaptado al personaje seleccionado (Ethan o Nora)
+                LevelIntroData.TriggerStartMonologue("hospital");
             }
 
             // Ubicar al enemigo BookHead en el extremo opuesto del mapa lejos del jugador y reducir su velocidad

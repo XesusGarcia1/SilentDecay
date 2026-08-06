@@ -248,6 +248,8 @@ public class EnemyAIController : MonoBehaviour
 
     void Update()
     {
+        if (Time.timeScale <= 0f) return;
+
         currentState?.UpdateState();
         HandleStateTransitions();
         HandleFootsteps();

@@ -4,17 +4,58 @@ using System.Collections;
 
 public class SceneLoader : MonoBehaviour
 {
-    public static string SceneToLoad = "Test_ModularHospital"; // Escena de destino por defecto (hospital procedural)
+    public static string SceneToLoad = "Test_ModularHospital"; // Escena de destino por defecto
     private string currentTip = "";
     private float loadProgress = 0f;
     private bool canStartTransition = false;
-    private float minLoadDuration = 6.0f; // Tiempo de espera mínimo de 6 segundos para leer el consejo
+    private float minLoadDuration = 6.0f;
+
+    // === INTRO VHS ===
+    private enum LoaderPhase { Intro, Loading }
+    private LoaderPhase currentPhase = LoaderPhase.Intro;
+    private string introText = "";
+    private string currentDisplayedText = "";
+    private bool introTextComplete = false;
+    private bool hasIntro = false;
+    private float vhsNoiseTimer = 0f;
+    private GUIStyle terminalStyle;
+    private GUIStyle promptStyle;
+    private Texture2D blackTex;
 
     private void Start()
     {
-        // Forzar cursor liberado para la pantalla de carga si fuera necesario
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        // Preparar textura negra
+        blackTex = new Texture2D(2, 2);
+        for (int x = 0; x < 2; x++)
+            for (int y = 0; y < 2; y++)
+                blackTex.SetPixel(x, y, Color.black);
+        blackTex.Apply();
+
+        // Intentar obtener texto de intro para la escena destino
+        introText = LevelIntroData.GetIntroText(SceneToLoad);
+        hasIntro = !string.IsNullOrEmpty(introText);
+
+        if (hasIntro)
+        {
+            // Mostrar la intro VHS primero — NO cargar el mapa todavía
+            currentPhase = LoaderPhase.Intro;
+            currentDisplayedText = "";
+            introTextComplete = false;
+            StartCoroutine(TypewriterRoutine());
+        }
+        else
+        {
+            // Sin intro, ir directo a la carga normal
+            StartLoadingPhase();
+        }
+    }
+
+    private void StartLoadingPhase()
+    {
+        currentPhase = LoaderPhase.Loading;
 
         // Seleccionar tip aleatorio localizado
         if (LocalizationManager.Instance != null)
@@ -27,25 +68,46 @@ public class SceneLoader : MonoBehaviour
             currentTip = "Cargando...";
         }
 
-        // Iniciar la carga asíncrona en segundo plano
+        // Iniciar la carga asíncrona del mapa real
         StartCoroutine(LoadSceneAsyncCoroutine());
     }
 
+    // === TYPEWRITER DE LA INTRO VHS ===
+    private IEnumerator TypewriterRoutine()
+    {
+        // Cargar el clip de sonido de tecla una sola vez
+        AudioClip typeClip = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
+
+        float speed = 0.035f;
+        for (int i = 0; i < introText.Length; i++)
+        {
+            currentDisplayedText += introText[i];
+
+            // Sonido mecánico de tecla cada 3 caracteres
+            if (i % 3 == 0 && typeClip != null)
+            {
+                AudioSource.PlayClipAtPoint(typeClip, Camera.main != null ? Camera.main.transform.position : Vector3.zero, 0.08f);
+            }
+
+            yield return new WaitForSecondsRealtime(speed);
+        }
+        introTextComplete = true;
+    }
+
+    // === CARGA ASÍNCRONA DEL MAPA (FASE 2) ===
     private IEnumerator LoadSceneAsyncCoroutine()
     {
         yield return null;
 
-        // Crear una carga asíncrona de fondo
         AsyncOperation operation = SceneManager.LoadSceneAsync(SceneToLoad);
 
-        // Protección: si la escena no existe en el Build Profile, abortar con mensaje claro
         if (operation == null)
         {
             Debug.LogError($"SceneLoader: No se pudo cargar '{SceneToLoad}'. Verifica que esté añadida en File > Build Profiles.");
             yield break;
         }
 
-        operation.allowSceneActivation = false; // Evitar que la escena se active inmediatamente al cargar
+        operation.allowSceneActivation = false;
 
         float timer = 0f;
 
@@ -53,7 +115,6 @@ public class SceneLoader : MonoBehaviour
         {
             timer += Time.unscaledDeltaTime;
             
-            // Simular y suavizar el porcentaje de progreso de carga en la UI
             float realProgress = Mathf.Clamp01(operation.progress / 0.9f);
             float timeProgress = Mathf.Clamp01(timer / minLoadDuration);
             loadProgress = Mathf.Min(realProgress, timeProgress);
@@ -64,10 +125,8 @@ public class SceneLoader : MonoBehaviour
         loadProgress = 1.0f;
         canStartTransition = true;
 
-        // Breve pausa al llegar al 100% para una transición pulida
         yield return new WaitForSecondsRealtime(0.5f);
 
-        // Activar la escena cargada
         operation.allowSceneActivation = true;
     }
 
@@ -77,13 +136,102 @@ public class SceneLoader : MonoBehaviour
     public static void LoadScene(string sceneName)
     {
         SceneToLoad = sceneName;
-        // Cargamos la escena de carga procedural
         SceneManager.LoadScene("LoadingScene");
+    }
+
+    private void Update()
+    {
+        if (currentPhase == LoaderPhase.Intro)
+        {
+            vhsNoiseTimer += Time.unscaledDeltaTime;
+
+            // Detectar pulsación de tecla o toque táctil
+            if (Input.anyKeyDown || (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began))
+            {
+                if (introTextComplete)
+                {
+                    // El texto ya se completó → avanzar a la fase de carga del mapa
+                    StopAllCoroutines();
+                    StartLoadingPhase();
+                }
+                else
+                {
+                    // Todavía escribiendo → autocompletar el texto
+                    StopAllCoroutines();
+                    currentDisplayedText = introText;
+                    introTextComplete = true;
+                }
+            }
+        }
     }
 
     private void OnGUI()
     {
-        // 1. Dibujar fondo negro sólido completo
+        if (currentPhase == LoaderPhase.Intro)
+        {
+            DrawIntroScreen();
+        }
+        else
+        {
+            DrawLoadingScreen();
+        }
+    }
+
+    // ==================== PANTALLA DE INTRO VHS ====================
+    private void DrawIntroScreen()
+    {
+        // Fondo negro completo
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), blackTex);
+
+        // Estilos de terminal retro
+        if (terminalStyle == null)
+        {
+            terminalStyle = new GUIStyle();
+            terminalStyle.fontSize = 20;
+            terminalStyle.normal.textColor = new Color(0.1f, 0.85f, 0.15f, 0.95f); // Verde fósforo
+            terminalStyle.wordWrap = true;
+            terminalStyle.alignment = TextAnchor.MiddleLeft;
+
+            promptStyle = new GUIStyle(terminalStyle);
+            promptStyle.fontSize = 17;
+            promptStyle.alignment = TextAnchor.MiddleCenter;
+            promptStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
+        }
+
+        // Efecto scanlines VHS sutil
+        float scanlineAlpha = Mathf.PingPong(vhsNoiseTimer * 2f, 0.05f);
+        GUI.color = new Color(1f, 1f, 1f, scanlineAlpha);
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        // Contenedor centrado
+        int w = Mathf.Min(800, Screen.width - 40);
+        int h = 480;
+        Rect container = new Rect(Screen.width / 2 - w / 2, Screen.height / 2 - h / 2, w, h);
+
+        GUILayout.BeginArea(container);
+        GUILayout.Label(currentDisplayedText, terminalStyle, GUILayout.Height(380));
+        GUILayout.Space(20);
+
+        if (introTextComplete)
+        {
+            float promptAlpha = Mathf.PingPong(Time.unscaledTime * 2.2f, 1.0f);
+            promptStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f, promptAlpha);
+            GUILayout.Label("[ PULSA CUALQUIER BOTÓN PARA REPRODUCIR CINTA ]", promptStyle);
+        }
+        else
+        {
+            promptStyle.normal.textColor = Color.gray;
+            GUILayout.Label("[ OPRIMIR CUALQUIER BOTÓN PARA OMITIR ]", promptStyle);
+        }
+
+        GUILayout.EndArea();
+    }
+
+    // ==================== PANTALLA DE CARGA NORMAL ====================
+    private void DrawLoadingScreen()
+    {
+        // 1. Fondo negro sólido completo
         GUI.color = new Color(0.04f, 0.04f, 0.05f, 1f);
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
@@ -96,7 +244,6 @@ public class SceneLoader : MonoBehaviour
         tipStyle.wordWrap = true;
         tipStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
 
-        // Dibujar caja contenedora del consejo
         float tipWidth = Mathf.Min(700, Screen.width - 100);
         Rect tipRect = new Rect(Screen.width / 2 - tipWidth / 2, Screen.height / 2 - 80, tipWidth, 100);
         
@@ -107,32 +254,30 @@ public class SceneLoader : MonoBehaviour
         tipStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
         GUI.Label(tipRect, currentTip, tipStyle);
 
-        // 3. Estilo para el título de consejos
+        // 3. Título de consejos
         GUIStyle titleStyle = new GUIStyle();
         titleStyle.fontSize = 14;
         titleStyle.fontStyle = FontStyle.Bold;
         titleStyle.alignment = TextAnchor.MiddleCenter;
-        titleStyle.normal.textColor = new Color(0.7f, 0f, 0f); // Rojo sangre
+        titleStyle.normal.textColor = new Color(0.7f, 0f, 0f);
         
         string titleText = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("load_titulo") : "CONSEJO DE SUPERVIVENCIA";
         GUI.Label(new Rect(Screen.width / 2 - 150, Screen.height / 2 - 120, 300, 25), titleText, titleStyle);
 
-        // 4. Dibujar barra de carga dinámica abajo
+        // 4. Barra de carga
         float barWidth = Mathf.Min(400, Screen.width - 100);
         float barHeight = 6f;
         Rect barBgRect = new Rect(Screen.width / 2 - barWidth / 2, Screen.height - 120, barWidth, barHeight);
 
-        // Fondo de la barra (Rojo oscuro)
         GUI.color = new Color(0.15f, 0.02f, 0.02f, 1f);
         GUI.DrawTexture(barBgRect, Texture2D.whiteTexture);
 
-        // Relleno de la barra (Rojo brillante / Emisivo)
         GUI.color = new Color(0.85f, 0.1f, 0.1f, 1f);
         Rect barFillRect = new Rect(barBgRect.x, barBgRect.y, barWidth * loadProgress, barHeight);
         GUI.DrawTexture(barFillRect, Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        // 5. Estado de carga ("CARGANDO...")
+        // 5. Estado de carga
         GUIStyle loadStyle = new GUIStyle();
         loadStyle.fontSize = 13;
         loadStyle.alignment = TextAnchor.MiddleCenter;

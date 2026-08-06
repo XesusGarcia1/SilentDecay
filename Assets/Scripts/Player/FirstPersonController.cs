@@ -208,7 +208,7 @@ namespace StarterAssets
                     }
                 }
 
-                AudioClip puddleSound = Resources.Load<AudioClip>("PisarAgua");
+                AudioClip puddleSound = Resources.Load<AudioClip>("Audio/Compartido/PisarAgua");
                 AudioClip clipToPlay = (isSteppingOnPuddle && puddleSound != null) ? puddleSound : (_input.sprint ? runSound : walkSound);
 
                 _audioSource.PlayOneShot(clipToPlay);

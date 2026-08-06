@@ -270,6 +270,9 @@ public class PowerBox : MonoBehaviour
                     : $"Fusibles rearmados. ({repairsCount}/{maxFreeRepairs} reparaciones libres usadas)";
                 ShowMessage(msg, Color.green, 4f);
                 Debug.Log($"PowerBox: Rearmado gratuito exitoso ({repairsCount}/{maxFreeRepairs}).");
+
+                // Disparar monólogo/pensamiento del jugador
+                PlayerMonologueManager.ShowDialogue("Bien, el sistema eléctrico principal está restaurado. Ahora la oficina del director debería tener energía.", 5f);
             }
             else
             {
@@ -290,6 +293,9 @@ public class PowerBox : MonoBehaviour
                         : $"Fusible de repuesto colocado! Energía restablecida. (Quedan: {fusesCount})";
                     ShowMessage(msg, Color.green, 4f);
                     Debug.Log($"PowerBox: Fusible consumido. Fusibles restantes: {fusesCount}.");
+
+                    // Disparar monólogo/pensamiento del jugador
+                    PlayerMonologueManager.ShowDialogue("Fusible reemplazado. Volvemos a tener corriente eléctrica. Debo darme prisa antes de otra sobrecarga.", 5f);
                 }
                 else
                 {

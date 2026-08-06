@@ -283,6 +283,8 @@ public class CrawlerAI : MonoBehaviour
 
     void Update()
     {
+        if (Time.timeScale <= 0f) return;
+
         if (playerTransform == null) FindPlayerReferences();
 
         // 0. Si se sale del NavMesh, re-anclar inmediatamente
