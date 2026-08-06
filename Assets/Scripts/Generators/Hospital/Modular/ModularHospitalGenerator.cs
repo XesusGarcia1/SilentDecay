@@ -3136,6 +3136,14 @@ namespace ModularHospital
                     {
                         if (gridMatrix[x, z] == 1) // Es pasillo puro
                         {
+                            // EVITAR A TODA COSTA aparecer dentro del modelo 3D de una habitación grande (como Director's Office)
+                            bool nearRoom = (z + 1 < sizeZ && (gridMatrix[x, z + 1] == 2 || gridMatrix[x, z + 1] == 3)) ||
+                                            (z - 1 >= 0 && (gridMatrix[x, z - 1] == 2 || gridMatrix[x, z - 1] == 3)) ||
+                                            (x + 1 < sizeX && (gridMatrix[x + 1, z] == 2 || gridMatrix[x + 1, z] == 3)) ||
+                                            (x - 1 >= 0 && (gridMatrix[x - 1, z] == 2 || gridMatrix[x - 1, z] == 3));
+
+                            if (nearRoom) continue;
+
                             int openNeighbors = 0;
                             if (z + 1 < sizeZ && gridMatrix[x, z + 1] == 1) openNeighbors++;
                             if (z - 1 >= 0 && gridMatrix[x, z - 1] == 1) openNeighbors++;
@@ -3161,6 +3169,13 @@ namespace ModularHospital
                         {
                             if (gridMatrix[x, z] == 1)
                             {
+                                bool nearRoom = (z + 1 < sizeZ && (gridMatrix[x, z + 1] == 2 || gridMatrix[x, z + 1] == 3)) ||
+                                                (z - 1 >= 0 && (gridMatrix[x, z - 1] == 2 || gridMatrix[x, z - 1] == 3)) ||
+                                                (x + 1 < sizeX && (gridMatrix[x + 1, z] == 2 || gridMatrix[x + 1, z] == 3)) ||
+                                                (x - 1 >= 0 && (gridMatrix[x - 1, z] == 2 || gridMatrix[x - 1, z] == 3));
+
+                                if (nearRoom) continue;
+
                                 spawnCell = new Vector2Int(x, z);
                                 break;
                             }

@@ -9,9 +9,6 @@ public class EnemyAttackState : IEnemyState
     private EnemyAnimation anim;
     private Transform player;
     private float attackRange = 2f;  // Rango del ataque
-    private float attackDamage = 30f;  // Daño del ataque
-    private float attackCooldown = 1.5f;  // Cooldown entre ataques
-    private float attackAnimationDuration = 0.8f;  // Duración de la animación de golpe
 
     private bool isAttacking = false;
     private Coroutine attackCoroutine;
@@ -27,18 +24,28 @@ public class EnemyAttackState : IEnemyState
 
     public void EnterState()
     {
-        Debug.Log("Enemigo entra en estado de ataque.");
-        agent.ResetPath(); // Detener movimiento durante el ataque
-        attackCoroutine = enemy.StartCoroutine(PerformAttackLoop());
+        Debug.Log("Enemigo entra en estado de ataque (Jumpscare Instantáneo).");
+        if (agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+            agent.ResetPath();
+        }
+        
+        attackCoroutine = enemy.StartCoroutine(PerformAttackJumpscare());
     }
 
     public void UpdateState()
     {
-        // El controlador EnemyAIController maneja la salida a Chase o Patrol en HandleStateTransitions,
-        // pero mantenemos esto por redundancia y compatibilidad.
-        if (Vector3.Distance(enemy.transform.position, player.position) > attackRange)
+        if (player != null && isAttacking)
         {
-            enemy.ChangeState(new EnemyChaseState(enemy, agent, anim, player));
+            Vector3 direction = (player.position - enemy.transform.position).normalized;
+            direction.y = 0f;
+            if (direction != Vector3.zero)
+            {
+                Quaternion lookRot = Quaternion.LookRotation(direction);
+                enemy.transform.rotation = Quaternion.Slerp(enemy.transform.rotation, lookRot, Time.deltaTime * 5f);
+            }
         }
     }
 
@@ -50,44 +57,44 @@ public class EnemyAttackState : IEnemyState
             enemy.StopCoroutine(attackCoroutine);
             attackCoroutine = null;
         }
-        anim?.SetAttacking(false);
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+        }
     }
 
-    private IEnumerator PerformAttackLoop()
+    private IEnumerator PerformAttackJumpscare()
     {
         isAttacking = true;
 
-        while (isAttacking)
+        // Ya no hacemos animación de ataque (puñetazo).
+        // En su lugar, si te toca, mueres al instante como si te hubiera atrapado.
+        
+        float distance = Vector3.Distance(enemy.transform.position, player.position);
+        if (distance <= attackRange + 0.5f)
         {
-            // 1. Iniciar animación de ataque
-            anim?.SetAttacking(true);
-            yield return new WaitForSeconds(attackAnimationDuration);
+            Collider[] hitColliders = Physics.OverlapSphere(enemy.transform.position, attackRange + 0.5f);
+            bool playerHit = false;
 
-            // 2. Comprobar si el jugador sigue en rango para aplicar daño
-            float distance = Vector3.Distance(enemy.transform.position, player.position);
-            if (distance <= attackRange)
+            foreach (Collider hitCollider in hitColliders)
             {
-                Collider[] hitColliders = Physics.OverlapSphere(enemy.transform.position, attackRange);
-                bool playerHit = false;
-
-                foreach (Collider hitCollider in hitColliders)
+                if (hitCollider.CompareTag("Player") && !playerHit)
                 {
-                    if (hitCollider.CompareTag("Player") && !playerHit)
+                    playerHit = true;
+                    PlayerHealth playerHealth = hitCollider.GetComponent<PlayerHealth>();
+                    if (playerHealth != null)
                     {
-                        playerHit = true;
-                        PlayerHealth playerHealth = hitCollider.GetComponent<PlayerHealth>();
-                        if (playerHealth != null)
-                        {
-                            playerHealth.TakeDamage(attackDamage);
-                            Debug.Log("Jugador ha recibido daño: " + attackDamage);
-                        }
+                        Debug.Log("Jugador atrapado por BookHead. Initiating Jumpscare Death.");
+                        playerHealth.TakeDamage(9999f); // Muerte instantánea que dispara el Jumpscare en PlayerHealth
                     }
                 }
             }
-
-            // 3. Desactivar flag de animación y esperar cooldown
-            anim?.SetAttacking(false);
-            yield return new WaitForSeconds(attackCooldown);
         }
+
+        // Si por alguna razón el collider no lo detectó (muy raro), vuelve a perseguir
+        yield return new WaitForSeconds(0.2f);
+        
+        isAttacking = false;
+        enemy.ChangeState(new EnemyChaseState(enemy, agent, anim, player));
     }
 }

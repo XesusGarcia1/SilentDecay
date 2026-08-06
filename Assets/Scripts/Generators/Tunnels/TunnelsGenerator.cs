@@ -744,6 +744,23 @@ public partial class TunnelsGenerator : MonoBehaviour
 		{
 			if (escapeState == EscapeState.Draining || escapeState == EscapeState.Ready)
 			{
+				// Ocultar la alarma si el jugador está leyendo una nota de lore o tiene la libreta abierta
+				bool isReadingLore = false;
+				foreach (var note in Object.FindObjectsOfType<LoreNoteItem>())
+				{
+					if (note != null && note.IsReading)
+					{
+						isReadingLore = true;
+						break;
+					}
+				}
+				bool notepadOpen = NotepadUIManager.IsOpen;
+
+				if (isReadingLore || notepadOpen)
+				{
+					return;
+				}
+
 				if (alarmBgTex == null)
 				{
 					alarmBgTex = MakeTex(2, 2, new Color(0.08f, 0.01f, 0.01f, 0.85f));

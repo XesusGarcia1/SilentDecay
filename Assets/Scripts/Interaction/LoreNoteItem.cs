@@ -15,6 +15,7 @@ public class LoreNoteItem : MonoBehaviour
     private Transform player;
     private bool playerNear = false;
     private bool isReading = false;
+    public bool IsReading => isReading;
 
     private Texture2D paperReadingTex;
     private GUIStyle contentStyle;
@@ -41,12 +42,8 @@ public class LoreNoteItem : MonoBehaviour
         box.size = new Vector3(0.45f, 0.3f, 0.45f); // Tamaño local proporcional al escalado visual de la nota
         interactDistance = 6.0f; // Aumentar distancia para interactuar cómodamente en mapas de cualquier tamaño/escala
 
-        // Textura para la lectura
-        paperReadingTex = new Texture2D(2, 2);
-        Color paperColor = new Color(0.92f, 0.88f, 0.72f, 0.98f); // Fondo beige pergamino
-        paperReadingTex.SetPixel(0, 0, paperColor); paperReadingTex.SetPixel(0, 1, paperColor);
-        paperReadingTex.SetPixel(1, 0, paperColor); paperReadingTex.SetPixel(1, 1, paperColor);
-        paperReadingTex.Apply();
+        // Textura para la lectura (pergamino arrugado procedural)
+        paperReadingTex = ProceduralPaperTexture.GetPaperTexture();
 
         // 2. CREAR LUZ DE GUÍA CÁLIDA PULSANTE PARA LA OSCURIDAD
         GameObject lightObj = new GameObject("LoreNote_GlowLight");
@@ -303,7 +300,8 @@ public class LoreNoteItem : MonoBehaviour
         }
 
         // Margen y dibujo de texto
-        GUILayout.BeginArea(new Rect(paperRect.x + 35, paperRect.y + 35, paperRect.width - 70, paperRect.height - 110));
+        // Margen aumentado para evitar que el texto toque el contorno oscuro del pergamino
+        GUILayout.BeginArea(new Rect(paperRect.x + 75, paperRect.y + 55, paperRect.width - 150, paperRect.height - 130));
         
         GUILayout.Label(finalTitle, titleStyle);
         GUILayout.Space(20);

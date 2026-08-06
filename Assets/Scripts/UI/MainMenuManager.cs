@@ -194,6 +194,8 @@ public class MainMenuManager : MonoBehaviour
         cameraController?.Tick();
     }
 
+    private MenuStyles cachedStyles;
+
     void OnGUI()
     {
         // Escalado dinámico 1920x1080
@@ -217,9 +219,12 @@ public class MainMenuManager : MonoBehaviour
             GUI.color = prevColor;
         }
 
-
-        // Estilos compartidos
-        var styles = new MenuStyles();
+        // Estilos compartidos cacheados (crucial para no crear texturas dinámicas cada frame)
+        if (cachedStyles == null)
+        {
+            cachedStyles = new MenuStyles();
+        }
+        var styles = cachedStyles;
 
         // Título
         GUILayout.BeginArea(new Rect(0, 60, 1920f, 150));
@@ -229,7 +234,7 @@ public class MainMenuManager : MonoBehaviour
 
         // Área de contenido
         bool isSettingsCalibrating = (currentState == MenuState.Settings && screenSettings != null && screenSettings.IsCalibrating);
-        int menuW = (currentState == MenuState.LevelSelect) ? 1280 : (isSettingsCalibrating ? 720 : 480);
+        int menuW = (currentState == MenuState.LevelSelect) ? 1280 : (currentState == MenuState.PlayOptions ? 1100 : (isSettingsCalibrating ? 720 : 480));
         int menuH = (currentState == MenuState.LevelSelect) ? 640  : (isSettingsCalibrating ? 620 : 580);
         float menuY = (currentState == MenuState.LevelSelect) ? (1080f / 2f - 240f) : (isSettingsCalibrating ? (1080f / 2f - 230f) : (1080f / 2f - 200f));
         GUILayout.BeginArea(new Rect(1920f / 2f - menuW / 2f, menuY, menuW, menuH));

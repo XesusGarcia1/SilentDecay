@@ -19,6 +19,7 @@ public class PlayerHealth : MonoBehaviour
     private float screamerTimer = 0f;
     private float screamerDuration = 1.8f;
     private AudioClip screamerSound;
+    private AudioClip secondaryScreamerSound;
     private Transform monsterTransform;
     private Vector3 originalCamPos;
     private Vector3 originalPlayerPos;
@@ -105,6 +106,9 @@ public class PlayerHealth : MonoBehaviour
             // Hospital (SampleScene)
             screamerSound = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/Monstruo_Alerta");
         }
+
+        // Cargar clip secundario de Jumpscare (agregado por el usuario)
+        secondaryScreamerSound = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/jumpscareStingNormal");
     }
 
     private void CreateProceduralVignette()
@@ -328,16 +332,35 @@ public class PlayerHealth : MonoBehaviour
 
 
         // Reproducir grito aterrador en 2D al volumen máximo (independiente de la atenuación)
-        if (screamerSound != null)
+        if (screamerSound != null || secondaryScreamerSound != null)
         {
             GameObject screamObj = new GameObject("ScreamTempAudio");
-            AudioSource source = screamObj.AddComponent<AudioSource>();
-            source.clip = screamerSound;
-            source.volume = 1.0f;
-            source.spatialBlend = 0f; // Estéreo directo 2D
-            source.ignoreListenerVolume = true;
-            source.Play();
-            Destroy(screamObj, screamerSound.length + 0.1f);
+            
+            if (screamerSound != null)
+            {
+                AudioSource source1 = screamObj.AddComponent<AudioSource>();
+                source1.clip = screamerSound;
+                source1.volume = 1.0f;
+                source1.spatialBlend = 0f;
+                source1.ignoreListenerVolume = true;
+                source1.Play();
+            }
+
+            if (secondaryScreamerSound != null)
+            {
+                AudioSource source2 = screamObj.AddComponent<AudioSource>();
+                source2.clip = secondaryScreamerSound;
+                source2.volume = 1.0f;
+                source2.spatialBlend = 0f;
+                source2.ignoreListenerVolume = true;
+                source2.Play();
+            }
+
+            float duration = Mathf.Max(
+                screamerSound != null ? screamerSound.length : 0f, 
+                secondaryScreamerSound != null ? secondaryScreamerSound.length : 0f
+            );
+            Destroy(screamObj, duration + 0.1f);
         }
 
         // Desactivar cualquier Canvas en escena (HUD, controles móviles, etc.) para una inmersión limpia
@@ -666,8 +689,18 @@ public class PlayerHealth : MonoBehaviour
 
             if (monsterObj != null)
             {
-                // Simplificación absoluta: Reactivar el GameObject del monstruo exactamente como BookHead
+                // REACTIVAR AL MONSTRUO Y AL AGENTE ANTES DE MOVERLO
+                // Si el agent o el objeto están inactivos, "Warp" o "SetDestination" tiran error
                 monsterObj.SetActive(true);
+                var agentTemp2 = monsterObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
+                if (agentTemp2 != null) agentTemp2.enabled = true;
+
+                // Mover al monstruo lejos ahora que está activo
+                var enemyAI = monsterObj.GetComponent<EnemyAIController>();
+                if (enemyAI != null) enemyAI.ForceRelocateFarAway(transform.position);
+
+                var crawlerAI = monsterObj.GetComponent<CrawlerAI>();
+                if (crawlerAI != null) crawlerAI.ForceRelocateFarAway(transform.position);
 
                 // Forzar rebind de animación para evitar que se congele en la pose de ataque anterior
                 Animator monsterAnimator = monsterObj.GetComponentInChildren<Animator>();

@@ -3,6 +3,43 @@ using UnityEngine.AI;
 
 public class EnemyAIController : MonoBehaviour
 {
+    public Transform GetTransform()
+    {
+        return transform;
+    }
+
+    /// <summary>
+    /// Forzar al enemigo a una posición lejana y segura durante el respawn del jugador,
+    /// para evitar que campee en el punto de muerte.
+    /// </summary>
+    public void ForceRelocateFarAway(Vector3 safePlayerPos)
+    {
+        if (agent == null) return;
+        
+        // Calculamos un punto a 50 unidades de distancia detrás del jugador, 
+        // o si no es posible, cualquier punto válido lejano en el NavMesh.
+        Vector3 farPos = safePlayerPos - (Vector3.forward * 40f);
+        
+        UnityEngine.AI.NavMeshHit hit;
+        if (UnityEngine.AI.NavMesh.SamplePosition(farPos, out hit, 60f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            agent.Warp(hit.position);
+            Debug.Log("[EnemyAIController] Relocalizado lejos del jugador en el respawn a: " + hit.position);
+        }
+        else
+        {
+            // Fallback si no encuentra posición en esa dirección
+            if (UnityEngine.AI.NavMesh.SamplePosition(transform.position, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                agent.Warp(hit.position);
+            }
+        }
+        
+        // Resetear estado a patrulla o idle
+        agent.ResetPath();
+        ChangeState(new EnemyPatrolState(this, agent, anim, (patrolPoints != null && patrolPoints.Length > 0) ? patrolPoints : new Transform[0]));
+    }
+
     public Transform player;
     public float attackRange = 2f;
     public float detectionRange = 5.0f;
