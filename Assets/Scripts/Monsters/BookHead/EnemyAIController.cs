@@ -45,10 +45,9 @@ public class EnemyAIController : MonoBehaviour
     private float originalDetectionRange;
     private float originalSilentRepositionTime;
 
-    // Variables para mantener persecucin despus de perder visin
-    // Variable removida por no usarse
-    // Variable removida por no usarse // Tiempo en segundos para seguir buscando en ltima posicin
-    // Variable removida por no usarse
+    // --- SISTEMA DE COOLDOWN Y DETECCIÓN DE SIGILO ---
+    private float accumulatedRunTime = 0f;
+    private float noiseAlertCooldownTimer = 0f;
     private Vector3 lastKnownPlayerPosition;
 
     void Start()
@@ -249,6 +248,8 @@ public class EnemyAIController : MonoBehaviour
 
     void Update()
     {
+        if (Time.timeScale <= 0f) return;
+
         currentState?.UpdateState();
         HandleStateTransitions();
         HandleFootsteps();
@@ -346,16 +347,38 @@ public class EnemyAIController : MonoBehaviour
             Debug.LogWarning("EnemyAIController: ¡Corrección de Emergencia! Monstruo bajado inmediatamente del techo al suelo.");
         }
 
-        // Ajustar radio de escucha (ruido de pisadas) segun si el jugador esta corriendo
+        // Actualizar el cooldown del temporizador de alerta por ruido
+        if (noiseAlertCooldownTimer > 0f)
+        {
+            noiseAlertCooldownTimer -= Time.deltaTime;
+        }
+
+        // Acumular tiempo de carrera continua para evitar alertas por micro-toques de Shift
+        if (playerSprintDetector != null && playerSprintDetector.IsRunning)
+        {
+            accumulatedRunTime += Time.deltaTime;
+        }
+        else
+        {
+            accumulatedRunTime = 0f; // Reiniciar si camina o se detiene
+        }
+
+        // Ajustar radio de escucha (ruido de pisadas) segun si el jugador esta corriendo y no estamos en cooldown
         if (fov != null)
         {
-            if (playerSprintDetector != null && playerSprintDetector.IsRunning)
+            // Solo escuchar si el jugador corre continuamente durante > 0.5 segundos Y no hay cooldown activo
+            if (accumulatedRunTime >= 0.5f && noiseAlertCooldownTimer <= 0f)
             {
-                // Rango aumentado drásticamente (50m base / 65m boosted) para que el monstruo escuche correr desde lejos
+                // Rango aumentado drásticamente (50m base / 65m boosted) para que el monstruo escuche correr
                 fov.hearingRadius = difficultyBoostApplied ? 65f : 50f;
+                
+                // Activar el cooldown de 10 segundos para que no cambie de foco o sea "trolleado" infinitamente
+                noiseAlertCooldownTimer = 10f;
+                Debug.Log("[BookHead] Escuchó ruido de carrera. Alerta activada. Cooldown de audición de 10 segundos iniciado.");
             }
-            else
+            else if (accumulatedRunTime < 0.5f)
             {
+                // Si el jugador no corre continuamente, el oído vuelve a su rango normal de pisadas cortas
                 fov.hearingRadius = difficultyBoostApplied ? 6f : 4f;
             }
         }

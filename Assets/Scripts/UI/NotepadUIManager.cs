@@ -13,18 +13,29 @@ public class NotepadUIManager : MonoBehaviour
     [Tooltip("Mostrar punto verde 'TÚ' del jugador en el mapa (desactivado por requerimiento)")]
     public bool showPlayerPositionOnMap = false;
 
-    private int activeTab = 0; // 0 = Notas, 1 = Mapa del Hospital
+    // --- ARCHIVO DE HISTORIA ---
+    public struct LoreNoteData
+    {
+        public int id;
+        public string title;
+        public string body;
+    }
+    public static Dictionary<int, LoreNoteData> collectedLoreNotes = new Dictionary<int, LoreNoteData>();
+    private int selectedLoreNoteId = -1;
+
+    private int activeTab = 0; // 0 = Notas, 1 = Mapa, 2 = Archivo Lore
     private Transform playerTransform;
     private static HashSet<Vector2Int> discoveredRooms = new HashSet<Vector2Int>();
 
     public static void ResetNotepadData()
     {
         discoveredRooms.Clear();
+        collectedLoreNotes.Clear();
         for (int i = 0; i < foundNotes.Length; i++)
         {
             foundNotes[i] = -1;
         }
-        Debug.Log("NotepadUIManager: Datos de libreta y mapa reseteados.");
+        Debug.Log("NotepadUIManager: Datos de libreta, notas de lore y mapa reseteados.");
     }
 
     void Awake()
@@ -170,6 +181,16 @@ public class NotepadUIManager : MonoBehaviour
         MobileInput.SetCursorState(true);
     }
 
+    public static void RegisterLoreNote(int id, string title, string body)
+    {
+        if (!collectedLoreNotes.ContainsKey(id))
+        {
+            LoreNoteData data = new LoreNoteData { id = id, title = title, body = body };
+            collectedLoreNotes.Add(id, data);
+            Debug.Log($"NotepadUIManager: Documento de lore registrado #{id}: '{title}'");
+        }
+    }
+
     public static void RegisterNote(int pos, int val)
     {
         if (pos >= 1 && pos <= 7)
@@ -272,66 +293,94 @@ public class NotepadUIManager : MonoBehaviour
         GUI.color = new Color(0.96f, 0.94f, 0.82f, 0.98f);
         GUI.DrawTexture(padRect, Texture2D.whiteTexture);
         GUI.color = Color.white;
+        
+        // PESTAÑAS SUPERIORES (Redistribuido a 3 pestañas para incluir el archivo de Lore)
+        float tabW = 115f;
+        float tabH = 34f;
+        float startTabX = padRect.x + 18f;
+        float spacingTab = 10f;
 
-        // PESTAÑAS SUPERIORES
-        Rect tab1Rect = new Rect(padRect.x + 15, padRect.y + 12, 180, 34);
-        Rect tab2Rect = new Rect(padRect.x + 205, padRect.y + 12, 180, 34);
+        Rect tab1Rect = new Rect(startTabX, padRect.y + 12, tabW, tabH);
+        Rect tab2Rect = new Rect(startTabX + tabW + spacingTab, padRect.y + 12, tabW, tabH);
+        Rect tab3Rect = new Rect(startTabX + (tabW + spacingTab) * 2, padRect.y + 12, tabW, tabH);
 
         // Buscar generadores en la escena (Hospital o Túneles)
         var hospitalGen = FindFirstObjectByType<ModularHospital.ModularHospitalGenerator>();
         var tunnelsGen = FindFirstObjectByType<TunnelsGenerator>();
 
         GUIStyle activeTabStyle = new GUIStyle();
-        activeTabStyle.fontSize = 14;
+        activeTabStyle.fontSize = 12;
         activeTabStyle.fontStyle = FontStyle.Bold;
         activeTabStyle.alignment = TextAnchor.MiddleCenter;
         activeTabStyle.normal.textColor = Color.white;
 
         GUIStyle inactiveTabStyle = new GUIStyle();
-        inactiveTabStyle.fontSize = 13;
+        inactiveTabStyle.fontSize = 11;
         inactiveTabStyle.fontStyle = FontStyle.Normal;
         inactiveTabStyle.alignment = TextAnchor.MiddleCenter;
         inactiveTabStyle.normal.textColor = new Color(0.2f, 0.2f, 0.2f);
 
-        // Pestaña 1: NOTAS
+        // Pestaña 1: NOTAS DE CLAVE
         bool isTunnelsMode = tunnelsGen != null && tunnelsGen.grid != null;
 
         GUI.color = isTunnelsMode ? new Color(0.6f, 0.6f, 0.6f, 0.6f) : ((activeTab == 0) ? new Color(0.12f, 0.35f, 0.25f, 0.95f) : new Color(0.85f, 0.82f, 0.70f, 0.9f));
         GUI.DrawTexture(tab1Rect, Texture2D.whiteTexture);
         GUI.color = Color.white;
         
-        string tab1Title = isTunnelsMode ? "<s>📝 NOTAS (N/A)</s>" : "📝 NOTAS (CLAVE)";
-        if (GUI.Button(tab1Rect, tab1Title, activeTab == 0 ? activeTabStyle : inactiveTabStyle))
+        string tab1Title = "";
+        if (LocalizationManager.Instance != null)
         {
-            activeTab = 0;
+            string rawCodeTab = LocalizationManager.Instance.Get("notepad_tab_code");
+            tab1Title = isTunnelsMode ? $"<s>{rawCodeTab} (N/A)</s>" : rawCodeTab;
+        }
+        else
+        {
+            tab1Title = isTunnelsMode ? "<s>📝 CLAVE (N/A)</s>" : "📝 CLAVE";
         }
 
-        // Si estamos en túneles y el usuario entra por defecto a notas, cambiar automáticamente a mapa
-        if (isTunnelsMode && activeTab == 0)
+        if (GUI.Button(tab1Rect, tab1Title, activeTab == 0 ? activeTabStyle : inactiveTabStyle))
         {
-            // O si hace clic en la pestaña, mostramos la versión rayada de la nota
+            if (!isTunnelsMode) activeTab = 0;
         }
 
         // Pestaña 2: PLANO DEL MAPA
         GUI.color = (activeTab == 1) ? new Color(0.12f, 0.35f, 0.25f, 0.95f) : new Color(0.85f, 0.82f, 0.70f, 0.9f);
         GUI.DrawTexture(tab2Rect, Texture2D.whiteTexture);
         GUI.color = Color.white;
-        if (GUI.Button(tab2Rect, "🗺️ PLANO DEL MAPA", activeTab == 1 ? activeTabStyle : inactiveTabStyle))
+        
+        string tab2Title = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_tab_map") : "🗺️ MAPA";
+        if (GUI.Button(tab2Rect, tab2Title, activeTab == 1 ? activeTabStyle : inactiveTabStyle))
         {
             activeTab = 1;
+        }
+
+        // Pestaña 3: ARCHIVOS DE LORE (Coleccionables de historia)
+        GUI.color = (activeTab == 2) ? new Color(0.12f, 0.35f, 0.25f, 0.95f) : new Color(0.85f, 0.82f, 0.70f, 0.9f);
+        GUI.DrawTexture(tab3Rect, Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        string tab3Title = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_tab_lore") : "📜 LORE";
+        if (GUI.Button(tab3Rect, tab3Title, activeTab == 2 ? activeTabStyle : inactiveTabStyle))
+        {
+            activeTab = 2;
         }
 
         if (activeTab == 0)
         {
             RenderNotesTab(padRect, isTunnelsMode);
         }
-        else
+        else if (activeTab == 1)
         {
             RenderMapTab(padRect, hospitalGen, tunnelsGen);
         }
+        else if (activeTab == 2)
+        {
+            RenderLoreTab(padRect);
+        }
 
         // BOTÓN CERRAR
-        if (GUI.Button(new Rect(padRect.x + (padRect.width - 120) / 2.0f, padRect.y + padRect.height - 45, 120, 30), "Cerrar"))
+        string closeText = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_close") : "Cerrar";
+        if (GUI.Button(new Rect(padRect.x + (padRect.width - 120) / 2.0f, padRect.y + padRect.height - 45, 120, 30), closeText))
         {
             CloseNotepad();
         }
@@ -343,7 +392,8 @@ public class NotepadUIManager : MonoBehaviour
         subStyle.fontSize = 14;
         subStyle.alignment = TextAnchor.MiddleCenter;
         subStyle.normal.textColor = Color.gray;
-        GUI.Label(new Rect(padRect.x, padRect.y + 55, padRect.width, 30), "Codigo de la Oficina del Director:", subStyle);
+        string codeTitle = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_director_code") : "Codigo de la Oficina del Director:";
+        GUI.Label(new Rect(padRect.x, padRect.y + 55, padRect.width, 30), codeTitle, subStyle);
 
         float startX = padRect.x + 22f;
         float startY = padRect.y + 90f;
@@ -381,34 +431,64 @@ public class NotepadUIManager : MonoBehaviour
         string hintText = "";
         if (isTunnelsMode)
         {
-            hintText = "Pistas del Hospital:\n\n" +
-                       "(Esta sección correspondía al Hospital. En los túneles no se requieren notas clave para avanzar).\n\n" +
-                       "⚠️ Tu objetivo actual en el sector de túneles es localizar la consola de drenaje, accionar la palanca de bombeo y evacuar por la escotilla principal.";
+            hintText = LocalizationManager.Instance != null 
+                ? LocalizationManager.Instance.Get("notepad_hint_tunnels") 
+                : "Pistas del Hospital:\n\n(Esta sección correspondía al Hospital. En los túneles no se requieren notas clave para avanzar).\n\n⚠️ Tu objetivo actual en el sector de túneles es localizar la consola de drenaje, accionar la palanca de bombeo y evacuar por la escotilla principal.";
         }
         else
         {
-            hintText = "Pistas encontradas en el laberinto:\n\n";
-            int notesCount = 0;
-            for (int i = 0; i < 7; i++)
+            if (LocalizationManager.Instance != null)
             {
-                if (foundNotes[i] != -1)
+                hintText = LocalizationManager.Instance.Get("notepad_hint_header");
+                int notesCount = 0;
+                for (int i = 0; i < 7; i++)
                 {
-                    notesCount++;
-                    hintText += $"• Digito {i + 1} del codigo: {foundNotes[i]}\n";
+                    if (foundNotes[i] != -1)
+                    {
+                        notesCount++;
+                        // Formatear el dígito ej: "• Dígito 1 del código: X"
+                        hintText += string.Format(LocalizationManager.Instance.Get("notepad_hint_digit"), i + 1, foundNotes[i]);
+                    }
                 }
-            }
 
-            if (notesCount == 0)
-            {
-                hintText += "(Aun no has encontrado ninguna nota. Busca papeles blancos con numeros en las consultas y oficinas del hospital).";
-            }
-            else if (notesCount == 7)
-            {
-                hintText += "¡Codigo completo descubierto! Ve a la puerta de la Oficina del Director e ingresa los 7 numeros.";
+                if (notesCount == 0)
+                {
+                    hintText += LocalizationManager.Instance.Get("notepad_hint_none");
+                }
+                else if (notesCount == 7)
+                {
+                    hintText += LocalizationManager.Instance.Get("notepad_hint_complete");
+                }
+                else
+                {
+                    hintText += string.Format(LocalizationManager.Instance.Get("notepad_hint_progress"), notesCount);
+                }
             }
             else
             {
-                hintText += $"\n({notesCount} de 7 notas encontradas. Sigue explorando para rellenar los casilleros vacios).";
+                hintText = "Pistas encontradas en el laberinto:\n\n";
+                int notesCount = 0;
+                for (int i = 0; i < 7; i++)
+                {
+                    if (foundNotes[i] != -1)
+                    {
+                        notesCount++;
+                        hintText += $"• Digito {i + 1} del codigo: {foundNotes[i]}\n";
+                    }
+                }
+
+                if (notesCount == 0)
+                {
+                    hintText += "(Aun no has encontrado ninguna nota. Busca papeles blancos con numeros en las consultas y oficinas del hospital).";
+                }
+                else if (notesCount == 7)
+                {
+                    hintText += "¡Codigo completo descubierto! Ve a la puerta de la Oficina del Director e ingresa los 7 numeros.";
+                }
+                else
+                {
+                    hintText += $"\n({notesCount} de 7 notas encontradas. Sigue explorando para rellenar los casilleros vacios).";
+                }
             }
         }
 
@@ -447,7 +527,15 @@ public class NotepadUIManager : MonoBehaviour
         mapTitleStyle.alignment = TextAnchor.MiddleCenter;
         mapTitleStyle.normal.textColor = new Color(0.15f, 0.15f, 0.15f);
 
-        string mapTitle = isTunnels ? "PLANO DE LOS TÚNELES" : "MAPA DEL HOSPITAL";
+        string mapTitle = "MAPA DEL HOSPITAL";
+        if (LocalizationManager.Instance != null)
+        {
+            mapTitle = LocalizationManager.Instance.Get(isTunnels ? "notepad_tunnels_map" : "notepad_hospital_map");
+        }
+        else
+        {
+            mapTitle = isTunnels ? "PLANO DE LOS TÚNELES" : "MAPA DEL HOSPITAL";
+        }
         GUI.Label(new Rect(padRect.x, padRect.y + 54, padRect.width - 45, 22), mapTitle, mapTitleStyle);
 
         if (isTunnels)
@@ -950,6 +1038,93 @@ public class NotepadUIManager : MonoBehaviour
             pTagStyle.normal.textColor = Color.white;
             GUI.Label(pRect, "TÚ", pTagStyle);
             GUI.color = Color.white;
+        }
+    }
+
+    private void RenderLoreTab(Rect padRect)
+    {
+        GUIStyle titleStyle = new GUIStyle();
+        titleStyle.fontSize = 13; // Ajustado ligeramente para caber mejor en la libreta
+        titleStyle.fontStyle = FontStyle.Bold;
+        titleStyle.normal.textColor = new Color(0.12f, 0.12f, 0.12f);
+        titleStyle.alignment = TextAnchor.UpperCenter;
+        titleStyle.wordWrap = true; // Evitar textos cortados/mochados en títulos largos
+        titleStyle.richText = true;
+
+        GUIStyle bodyStyle = new GUIStyle();
+        bodyStyle.fontSize = 11;
+        bodyStyle.wordWrap = true;
+        bodyStyle.normal.textColor = new Color(0.2f, 0.2f, 0.2f);
+        bodyStyle.alignment = TextAnchor.UpperLeft;
+        bodyStyle.richText = true; // Soporte completo para negrita, cursiva, etc.
+
+        GUIStyle listStyle = new GUIStyle(GUI.skin.button);
+        listStyle.fontSize = 11;
+        listStyle.alignment = TextAnchor.MiddleLeft;
+
+        if (collectedLoreNotes.Count == 0)
+        {
+            GUIStyle emptyStyle = new GUIStyle(bodyStyle);
+            emptyStyle.alignment = TextAnchor.MiddleCenter;
+            emptyStyle.fontSize = 13;
+            string noLoreMsg = LocalizationManager.Instance != null 
+                ? LocalizationManager.Instance.Get("notepad_no_lore") 
+                : "No has recopilado ningún informe ni documento de historia todavía.\n\nBusca papeles envejecidos y quemados en las mesas y consultas del hospital.";
+            GUI.Label(new Rect(padRect.x + 25, padRect.y + 120, padRect.width - 50, 150), noLoreMsg, emptyStyle);
+            return;
+        }
+
+        // Diseño en 2 columnas: Lista de notas a la izquierda, contenido a la derecha
+        float listW = 120f;
+        float viewW = 230f;
+        float height = 310f;
+
+        float listX = padRect.x + 15f;
+        float viewX = listX + listW + 15f;
+        float startY = padRect.y + 55f;
+
+        // --- COLUMNA 1: LISTADO DE NOTAS DE LORE ---
+        GUILayout.BeginArea(new Rect(listX, startY, listW, height));
+        string recordsTitle = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_lore_records") : "REGISTROS:";
+        GUILayout.Label(recordsTitle, titleStyle);
+        GUILayout.Space(5);
+
+        int firstKey = -1;
+        foreach (var pair in collectedLoreNotes)
+        {
+            if (firstKey == -1) firstKey = pair.Key;
+
+            bool isSelected = selectedLoreNoteId == pair.Key;
+            GUI.color = isSelected ? new Color(0.12f, 0.35f, 0.25f, 0.95f) : Color.white;
+            if (GUILayout.Button(pair.Value.title, listStyle, GUILayout.Height(35)))
+            {
+                selectedLoreNoteId = pair.Key;
+            }
+            GUI.color = Color.white;
+            GUILayout.Space(5);
+        }
+        GUILayout.EndArea();
+
+        if (selectedLoreNoteId == -1 && firstKey != -1)
+        {
+            selectedLoreNoteId = firstKey;
+        }
+
+        // --- COLUMNA 2: VISOR DE TEXTO SELECCIONADO ---
+        if (selectedLoreNoteId != -1 && collectedLoreNotes.ContainsKey(selectedLoreNoteId))
+        {
+            LoreNoteData selectedData = collectedLoreNotes[selectedLoreNoteId];
+            GUILayout.BeginArea(new Rect(viewX, startY, viewW, height));
+            
+            // Título
+            titleStyle.alignment = TextAnchor.MiddleLeft;
+            GUILayout.Label(selectedData.title.ToUpper(), titleStyle);
+            GUILayout.Space(8);
+
+            // Contenido en un scrollview simulado
+            GUILayout.Label(selectedData.body, bodyStyle);
+
+            GUILayout.EndArea();
         }
     }
 }

@@ -489,6 +489,8 @@ public partial class TunnelsGenerator : MonoBehaviour
 					if (pumpAudioSource != null && audioClip2 != null)
 					{
 						pumpAudioSource.clip = audioClip2;
+						pumpAudioSource.loop = false; // Sonar SOLO UNA VEZ
+						pumpAudioSource.volume = 0.35f; // Volumen moderado no molesto
 						pumpAudioSource.Play();
 					}
 					UnityEngine.Debug.Log("[TunnelsGenerator] Bomba de drenaje iniciada. Alarma sonando y caza infinita activada.");
@@ -572,6 +574,10 @@ public partial class TunnelsGenerator : MonoBehaviour
 					hatchRenderer.material.DisableKeyword("_EMISSION");
 					hatchRenderer.material.SetColor("_EmissionColor", Color.black);
 				}
+				if (pumpAudioSource != null && pumpAudioSource.isPlaying)
+				{
+					StartCoroutine(FadeOutPumpAudio(2.0f));
+				}
 				UnityEngine.Debug.Log("[TunnelsGenerator] Drenaje completado. Escotilla abierta.");
 			}
 		}
@@ -650,14 +656,17 @@ public partial class TunnelsGenerator : MonoBehaviour
 				fadeBlackTex = MakeTex(2, 2, Color.black);
 			}
 
-			// Fondo negro completo
+			// Asegurar que la luz ambiental e iluminación estén apagadas al 100% durante el fade final
+			RenderSettings.ambientLight = Color.black;
+			RenderSettings.ambientIntensity = 0f;
+
+			// Fondo negro completo puro (GUI.color = blanco para que la textura negra no se tiña de rojo)
 			GUI.color = new Color(1f, 1f, 1f, victoryFadeAlpha);
 			GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), fadeBlackTex);
-			GUI.color = Color.white;
+			GUI.color = new Color(1f, 1f, 1f, victoryStepAlpha);
 
 			if (victoryStep > 0 && victoryStepAlpha > 0f)
 			{
-				GUI.color = new Color(1f, 1f, 1f, victoryStepAlpha);
 
 				// Obtener idioma actual
 				LocalizationManager.Idioma lang = LocalizationManager.Idioma.ESPAÑOL;
@@ -987,6 +996,21 @@ public partial class TunnelsGenerator : MonoBehaviour
 				GUI.Label(new Rect(0f, num26 + num24 + 8f, Screen.width, 30f), "MANTÉN PRESIONADO 'E' PARA ESCAPAR POR LA ESCOTILLA", gUIStyle4);
 			}
 		}
+	}
+
+	private IEnumerator FadeOutPumpAudio(float duration)
+	{
+		if (pumpAudioSource == null) yield break;
+		float startVol = pumpAudioSource.volume;
+		float timer = 0f;
+		while (timer < duration)
+		{
+			timer += Time.deltaTime;
+			pumpAudioSource.volume = Mathf.Lerp(startVol, 0f, timer / duration);
+			yield return null;
+		}
+		pumpAudioSource.Stop();
+		pumpAudioSource.volume = startVol;
 	}
 
 	private Texture2D MakeTex(int width, int height, Color col)

@@ -10,6 +10,12 @@ public class MenuScreenSettings : MonoBehaviour
     private int activeTab = 0; // 0 = Audio & Controles, 1 = Gráficos
     private int selectedQualityIndex = 2;
 
+    // --- VARIABLES DE CALIBRACIÓN DE BRILLO ---
+    private bool isCalibratingGamma = false;
+    private float tempGamma = 1.0f;
+
+    public bool IsCalibrating => isCalibratingGamma;
+
 #if !UNITY_ANDROID && !UNITY_IOS
     private List<Resolution> pcResolutions = new List<Resolution>();
     private int selectedResIndex = 0;
@@ -35,6 +41,12 @@ public class MenuScreenSettings : MonoBehaviour
 
     public void Draw(MenuStyles s)
     {
+        if (isCalibratingGamma)
+        {
+            DrawGammaCalibrationScreen(s);
+            return;
+        }
+
         // ─── Título ───────────────────────────────────────────────────────────
         string title = GetLocalized("CONFIGURACIÓN DE HARDWARE", "HARDWARE SETTINGS", "CONFIGURAÇÃO DE HARDWARE");
         GUILayout.Label(title, s.SectionHeader, GUILayout.Height(30));
@@ -172,6 +184,23 @@ public class MenuScreenSettings : MonoBehaviour
 #else
         DrawResolutionSelector(s);
 #endif
+
+        GUILayout.Space(25);
+
+        // ─── Brillo / Gamma (Calibración dedicada) ───────────────────────────
+        float curGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
+        string calibTitle = GetLocalized("AJUSTAR BRILLO / GAMMA...", "ADJUST BRIGHTNESS / GAMMA...", "AJUSTAR BRILHO / GAMMA...");
+        
+        GUIStyle calibBtnStyle = new GUIStyle(s.Button);
+        calibBtnStyle.normal.textColor = Color.white;
+        calibBtnStyle.hover.textColor = Color.red;
+
+        if (GUILayout.Button($"🔧 {calibTitle} (Actual: {curGamma:F1}x)", calibBtnStyle, GUILayout.Height(50)))
+        {
+            ctx.PlayClickSound();
+            tempGamma = curGamma; // Guardar valor inicial por si cancela
+            isCalibratingGamma = true;
+        }
     }
 
 #if !UNITY_ANDROID && !UNITY_IOS
@@ -235,4 +264,127 @@ public class MenuScreenSettings : MonoBehaviour
 
     static string Loc(string key, string fallback)
         => LocalizationManager.Instance != null ? LocalizationManager.Instance.Get(key) : fallback;
+
+    // ─── PANTALLA GIGANTE DE CALIBRACIÓN DE BRILLO / GAMMA ────────────────────
+    private void DrawGammaCalibrationScreen(MenuStyles s)
+    {
+        // 1. Título e Instrucciones
+        string title = GetLocalized("CALIBRACIÓN DE BRILLO / GAMMA", "BRIGHTNESS / GAMMA CALIBRATION", "CALIBRAÇÃO DE BRILHO / GAMMA");
+        GUILayout.Label(title, s.SectionHeader, GUILayout.Height(30));
+        GUILayout.Space(15);
+
+        string instructions = GetLocalized(
+            "Ajusta el brillo hasta que el icono del engranaje de la derecha sea apenas visible sobre el fondo oscuro.",
+            "Adjust the slider until the gear icon on the right is barely visible against the dark background.",
+            "Ajuste o controle até que o ícone da engrenagem à direita seja quase invisível sobre o fundo escuro."
+        );
+
+        GUIStyle instStyle = new GUIStyle(s.Label);
+        instStyle.fontSize = 15;
+        instStyle.fontStyle = FontStyle.Normal;
+        instStyle.wordWrap = true;
+        instStyle.alignment = TextAnchor.MiddleCenter;
+        instStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
+
+        GUILayout.Label(instructions, instStyle, GUILayout.Width(700));
+        GUILayout.Space(20);
+
+        // 2. Panel central: Controles del slider a la izquierda, y caja visual de calibración a la derecha
+        GUILayout.BeginHorizontal(GUILayout.Width(700));
+
+        // --- SUBPANEL IZQUIERDO: SLIDER GIGANTE Y BOTONES FINOS (Ancho Fijo 400) ---
+        GUILayout.BeginVertical(GUILayout.Width(400));
+        GUILayout.Space(25);
+
+        string labelVal = GetLocalized("Brillo del Juego", "Game Brightness", "Brilho do Jogo");
+        GUILayout.Label($"{labelVal}: {tempGamma:F2}x", s.Label);
+        GUILayout.Space(5);
+
+        // Slider Horizontal Principal
+        float newGamma = GUILayout.HorizontalSlider(tempGamma, 0.5f, 2.0f, GUILayout.Height(30), GUILayout.Width(380));
+        if (Mathf.Abs(newGamma - tempGamma) > 0.005f)
+        {
+            tempGamma = newGamma;
+            GammaManager.AplicarGamma(tempGamma); // Aplicar cambios a la pantalla de Unity al instante
+        }
+        GUILayout.Space(10);
+
+        // Botones de ajuste fino [-] y [+]
+        GUILayout.BeginHorizontal(GUILayout.Width(380));
+        if (GUILayout.Button(" - 0.1 ", GUILayout.Width(100), GUILayout.Height(40)))
+        {
+            ctx.PlayClickSound();
+            tempGamma = Mathf.Clamp(tempGamma - 0.1f, 0.5f, 2.0f);
+            GammaManager.AplicarGamma(tempGamma);
+        }
+        GUILayout.FlexibleSpace();
+        if (GUILayout.Button(" + 0.1 ", GUILayout.Width(100), GUILayout.Height(40)))
+        {
+            ctx.PlayClickSound();
+            tempGamma = Mathf.Clamp(tempGamma + 0.1f, 0.5f, 2.0f);
+            GammaManager.AplicarGamma(tempGamma);
+        }
+        GUILayout.EndHorizontal();
+
+        GUILayout.EndVertical();
+
+        GUILayout.Space(25);
+
+        // --- SUBPANEL DERECHO: CAJA DE PRUEBA DE CONTRASTE (Ancho Fijo 220) ---
+        GUIStyle darkBoxStyle = new GUIStyle(GUI.skin.box);
+        darkBoxStyle.normal.background = Texture2D.whiteTexture; // Textura plana
+        
+        // El color del engranaje cambiará drásticamente en contraste según tempGamma
+        // Multiplicador agresivo para que el jugador note el contraste del icono de calibración de inmediato
+        float colorFactor = Mathf.Clamp01((tempGamma - 0.5f) / 1.5f); // 0 a 1
+        float iconColorValue = Mathf.Lerp(0.02f, 0.40f, colorFactor); // De casi negro a gris medio visible
+        Color dynamicGearColor = new Color(iconColorValue, iconColorValue, iconColorValue, 1f);
+
+        GUIStyle gearIconStyle = new GUIStyle(s.Label);
+        gearIconStyle.fontSize = 110; // Icono gigante
+        gearIconStyle.alignment = TextAnchor.MiddleCenter;
+        gearIconStyle.normal.textColor = dynamicGearColor;
+
+        // Dibujar el recuadro negro-gris de calibración
+        Color prevColor = GUI.backgroundColor;
+        GUI.backgroundColor = new Color(0.015f, 0.015f, 0.015f, 1f); // Fondo extremadamente oscuro
+        GUILayout.BeginVertical(darkBoxStyle, GUILayout.Width(220), GUILayout.Height(220));
+        GUI.backgroundColor = prevColor;
+
+        GUILayout.FlexibleSpace();
+        GUILayout.Label("⚙", gearIconStyle);
+        GUILayout.FlexibleSpace();
+
+        GUILayout.EndVertical();
+
+        GUILayout.EndHorizontal();
+
+        GUILayout.Space(35);
+
+        // 3. Botones inferiores de Guardar y Cancelar (Ancho total 700)
+        GUILayout.BeginHorizontal(GUILayout.Width(700));
+
+        string btnConfirm = GetLocalized("  CONFIRMAR Y GUARDAR", "  CONFIRM & SAVE", "  CONFIRMAR E SALVAR");
+        if (GUILayout.Button(btnConfirm, s.Button, GUILayout.Width(340), GUILayout.Height(55)))
+        {
+            ctx.PlayClickSound();
+            PlayerPrefs.SetFloat("GammaLevel", tempGamma);
+            PlayerPrefs.Save();
+            GammaManager.AplicarGamma(tempGamma);
+            isCalibratingGamma = false;
+        }
+
+        GUILayout.Space(20);
+
+        string btnCancel = GetLocalized("  CANCELAR", "  CANCEL", "  CANCELAR");
+        if (GUILayout.Button(btnCancel, s.Button, GUILayout.Width(340), GUILayout.Height(55)))
+        {
+            ctx.PlayClickSound();
+            float originalGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
+            GammaManager.AplicarGamma(originalGamma);
+            isCalibratingGamma = false;
+        }
+
+        GUILayout.EndHorizontal();
+    }
 }

@@ -283,6 +283,8 @@ public class CrawlerAI : MonoBehaviour
 
     void Update()
     {
+        if (Time.timeScale <= 0f) return;
+
         if (playerTransform == null) FindPlayerReferences();
 
         // 0. Si se sale del NavMesh, re-anclar inmediatamente
@@ -737,5 +739,130 @@ public class CrawlerAI : MonoBehaviour
                 spatialAudioSource.PlayOneShot(stepClip, Mathf.Clamp01(1.0f - (dist / 22.0f)));
             }
         }
+    }
+
+    // --- SISTEMA DE GRACIA Y RECOLOCACIÓN POST-RESPAWN ---
+    public void TriggerRespawnGracePeriod(float duration)
+    {
+        // Detener sonidos de persecución y tensión
+        if (chaseAudioSource != null && chaseAudioSource.isPlaying) chaseAudioSource.Stop();
+        if (heartbeatAudioSource != null && heartbeatAudioSource.isPlaying) heartbeatAudioSource.Stop();
+
+        // Recolocar en la esquina más alejada
+        TeleportToFarthestCorner();
+
+        // Iniciar gracia de inmunidad/invisibilidad
+        StartCoroutine(RespawnGraceRoutine(duration));
+    }
+
+    private void TeleportToFarthestCorner()
+    {
+        if (agent == null) agent = GetComponent<NavMeshAgent>();
+
+        // Si no hay waypoints cargados aún, cargarlos manualmente
+        if (perimeterWaypoints.Count == 0)
+        {
+            var modGen = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
+            if (modGen != null && modGen.gridMatrix != null)
+            {
+                int sX = modGen.gridMatrix.GetLength(0);
+                int sZ = modGen.gridMatrix.GetLength(1);
+                float halfW = (sX * 4.0f) / 2.0f;
+                float halfD = (sZ * 4.0f) / 2.0f;
+
+                for (int ring = 1; ring <= 3; ring++)
+                {
+                    for (int x = ring; x < sX - ring; x++)
+                    {
+                        for (int z = ring; z < sZ - ring; z++)
+                        {
+                            if ((x == ring || x == sX - 1 - ring || z == ring || z == sZ - 1 - ring) && modGen.gridMatrix[x, z] == 1)
+                            {
+                                float wX = (x * 4.0f) - halfW + 2.0f;
+                                float wZ = (z * 4.0f) - halfD + 2.0f;
+                                Vector3 worldPos = modGen.transform.position + new Vector3(wX, transform.position.y, wZ);
+
+                                NavMeshHit hit;
+                                if (NavMesh.SamplePosition(worldPos, out hit, 3f, NavMesh.AllAreas))
+                                {
+                                    if (!perimeterWaypoints.Contains(hit.position))
+                                        perimeterWaypoints.Add(hit.position);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Vector3 spawnTarget = transform.position;
+        if (perimeterWaypoints.Count > 0)
+        {
+            Vector3 playerPos = playerTransform != null ? playerTransform.position : transform.position;
+            Vector3 farthest = perimeterWaypoints[0];
+            float maxDist = -1f;
+
+            foreach (Vector3 pt in perimeterWaypoints)
+            {
+                float d = Vector3.Distance(pt, playerPos);
+                if (d > maxDist)
+                {
+                    maxDist = d;
+                    farthest = pt;
+                }
+            }
+            spawnTarget = farthest;
+        }
+
+        // Teletransportación forzada desactivando NavMeshAgent para evitar el bug "Failed to create agent because it is not close enough"
+        if (agent != null) agent.enabled = false;
+        transform.position = spawnTarget;
+        
+        // Tratar de anclar al NavMesh de forma segura
+        NavMeshHit hitSafe;
+        if (NavMesh.SamplePosition(spawnTarget, out hitSafe, 4f, NavMesh.AllAreas))
+        {
+            transform.position = hitSafe.position;
+        }
+
+        if (agent != null)
+        {
+            agent.enabled = true;
+            agent.Warp(transform.position);
+            agent.isStopped = false;
+            agent.speed = walkSpeed;
+        }
+
+        Debug.Log($"[TheCreep] Recolocado con éxito al revivir en la posición perimetral: {transform.position}");
+    }
+
+    private IEnumerator RespawnGraceRoutine(float duration)
+    {
+        // 1. Ocultar renderers para que el Rastrero sea invisible
+        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer r in renderers)
+        {
+            if (r != null && r.gameObject != gameObject) r.enabled = false;
+        }
+
+        // Desactivar temporalmente los sonidos y la cacería de cordura
+        isFleeing = true; // Forzar estado de huida para que no persiga
+
+        // 2. Esperar período de gracia
+        yield return new WaitForSeconds(duration);
+
+        // 3. Reactivar visibilidad y restablecer comportamiento
+        isFleeing = false;
+        foreach (Renderer r in renderers)
+        {
+            if (r != null && r.gameObject != gameObject) r.enabled = true;
+        }
+
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        {
+            SetNextPerimeterDestination();
+        }
+
+        Debug.Log("[TheCreep] Período de gracia post-respawn finalizado. Rastrero de nuevo activo en cacería.");
     }
 }

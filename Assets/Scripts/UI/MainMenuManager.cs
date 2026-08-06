@@ -202,8 +202,21 @@ public class MainMenuManager : MonoBehaviour
         GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity,
             new Vector3(Screen.width / scaleRef.x, Screen.height / scaleRef.y, 1f));
 
-        // Overlay oscuro
+        // Overlay oscuro de la barra lateral
         GUI.DrawTexture(new Rect(0, 0, 1920f, 1080f), sidebarTex);
+
+        // --- FILTRO DE BRILLO / GAMMA UI EN TIEMPO REAL ---
+        float currentGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
+        if (currentGamma < 1.00f)
+        {
+            // Dibujar una capa negra semitransparente para oscurecer el fondo
+            float opacity = Mathf.Lerp(0f, 0.85f, (1.00f - currentGamma) / 0.50f);
+            Color prevColor = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, opacity);
+            GUI.DrawTexture(new Rect(0, 0, 1920f, 1080f), Texture2D.whiteTexture);
+            GUI.color = prevColor;
+        }
+
 
         // Estilos compartidos
         var styles = new MenuStyles();
@@ -215,9 +228,10 @@ public class MainMenuManager : MonoBehaviour
         GUILayout.EndArea();
 
         // Área de contenido
-        int menuW = (currentState == MenuState.LevelSelect) ? 1280 : 480;
-        int menuH = (currentState == MenuState.LevelSelect) ? 640  : 580;
-        float menuY = (currentState == MenuState.LevelSelect) ? (1080f / 2f - 240f) : (1080f / 2f - 200f);
+        bool isSettingsCalibrating = (currentState == MenuState.Settings && screenSettings != null && screenSettings.IsCalibrating);
+        int menuW = (currentState == MenuState.LevelSelect) ? 1280 : (isSettingsCalibrating ? 720 : 480);
+        int menuH = (currentState == MenuState.LevelSelect) ? 640  : (isSettingsCalibrating ? 620 : 580);
+        float menuY = (currentState == MenuState.LevelSelect) ? (1080f / 2f - 240f) : (isSettingsCalibrating ? (1080f / 2f - 230f) : (1080f / 2f - 200f));
         GUILayout.BeginArea(new Rect(1920f / 2f - menuW / 2f, menuY, menuW, menuH));
         GUILayout.Space(10);
 
@@ -231,8 +245,8 @@ public class MainMenuManager : MonoBehaviour
 
         GUILayout.EndArea();
 
-        // Redes sociales (en todas las pantallas excepto LevelSelect)
-        if (currentState != MenuState.LevelSelect)
+        // Redes sociales (en todas las pantallas excepto LevelSelect y cuando calibramos)
+        if (currentState != MenuState.LevelSelect && !isSettingsCalibrating)
             screenMain?.DrawSocialButtons();
 
         GUI.matrix = svMat;

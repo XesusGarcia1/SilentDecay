@@ -140,6 +140,9 @@ public partial class TunnelsGenerator
 				material.DisableKeyword("_EMISSION");
 				material.SetColor("_EmissionColor", Color.black);
 				material.color = Color.gray;
+
+				// En lámparas apagadas de pasillos oscuros, agregar destellos de chispas guía
+				gameObject.AddComponent<TunnelElectricSparks>();
 			}
 		}
 	}

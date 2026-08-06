@@ -39,13 +39,32 @@ public class WaterDrip : MonoBehaviour
         }
     }
 
+    private Transform cachedPlayerCamera;
+
     void Update()
     {
+        // No gotear si el juego está pausado (evita acumulación infinita en respawn/pausa)
+        if (Time.timeScale <= 0f) return;
+
         timer += Time.deltaTime;
         if (timer >= dripInterval)
         {
             timer = 0f;
-            SpawnDroplet();
+
+            // Optimización: Solo instanciar la física 3D de la gota si el jugador está cerca (menos de 10 metros)
+            if (cachedPlayerCamera == null && Camera.main != null)
+            {
+                cachedPlayerCamera = Camera.main.transform;
+            }
+
+            if (cachedPlayerCamera != null)
+            {
+                float dist = Vector3.Distance(transform.position, cachedPlayerCamera.position);
+                if (dist <= 10f)
+                {
+                    SpawnDroplet();
+                }
+            }
         }
     }
 

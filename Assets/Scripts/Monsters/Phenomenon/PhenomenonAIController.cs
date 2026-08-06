@@ -25,7 +25,7 @@ public class PhenomenonAIController : MonoBehaviour
     public float investigateSpeed = 2.4f;
     public float chaseSpeed = 5.0f;
     [Tooltip("Ajuste vertical del monstruo sobre el NavMesh. Si flota, pon un valor negativo (ej. -0.1 o -0.15).")]
-    public float navMeshBaseOffset = 0f;
+    public float navMeshBaseOffset = -1.30f;
 
     [Header("Parámetros de Patrulla")]
     public Transform[] patrolPoints;
@@ -113,40 +113,46 @@ public class PhenomenonAIController : MonoBehaviour
     private int lastJumpscareVariationIndex = -1;
     private float lastJumpscareStingTime = 0f;
     private Coroutine cameraGlanceCoroutine;
+    private Vector3 initialChildLocalPosition;
+    private Quaternion initialChildLocalRotation;
+    private bool hasStoredInitialTransforms = false;
+
+    // --- VARIABLES DE RENDIMIENTO CACHED ---
+    private CharacterController cachedPlayerCC;
+    private FlashlightController cachedPlayerFlashlight;
+    private Renderer[] cachedRenderers;
+    private Light[] cachedLights;
+    private Animator cachedChildAnimator;
+    private TunnelLightFlicker[] cachedTunnelLights;
+    private float tunnelLightsCacheTimer = 0f;
 
     void Start()
     {
-        // Reducir la escala general del monstruo a un 65% para evitar que su cabeza choque/atraviese el techo de los túneles
-        transform.localScale = transform.localScale * 0.65f;
-
-        // Restablecer desfases locales del modelo visual (Animator) para alinearlo con el NavMeshAgent
-        // Nota: se aplica un desfase negativo en Y (-0.38f) para que pise el suelo de forma precisa
+        // Conservar la escala del transform y las posiciones locales diseñadas en el prefab del Inspector.
         Animator childAnim = GetComponentInChildren<Animator>();
         if (childAnim != null)
         {
-            childAnim.applyRootMotion = false; // Desactivar Root Motion para evitar que el clip desplace el mesh
+            cachedChildAnimator = childAnim;
+            childAnim.applyRootMotion = false; // Desactivar Root Motion para evitar desvíos
             if (childAnim.transform != transform)
             {
-                childAnim.transform.localPosition = new Vector3(0f, -0.38f, 0f);
-                childAnim.transform.localRotation = Quaternion.identity;
+                initialChildLocalPosition = childAnim.transform.localPosition;
+                initialChildLocalRotation = childAnim.transform.localRotation;
+                hasStoredInitialTransforms = true;
+                Debug.Log($"[PhenomenonAIController] Posición inicial del hijo guardada: {initialChildLocalPosition}");
             }
         }
 
-        // Restablecer el contenedor de la malla SkinnedMeshRenderer (mesh_node) para corregir desfases estáticos
+        // Cachar renderizadores y luces para optimización del Update
+        cachedRenderers = GetComponentsInChildren<Renderer>(true);
+        cachedLights = GetComponentsInChildren<Light>(true);
+
+        // Dejar que el SkinnedMeshRenderer y huesos mantengan su alineación por defecto del Prefab
         SkinnedMeshRenderer smr = GetComponentInChildren<SkinnedMeshRenderer>();
         if (smr != null)
         {
-            if (smr.transform.parent != null && smr.transform.parent.GetComponent<Animator>() != null)
-            {
-                // Si su padre es el Animator, mantenemos localPosition en cero para no duplicar el desfase
-                smr.transform.localPosition = Vector3.zero;
-            }
-            else
-            {
-                smr.transform.localPosition = new Vector3(0f, -0.38f, 0f);
-            }
             smr.transform.localRotation = Quaternion.identity;
-            Debug.Log("[PhenomenonAIController] Alineación automática: Ajuste de posición del mesh a Y = -0.38.");
+            Debug.Log("[PhenomenonAIController] Configuración inicial del prefab respetada.");
         }
 
         agent = GetComponent<NavMeshAgent>();
@@ -176,7 +182,7 @@ public class PhenomenonAIController : MonoBehaviour
         {
             agent.radius = 0.85f; // Radio aumentado para evitar colisión visual y traspaso de paredes
             agent.height = 2.6f;  // Altura real del monstruo para evitar que entre bajo techos bajos o inclinados
-            agent.baseOffset = navMeshBaseOffset; // Ajustar la altura vertical del monstruo sobre el suelo
+            // Respetar baseOffset del Inspector original del prefab
             agent.updatePosition = true;
             agent.updateRotation = true;
             agent.speed = patrolSpeed;
@@ -306,10 +312,88 @@ public class PhenomenonAIController : MonoBehaviour
         ChangeState(PhenomenonState.Patrol);
     }
 
+    private void OnEnable()
+    {
+        // Limpiar estados de invisibilidad residual
+        isSpectrallyInvisible = false;
+        isCurrentlyVisible = true;
+
+        // CRÍTICO: Resetear posición y re-vincular el Animator para resincronizar los huesos del modelo con la raíz
+        Animator childAnim = cachedChildAnimator != null ? cachedChildAnimator : GetComponentInChildren<Animator>();
+        if (childAnim != null)
+        {
+            childAnim.applyRootMotion = false;
+            
+            if (childAnim.transform != transform && hasStoredInitialTransforms)
+            {
+                childAnim.transform.localPosition = initialChildLocalPosition;
+                childAnim.transform.localRotation = initialChildLocalRotation;
+            }
+            
+            childAnim.Rebind();
+            childAnim.Update(0f);
+        }
+
+        // Forzar renderers a encenderse al reactivarse tras el respawn (Usando cache)
+        Renderer[] allRends = cachedRenderers != null ? cachedRenderers : GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer r in allRends)
+        {
+            if (r != null && r.gameObject != gameObject && !r.gameObject.name.Contains("Light"))
+            {
+                r.enabled = true;
+            }
+        }
+
+        Light[] allLights = GetComponentsInChildren<Light>(true);
+        foreach (Light l in allLights)
+        {
+            if (l != null) l.enabled = true;
+        }
+
+        // Asegurar que el NavMeshAgent esté listo
+        NavMeshAgent avAgent = GetComponent<NavMeshAgent>();
+        if (avAgent == null) avAgent = GetComponentInChildren<NavMeshAgent>();
+        if (avAgent != null && avAgent.enabled)
+        {
+            if (avAgent.isOnNavMesh)
+            {
+                avAgent.speed = patrolSpeed;
+                avAgent.ResetPath();
+            }
+        }
+
+        Debug.Log("[PhenomenonAIController] OnEnable: Hijo visual alineado en Y = " + navMeshBaseOffset + ", Animator reseteado.");
+    }
+
+    /// <summary>
+    /// Resetea la posición local del hijo visual (Animator/mesh) para que esté alineado
+    /// con el NavMeshAgent raíz. Llamar después de cada Warp() para evitar desincronización.
+    /// </summary>
+    public void ResetVisualChildTransform()
+    {
+        Animator childAnim = GetComponentInChildren<Animator>();
+        if (childAnim != null)
+        {
+            if (childAnim.transform != transform && hasStoredInitialTransforms)
+            {
+                childAnim.transform.localPosition = initialChildLocalPosition;
+                childAnim.transform.localRotation = initialChildLocalRotation;
+            }
+            childAnim.applyRootMotion = false;
+        }
+    }
+
     private float lightCheckTimer = 0f;
     void Update()
     {
         if (player == null || agent == null) return;
+
+        // Seguro anti-drift: Asegurar que el root motion del hijo visual NUNCA se active (Usando cache)
+        if (cachedChildAnimator == null) cachedChildAnimator = GetComponentInChildren<Animator>();
+        if (cachedChildAnimator != null && cachedChildAnimator.applyRootMotion)
+        {
+            cachedChildAnimator.applyRootMotion = false;
+        }
 
         // Actualizar el temporizador y comportamiento del evento de pánico/tensión
         UpdatePanicEventSystem();
@@ -466,7 +550,7 @@ public class PhenomenonAIController : MonoBehaviour
             if (currentDist <= 22f && Time.time >= nextWhistleTime && !whistleAudioSource.isPlaying && currentState != PhenomenonState.Attack)
             {
                 whistleAudioSource.clip = whistleClip;
-                whistleAudioSource.volume = 0.7f;
+                whistleAudioSource.volume = 1.0f; // Volumen máximo silbante aterrador
                 whistleAudioSource.Play();
                 
                 // Cooldown aleatorio entre 55 y 90 segundos después de que termine la canción silbada
@@ -496,6 +580,11 @@ public class PhenomenonAIController : MonoBehaviour
             playerSprintDetector = scenePlayer.GetComponent<SprintDetector>();
             if (playerSprintDetector == null) playerSprintDetector = scenePlayer.GetComponentInParent<SprintDetector>();
             
+            // Cachar componentes pesados del jugador para optimizar FPS
+            cachedPlayerCC = scenePlayer.GetComponent<CharacterController>();
+            if (cachedPlayerCC == null) cachedPlayerCC = scenePlayer.GetComponentInParent<CharacterController>();
+            cachedPlayerFlashlight = FindObjectOfType<FlashlightController>();
+
             // Resolver cámara del jugador
             playerCamera = Camera.main != null ? Camera.main.transform : player;
 
@@ -569,10 +658,10 @@ public class PhenomenonAIController : MonoBehaviour
         bool canSee = fov != null && fov.CanSeePlayer();
         bool isPlayerInLight = IsPlayerInLight();
 
-        // 1. Escuchar sonidos: corriendo se escucha de lejos (55m), caminando normal se escucha a media distancia (20m)
+        // 1. Escuchar sonidos: corriendo se escucha de lejos (55m), caminando normal se escucha a media distancia (20m) (Usando cache)
         bool playerHeard = false;
-        CharacterController playerCC = player.GetComponent<CharacterController>();
-        float playerSpeed = playerCC != null ? playerCC.velocity.magnitude : 0f;
+        if (cachedPlayerCC == null && player != null) cachedPlayerCC = player.GetComponent<CharacterController>();
+        float playerSpeed = cachedPlayerCC != null ? cachedPlayerCC.velocity.magnitude : 0f;
         bool isPlayerRunning = playerSprintDetector != null && playerSprintDetector.IsRunning;
 
         if (isPlayerRunning && distanceToPlayer <= 55f)
@@ -973,6 +1062,17 @@ public class PhenomenonAIController : MonoBehaviour
     {
         Debug.Log("El Fenómeno ha atrapado al jugador.");
 
+        // Forzar visibilidad al 100% de la malla y luces al atacar (evitar invisibilidad residual por respawn/apagón)
+        isSpectrallyInvisible = false;
+        isCurrentlyVisible = true;
+        Renderer[] rends = GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer r in rends)
+        {
+            if (r.gameObject != gameObject && !r.gameObject.name.Contains("Light")) r.enabled = true;
+        }
+        Light[] lghts = GetComponentsInChildren<Light>(true);
+        foreach (Light l in lghts) l.enabled = true;
+
         // Jumpscare: Rotar la cámara del jugador para forzarlo a mirar al monstruo de frente
         if (player != null)
         {
@@ -1001,23 +1101,24 @@ public class PhenomenonAIController : MonoBehaviour
                 Transform[] allBones = GetComponentsInChildren<Transform>();
                 foreach (Transform bone in allBones)
                 {
-                    string nameLower = bone.name.ToLower();
-                    if (nameLower.Contains("head") || nameLower.Contains("neck") || nameLower.Contains("cabeza"))
+                    if (bone != null)
                     {
-                        headBone = bone;
-                        break;
+                        string nameLower = bone.name.ToLower();
+                        if (nameLower.Contains("head") || nameLower.Contains("neck") || nameLower.Contains("cabeza"))
+                        {
+                            headBone = bone;
+                            break;
+                        }
                     }
                 }
 
-                Vector3 targetFacePos;
-                if (headBone != null)
+                // Forzar que la altura apunte siempre a la cabeza (Y = ~2.3m sobre el suelo del monstruo)
+                Vector3 targetFacePos = transform.position + Vector3.up * 2.3f;
+                
+                // Si el hueso de la cabeza es válido y está a una altura lógica superior, usarlo
+                if (headBone != null && headBone.position.y > transform.position.y + 1.5f)
                 {
                     targetFacePos = headBone.position;
-                }
-                else
-                {
-                    // Fallback si no encuentra el hueso: apuntar al rostro/torso superior (aprox 2.3m de altura)
-                    targetFacePos = transform.position + Vector3.up * 2.3f;
                 }
 
                 Vector3 dirToFace = (targetFacePos - playerCamera.position).normalized;
@@ -1103,12 +1204,12 @@ public class PhenomenonAIController : MonoBehaviour
         bool isShinedDirectly = IsShinedByFlashlight();
         bool isIlluminated = isMonsterInCeilingLight || isShinedDirectly;
 
-        // Comprobar si hay alguna luz activa en la escena para no estar en oscuridad total
-        FlashlightController fl = FindObjectOfType<FlashlightController>();
-        bool isFlashlightOn = fl != null && fl.flashlightLight != null && fl.flashlightLight.enabled;
+        // Comprobar si hay alguna luz activa en la escena para no estar en oscuridad total (Usando cache)
+        if (cachedPlayerFlashlight == null) cachedPlayerFlashlight = FindObjectOfType<FlashlightController>();
+        bool isFlashlightOn = cachedPlayerFlashlight != null && cachedPlayerFlashlight.flashlightLight != null && cachedPlayerFlashlight.flashlightLight.enabled;
         bool isCompletelyDark = !isFlashlightOn && !isMonsterInCeilingLight;
 
-        // Visibilidad progresiva: se hace visible si está iluminado directamente,
+        // Visibilidad progresiva (original): se hace visible si está iluminado directamente,
         // o si está cerca (dentro de 12 metros) y no hay oscuridad total (ej. la linterna rebota o hay luz ambiental).
         float distToPlayer = Vector3.Distance(transform.position, player.position);
         bool shouldBeVisible = isIlluminated || (distToPlayer <= 12f && !isCompletelyDark);
@@ -1158,23 +1259,33 @@ public class PhenomenonAIController : MonoBehaviour
         }
         // ----------------------------------
 
+        // EXCEPCIÓN DE GRACIA: Durante el período de gracia inicial o del respawn (detectionRange == 0),
+        // mantenemos los renderers encendidos al 100% para evitar bugs de oclusión visual en el frame de reinicio.
+        if (detectionRange <= 0.1f)
+        {
+            shouldBeVisible = true;
+        }
+
         isCurrentlyVisible = shouldBeVisible;
 
-        // 1. Visibilidad dinámica: desactivada en oscuridad total, activada al iluminarse (Boceto)
-        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+        // 1. Visibilidad dinámica: desactivada en oscuridad total, activada al iluminarse (Usando cache)
+        Renderer[] renderers = cachedRenderers != null ? cachedRenderers : GetComponentsInChildren<Renderer>(true);
         foreach (Renderer r in renderers)
         {
-            if (r.gameObject != gameObject && !r.gameObject.name.Contains("Light"))
+            if (r != null && r.gameObject != gameObject && !r.gameObject.name.Contains("Light"))
             {
                 r.enabled = shouldBeVisible;
             }
         }
 
-        // Desactivar/activar fuentes de luz (como la luz roja de la cabeza) según la visibilidad para evitar halos fantasma
-        Light[] childLights = GetComponentsInChildren<Light>(true);
+        // Desactivar/activar fuentes de luz (como la luz roja de la cabeza) según la visibilidad para evitar halos fantasma (Usando cache)
+        Light[] childLights = cachedLights != null ? cachedLights : GetComponentsInChildren<Light>(true);
         foreach (Light l in childLights)
         {
-            l.enabled = shouldBeVisible;
+            if (l != null)
+            {
+                l.enabled = shouldBeVisible;
+            }
         }
 
         // --- CONTROL DE LATIDO DE CORAZÓN DINÁMICO (TERROR) ---
@@ -1208,9 +1319,10 @@ public class PhenomenonAIController : MonoBehaviour
         }
 
         // --- CONTROL DE INTERFERENCIA EN LA LINTERNA DEL JUGADOR ---
-        if (fl != null)
+        if (cachedPlayerFlashlight == null) cachedPlayerFlashlight = FindObjectOfType<FlashlightController>();
+        if (cachedPlayerFlashlight != null)
         {
-            fl.isGlitchedByMonster = (distToPlayer <= 12f);
+            cachedPlayerFlashlight.isGlitchedByMonster = (distToPlayer <= 12f);
         }
  
         // 2. Control de sonido de arrastre de garras en la oscuridad con mezcla dinámica (Crossfade)
@@ -1573,6 +1685,7 @@ public class PhenomenonAIController : MonoBehaviour
             // Realizar Warp
             if (agent.Warp(targetPos))
             {
+                ResetVisualChildTransform();
                 ResetAgentPath();
                 
                 // Forzar que empiece a patrullar/investigar la zona del jugador (o cacería si hay apagón)
@@ -1712,6 +1825,7 @@ public class PhenomenonAIController : MonoBehaviour
 
                 if (agent.Warp(warpTarget))
                 {
+                    ResetVisualChildTransform();
                     ResetAgentPath();
                     lastKnownPlayerPosition = player.position;
                     chaseLostTimer = 0f;
@@ -1836,6 +1950,7 @@ public class PhenomenonAIController : MonoBehaviour
 
             if (agent.Warp(targetPos))
             {
+                ResetVisualChildTransform();
                 ResetAgentPath();
                 lastKnownPlayerPosition = player.position;
                 chaseLostTimer = 0f;
@@ -1894,6 +2009,7 @@ public class PhenomenonAIController : MonoBehaviour
 
                 if (agent.Warp(targetPos))
                 {
+                    ResetVisualChildTransform();
                     PlayShadowWarpEvent();
                 }
             }
@@ -2048,8 +2164,9 @@ public class PhenomenonAIController : MonoBehaviour
         if (impactClip != null)
         {
             float dist = Vector3.Distance(transform.position, player.position);
-            float volume = Mathf.Lerp(1.0f, 0.15f, Mathf.InverseLerp(5f, 45f, dist));
-            volume = Mathf.Clamp(volume, 0.15f, 1.0f);
+            // Curva de volumen amplificada: fuerte hasta 20m, decayendo lentamente
+            float volume = Mathf.Lerp(1.0f, 0.4f, Mathf.InverseLerp(10f, 35f, dist));
+            volume = Mathf.Clamp(volume, 0.4f, 1.0f);
 
             AudioSource.PlayClipAtPoint(impactClip, player.position, volume);
             
@@ -2065,10 +2182,13 @@ public class PhenomenonAIController : MonoBehaviour
         if (Time.time - lastJumpscareStingTime < 1.2f) return;
         lastJumpscareStingTime = Time.time;
 
+        // FORZAR VOLUMEN MÁXIMO DE SUSTO EN TODO MOMENTO (1.0f)
+        float activeVolume = 1.0f;
+
         // 1. Sonido de Bass: Siempre se ejecuta en todos los sustos/apariciones
         if (jumpscareStingBassClip != null)
         {
-            AudioSource.PlayClipAtPoint(jumpscareStingBassClip, player.position, volume);
+            AudioSource.PlayClipAtPoint(jumpscareStingBassClip, player.position, activeVolume);
         }
 
         // 2. Variaciones: Intercambiar aleatoriamente entre Normal, Normal2 y Strong sin repetir la última
@@ -2087,8 +2207,8 @@ public class PhenomenonAIController : MonoBehaviour
             lastJumpscareVariationIndex = randomIndex;
 
             AudioClip selectedVariation = variations[randomIndex];
-            AudioSource.PlayClipAtPoint(selectedVariation, player.position, volume);
-            Debug.Log($"[PhenomenonAIController] Jumpscare Sting: Bass + {selectedVariation.name} (Vol: {volume:F2})");
+            AudioSource.PlayClipAtPoint(selectedVariation, player.position, activeVolume);
+            Debug.Log($"[PhenomenonAIController] Jumpscare Sting: Bass + {selectedVariation.name} (Vol: {activeVolume:F2})");
         }
     }
 
@@ -2321,6 +2441,7 @@ public class PhenomenonAIController : MonoBehaviour
 
                 if (agent.Warp(targetPos))
                 {
+                    ResetVisualChildTransform();
                     ResetAgentPath();
                     lastKnownPlayerPosition = player.position;
                     chaseLostTimer = 0f;
@@ -2336,5 +2457,83 @@ public class PhenomenonAIController : MonoBehaviour
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Activa de manera 100% interna el período de gracia y reposiciona de forma segura al monstruo
+    /// lejos del jugador tras su reaparición, previniendo bugs de renderizado.
+    /// </summary>
+    public void TriggerRespawnGracePeriod(float duration)
+    {
+        StartCoroutine(RespawnGraceRoutine(duration));
+    }
+
+    private IEnumerator RespawnGraceRoutine(float duration)
+    {
+        currentState = PhenomenonState.Patrol;
+        detectionRange = 0f;
+
+        // Desactivar FOV para evitar detección visual
+        if (fov != null) fov.enabled = false;
+
+        // Reposicionar al punto de patrulla más alejado del jugador
+        Vector3 farPos = transform.position;
+        if (patrolPoints != null && patrolPoints.Length > 0 && player != null)
+        {
+            Transform bestPoint = patrolPoints[0];
+            float maxDist = 0f;
+            foreach (Transform pt in patrolPoints)
+            {
+                if (pt != null)
+                {
+                    float d = Vector3.Distance(player.position, pt.position);
+                    if (d > maxDist)
+                    {
+                        maxDist = d;
+                        bestPoint = pt;
+                    }
+                }
+            }
+            farPos = bestPoint.position;
+        }
+
+        // Mover físicamente usando Warp en el NavMesh
+        if (agent != null)
+        {
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(farPos, out hit, 40f, NavMesh.AllAreas))
+            {
+                farPos = hit.position;
+            }
+            agent.Warp(farPos);
+            ResetVisualChildTransform();
+            ResetAgentPath();
+        }
+
+        // Resincronizar Animator en la nueva posición
+        Animator childAnim = GetComponentInChildren<Animator>();
+        if (childAnim != null)
+        {
+            childAnim.applyRootMotion = false;
+            
+            // Forzar las posiciones locales originales exactas almacenadas
+            if (childAnim.transform != transform && hasStoredInitialTransforms)
+            {
+                childAnim.transform.localPosition = initialChildLocalPosition;
+                childAnim.transform.localRotation = initialChildLocalRotation;
+            }
+            
+            childAnim.Rebind();
+            childAnim.Update(0f);
+        }
+
+        Debug.Log($"[PhenomenonAIController] Reposicionamiento de respawn completado en {farPos}. Gracia activa por {duration} segundos.");
+
+        yield return new WaitForSeconds(duration);
+
+        // Restaurar detección
+        detectionRange = 18f;
+        if (fov != null) fov.enabled = true;
+        Debug.Log("[PhenomenonAIController] Período de gracia finalizado. Detección y FOV reactivados.");
     }
 }

@@ -75,6 +75,20 @@ public class TunnelsPowerOutageManager : MonoBehaviour
             isGlobalPowerOutage = true;
             Debug.Log("[TunnelsPowerOutageManager] ¡Corte de energía global! Luces encendidas en rojo de emergencia.");
 
+            // Activar chispas dinámicas en las lámparas apagadas de los túneles
+            Renderer[] allRends = FindObjectsOfType<Renderer>(true);
+            foreach (Renderer r in allRends)
+            {
+                if (r != null && r.gameObject != null)
+                {
+                    string rName = r.gameObject.name.ToLower();
+                    if ((rName.Contains("light") || rName.Contains("lamp") || rName.Contains("luz")) && r.gameObject.GetComponent<TunnelElectricSparks>() == null)
+                    {
+                        r.gameObject.AddComponent<TunnelElectricSparks>();
+                    }
+                }
+            }
+
             // Reproducir sonido de apagón
             if (globalAudioSource != null && outageStartClip != null)
             {
@@ -88,6 +102,13 @@ public class TunnelsPowerOutageManager : MonoBehaviour
             // --- RESTAURAR ENERGÍA ---
             isGlobalPowerOutage = false;
             Debug.Log("[TunnelsPowerOutageManager] ¡Energía restaurada! Luces normales encendidas.");
+
+            // Desactivar chispas al volver la energía
+            TunnelElectricSparks[] activeSparks = FindObjectsOfType<TunnelElectricSparks>();
+            foreach (var spark in activeSparks)
+            {
+                if (spark != null) Destroy(spark);
+            }
 
             // Reproducir sonido de interruptor
             if (globalAudioSource != null && outageEndClip != null)

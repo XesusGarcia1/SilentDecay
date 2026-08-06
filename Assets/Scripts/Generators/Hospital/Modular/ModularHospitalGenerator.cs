@@ -2269,12 +2269,15 @@ namespace ModularHospital
                     GameObject noteObj = Instantiate(notePrefab, spawnPos, Quaternion.Euler(90f, Random.Range(0f, 360f), 0f), parent);
                     noteObj.name = $"[Hospital_Note_Digit_{assignedNotes + 1}]";
 
-                    MeshRenderer mrNote = noteObj.GetComponentInChildren<MeshRenderer>();
-                    if (mrNote != null)
+                    // Alinear a ras de suelo o superficie usando un raycast descendente seguro
+                    RaycastHit noteHit;
+                    if (Physics.Raycast(spawnPos + Vector3.up * 1.0f, Vector3.down, out noteHit, 3.0f))
                     {
-                        float minY = mrNote.bounds.min.y;
-                        float yOffset = spawnPos.y - minY;
-                        noteObj.transform.position += new Vector3(0, yOffset + 0.002f, 0);
+                        noteObj.transform.position = noteHit.point + Vector3.up * 0.012f; // Z-fighting safe offset
+                    }
+                    else
+                    {
+                        noteObj.transform.position = new Vector3(spawnPos.x, transform.position.y + 0.015f, spawnPos.z);
                     }
 
                     NoteItem oldN = noteObj.GetComponent<NoteItem>();
@@ -2378,28 +2381,25 @@ namespace ModularHospital
 
                     if (!foundWall)
                     {
+                        // Alineación perfecta sobre el suelo del pasillo
                         RaycastHit noteHit;
-                        if (Physics.Raycast(wallPos + Vector3.up * 1.5f, Vector3.down, out noteHit, 3.0f))
+                        if (Physics.Raycast(wallPos + Vector3.up * 1.0f, Vector3.down, out noteHit, 4.0f))
                         {
-                            noteObj.transform.position = noteHit.point;
-                            MeshRenderer mrN = noteObj.GetComponentInChildren<MeshRenderer>();
-                            if (mrN != null)
-                            {
-                                float bottomY = mrN.bounds.min.y;
-                                float diffY = noteHit.point.y - bottomY;
-                                noteObj.transform.position += new Vector3(0, diffY, 0);
-                            }
+                            noteObj.transform.position = noteHit.point + Vector3.up * 0.015f; // Un pequeño offset vertical para evitar Z-fighting
+                            noteObj.transform.rotation = Quaternion.Euler(90f, Random.Range(0f, 360f), 0f); // Acostada plana en el suelo
+                        }
+                        else
+                        {
+                            // Fallback seguro: colocar a ras de suelo del hospital
+                            noteObj.transform.position = new Vector3(wallPos.x, transform.position.y + 0.015f, wallPos.z);
+                            noteObj.transform.rotation = Quaternion.Euler(90f, Random.Range(0f, 360f), 0f);
                         }
                     }
                     else
                     {
-                        MeshRenderer mrNote = noteObj.GetComponentInChildren<MeshRenderer>();
-                        if (mrNote != null)
-                        {
-                            float minY = mrNote.bounds.min.y;
-                            float yOffset = wallPos.y - minY;
-                            noteObj.transform.position += new Vector3(0, yOffset + 0.002f, 0);
-                        }
+                        // Pegar plana contra la pared vertical a altura fija de los ojos del jugador (evita que flote a Y = 4.1)
+                        noteObj.transform.position = wallPos;
+                        noteObj.transform.rotation = wallRot; // Mirando hacia el pasillo perpendicularmente
                     }
 
                     NoteItem oldN2 = noteObj.GetComponent<NoteItem>();
@@ -2411,6 +2411,121 @@ namespace ModularHospital
                     nComp.interactDistance = 3.2f;
 
                     assignedNotes++;
+                }
+            }
+
+            // 4. Montar exactamente 3 Notas de Historia (Lore) en el Hospital
+            if (notePrefab != null)
+            {
+                // Recopilar todas las habitaciones del hospital (excepto DirectorOffice y Elevator)
+                List<HospitalModule> allRooms = new List<HospitalModule>();
+                foreach (HospitalModule mod in placedModules)
+                {
+                    if (mod != null && (mod.moduleType == ModuleType.SmallRoom || mod.moduleType == ModuleType.LargeRoom || mod.moduleType == ModuleType.OfficeRoom))
+                    {
+                        allRooms.Add(mod);
+                    }
+                }
+
+                // Mezclar la lista de habitaciones para aleatorizar
+                for (int j = allRooms.Count - 1; j > 0; j--)
+                {
+                    int r = Random.Range(0, j + 1);
+                    HospitalModule tmp = allRooms[j];
+                    allRooms[j] = allRooms[r];
+                    allRooms[r] = tmp;
+                }
+
+                // Textos de lore
+                string[] loreTitles = new string[]
+                {
+                    "Diario del Bibliotecario (BookHead)",
+                    "Informe de Psiquiatría (TheCreep)",
+                    "Memorándum de Evacuación"
+                };
+                string[] loreBodies = new string[]
+                {
+                    "<b>REGISTRO DEL DIARIO - 18 DE OCTUBRE:</b>\n\n" +
+                    "Ese maldito monstruo... la criatura con cabeza de libro que merodea la biblioteca principal.\n" +
+                    "Confirmado: <i>NO TIENE OJOS</i>. Es completamente ciego.\n" +
+                    "Sin embargo, su oído es increíblemente agudo.\n" +
+                    "Si caminas despacio, te ignorará por completo. Pero si entras en pánico y corres <b>(sprint)</b>,\n" +
+                    "sabrá exactamente dónde estás al instante y te perseguirá.\n" +
+                    "Guarda silencio si quieres conservar la cabeza.",
+
+                    "<b>EXPEDIENTE ANÓMALO #09-B:</b>\n\n" +
+                    "Los pacientes del Pabellón Este reportan avistamientos de un ser deforme en el suelo.\n" +
+                    "Se arrastra como un insecto y lo llaman 'TheCreep' (El Rastrero).\n" +
+                    "El personal reporta que prefiere quedarse en las esquinas más oscuras del hospital.\n" +
+                    "Es extremadamente agresivo. Si te encuentra, intentará acorralarte y atacarte.\n" +
+                    "Para escapar de él, debes correr hacia el spawn o buscar zonas iluminadas.\n" +
+                    "Nunca te quedes quieto en los callejones oscuros.",
+
+                    "<b>ORDEN DE EVACUACIÓN INTERNA:</b>\n\n" +
+                    "A todo el personal administrativo:\n" +
+                    "La fuga biológica ha alcanzado los niveles subterráneos del ala oeste.\n" +
+                    "El ascensor de escape principal de la oficina del director ha sido bloqueado por el protocolo de cuarentena.\n" +
+                    "Se requiere una contraseña cifrada de 7 dígitos para restablecerlo.\n" +
+                    "Las hojas de códigos de seguridad se han esparcido por las habitaciones para evitar que los sujetos de prueba las encuentren.\n" +
+                    "Busca los 7 dígitos y evacua inmediatamente."
+                };
+
+                int loreSpawned = 0;
+                int roomIndex = 0;
+
+                while (loreSpawned < 3 && roomIndex < allRooms.Count)
+                {
+                    HospitalModule chosenRoom = allRooms[roomIndex];
+                    roomIndex++;
+
+                    // Calcular posición dentro de la habitación con un offset aleatorio para no caer en el centro exacto
+                    Vector3 roomCenter = chosenRoom.transform.position;
+                    Vector3 offset = new Vector3(Random.Range(-1.2f, 1.2f), 0f, Random.Range(-1.2f, 1.2f));
+                    Vector3 spawnPos = roomCenter + offset;
+
+                    // Verificar que no esté demasiado cerca de otra nota ya colocada
+                    bool tooClose = false;
+                    foreach (Vector3 existingP in spawnedItemPositions)
+                    {
+                        if (Vector3.Distance(spawnPos, existingP) < 3.5f)
+                        {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+                    if (tooClose) continue;
+
+                    // Raycast para encontrar el suelo exacto
+                    Vector3 finalPos;
+                    RaycastHit hit;
+                    if (Physics.Raycast(spawnPos + Vector3.up * 2.0f, Vector3.down, out hit, 5.0f))
+                    {
+                        finalPos = hit.point + Vector3.up * 0.015f;
+                    }
+                    else
+                    {
+                        finalPos = new Vector3(spawnPos.x, transform.position.y + 0.015f, spawnPos.z);
+                    }
+
+                    GameObject loreObj = Instantiate(notePrefab, finalPos, Quaternion.Euler(90f, Random.Range(0f, 360f), 0f), parent);
+                    loreObj.name = $"[Hospital_Lore_Note_{loreSpawned + 1}]";
+
+                    spawnedItemPositions.Add(finalPos);
+
+                    // Remover NoteItem del prefab original y reemplazar con LoreNoteItem
+                    NoteItem oldNoteComp = loreObj.GetComponent<NoteItem>();
+                    if (oldNoteComp != null) DestroyImmediate(oldNoteComp);
+
+                    // Corregir el BoxCollider: isTrigger = false para que el raycast del jugador lo detecte
+                    BoxCollider box = loreObj.GetComponent<BoxCollider>();
+                    if (box != null) box.isTrigger = false;
+
+                    LoreNoteItem loreComp = loreObj.AddComponent<LoreNoteItem>();
+                    loreComp.loreId = loreSpawned + 1;
+                    loreComp.noteTitle = loreTitles[loreSpawned];
+                    loreComp.noteBody = loreBodies[loreSpawned];
+
+                    loreSpawned++;
                 }
             }
         }
@@ -3088,6 +3203,9 @@ namespace ModularHospital
                 hideScript.interactDistance = 3.8f;
 
                 Debug.Log($"ModularHospitalGenerator: Jugador posicionado con éxito en el pasillo principal del búnker: {spawnPos}");
+                
+                // Disparar monólogo inicial narrativo adaptado al personaje seleccionado (Ethan o Nora)
+                LevelIntroData.TriggerStartMonologue("hospital");
             }
 
             // Ubicar al enemigo BookHead en el extremo opuesto del mapa lejos del jugador y reducir su velocidad
@@ -3179,51 +3297,136 @@ namespace ModularHospital
         private Light targetLight;
         private AudioSource audioSource;
         private AudioClip flickerClip;
+        private ParticleSystem sparkParticles;
+        private Color originalColor;
+        private float originalRange;
         private float nextFlickerTime;
+
+        // --- CACHE DE RENDIMIENTO HOSPITAL ---
+        private PowerBox cachedPowerBox;
+        private Transform cachedPlayerCamera;
+
+        private void Start()
+        {
+            cachedPowerBox = FindObjectOfType<PowerBox>();
+        }
 
         private void Awake()
         {
             targetLight = GetComponent<Light>();
+            if (targetLight != null)
+            {
+                originalColor = targetLight.color;
+                originalRange = targetLight.range;
+            }
             
             // Cargar el clip de audio de zumbido/chispazo de lámpara
             flickerClip = Resources.Load<AudioClip>("Audio/Hospital/ErrorLightSound");
             if (flickerClip == null) flickerClip = Resources.Load<AudioClip>("ErrorLightSound");
+            if (flickerClip == null) flickerClip = Resources.Load<AudioClip>("Audio/Compartido/Chispa");
 
             if (flickerClip != null)
             {
                 audioSource = gameObject.AddComponent<AudioSource>();
                 audioSource.clip = flickerClip;
                 audioSource.spatialBlend = 1.0f; // Sonido 3D realista
-                audioSource.minDistance = 1.0f;
-                audioSource.maxDistance = 10.0f;
+                audioSource.minDistance = 1.5f;
+                audioSource.maxDistance = 12.0f;
                 audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
                 audioSource.playOnAwake = false;
-                audioSource.volume = 0.35f; // Volumen tétrico ambiental calibrado (35%)
+                audioSource.volume = 0.45f;
             }
+
+            // Crear emisor de partículas 3D de chispas cayendo para el Hospital
+            GameObject pObj = new GameObject("HospitalSparkParticles");
+            pObj.transform.SetParent(transform, false);
+            pObj.transform.localPosition = new Vector3(0f, -0.1f, 0f);
+
+            sparkParticles = pObj.AddComponent<ParticleSystem>();
+            var main = sparkParticles.main;
+            main.startLifetime = 0.45f;
+            main.startSpeed = 3.2f;
+            main.startSize = 0.06f;
+            main.startColor = new Color(1.0f, 0.85f, 0.25f); // Ámbar/Amarillo eléctrico de hospital
+            main.gravityModifier = 1.6f; // Las chispas caen despedidas al suelo por gravedad
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.playOnAwake = false;
+
+            var emission = sparkParticles.emission;
+            emission.enabled = false;
+
+            var shape = sparkParticles.shape;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 35f;
+            shape.radius = 0.25f;
         }
 
         private void Update()
         {
-            if (targetLight == null || !targetLight.enabled) return;
+            if (targetLight == null) return;
+
+            // No parpadear si el juego está pausado
+            if (Time.timeScale <= 0f) return;
+
+            // Obtener la cámara del jugador para calcular distancia y aplicar LOD
+            if (cachedPlayerCamera == null && Camera.main != null)
+            {
+                cachedPlayerCamera = Camera.main.transform;
+            }
+
+            bool playerIsNear = false;
+            if (cachedPlayerCamera != null)
+            {
+                playerIsNear = Vector3.Distance(transform.position, cachedPlayerCamera.position) <= 12f;
+            }
+
+            // Usar PowerBox cacheado para evitar FindObjectOfType pesado cada frame
+            if (cachedPowerBox == null) cachedPowerBox = FindObjectOfType<PowerBox>();
+            bool isBlackout = (cachedPowerBox != null && cachedPowerBox.isPowerOut);
+
+            if (isBlackout)
+            {
+                targetLight.enabled = true; // Luz activada en penumbra
+                targetLight.color = new Color(0.9f, 0.7f, 0.35f); // Tinte ámbar tenue
+                targetLight.range = 6.0f;
+            }
+            else
+            {
+                targetLight.color = originalColor != Color.clear ? originalColor : new Color(0.95f, 0.95f, 0.85f);
+                targetLight.range = originalRange > 0f ? originalRange : 8.0f;
+            }
+
+            // OPTIMIZACIÓN LOD: Si el jugador está lejos, no parpadeamos, no hacemos chispas ni ejecutamos cálculos complejos
+            if (!playerIsNear)
+            {
+                targetLight.intensity = isBlackout ? 0.35f : baseIntensity;
+                return;
+            }
 
             if (Time.time >= nextFlickerTime)
             {
-                if (Random.value < 0.20f)
+                if (Random.value < (isBlackout ? 0.45f : 0.20f))
                 {
-                    // Bajón tenue de tensión / parpadeo tétrico
-                    targetLight.intensity = baseIntensity * Random.Range(0.08f, 0.35f);
-                    nextFlickerTime = Time.time + Random.Range(0.05f, 0.18f);
+                    // Chispazo y parpadeo (Solo si el jugador está cerca)
+                    targetLight.intensity = isBlackout ? Random.Range(0.6f, 1.8f) : baseIntensity * Random.Range(0.08f, 0.35f);
+                    nextFlickerTime = Time.time + Random.Range(0.05f, 0.2f);
 
-                    // Reproducir el sonido de chispazo/error cuando la lámpara sufre el bajón
+                    // Disparar de 3 a 7 chispas 3D volando hacia el suelo
+                    if (sparkParticles != null)
+                    {
+                        sparkParticles.Emit(Random.Range(3, 8));
+                    }
+
+                    // Reproducir el sonido 3D de chispazo
                     if (audioSource != null && flickerClip != null && !audioSource.isPlaying)
                     {
-                        audioSource.pitch = Random.Range(0.9f, 1.1f);
-                        audioSource.PlayOneShot(flickerClip, Random.Range(0.25f, 0.45f));
+                        audioSource.pitch = Random.Range(0.85f, 1.15f);
+                        audioSource.PlayOneShot(flickerClip, Random.Range(0.35f, 0.6f));
                     }
                 }
                 else
                 {
-                    targetLight.intensity = baseIntensity * Random.Range(0.85f, 1.1f);
+                    targetLight.intensity = isBlackout ? 0.35f : baseIntensity * Random.Range(0.85f, 1.1f);
                     nextFlickerTime = Time.time + Random.Range(0.3f, 1.8f);
                 }
             }

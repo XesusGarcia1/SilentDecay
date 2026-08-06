@@ -276,6 +276,12 @@ public partial class TunnelsGenerator
 			phenomenonAIController.currentState = PhenomenonAIController.PhenomenonState.Patrol;
 			UnityEngine.Debug.Log($"[TunnelsGenerator] {array.Length} Puntos de patrulla asignados en el laberinto.");
 		}
+
+		// === GENERAR 3 NOTAS DE LORE EN LOS TÚNELES ===
+		SpawnTunnelLoreNotes();
+
+		// Disparar monólogo inicial narrativo adaptado al personaje seleccionado (Ethan o Nora)
+		LevelIntroData.TriggerStartMonologue("tunnels");
 	}
 
 	private IEnumerator ActivatePhenomenonHuntAfterDelay(PhenomenonAIController ai, Transform playerTarget, float delaySeconds)
@@ -914,5 +920,170 @@ public partial class TunnelsGenerator
 				}
 			}
 		}
+	}
+
+	private void SpawnTunnelLoreNotes()
+	{
+		GameObject notePrefab = null;
+#if UNITY_EDITOR
+		notePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Dnk_Dev/HospitalHorrorPack/Prefab/P_Note.prefab");
+		if (notePrefab == null) notePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Dnk_Dev/Prefabs/Papel.prefab");
+		if (notePrefab == null) notePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Dnk_Dev/Prefabs/Note.prefab");
+#endif
+
+		if (patrolPoints == null || patrolPoints.Count == 0)
+		{
+			UnityEngine.Debug.LogWarning("[TunnelsGenerator] No hay patrolPoints para spawnear las notas de lore.");
+			return;
+		}
+
+		GameObject loreRoot = new GameObject("Tunnel_LoreNotes");
+		loreRoot.transform.SetParent(this.transform);
+
+		string[] loreTitles = new string[]
+		{
+			"Bitácora del Operario (The Phenomenon)",
+			"Informe de Incidentes - Fuga Química",
+			"Nota Arrugada de Supervisor"
+		};
+
+		string[] loreBodies = new string[]
+		{
+			"<b>REGISTRO DE SEGURIDAD - SECTOR B-12:</b>\n\n" +
+			"Hay algo más aquí abajo. No es una rata. No es una tubería rota.\n" +
+			"Se teletransporta por el rabillo del ojo. Cuando lo miras de frente, parece desvanecerse...\n" +
+			"Pero si te quedas inmóvil mirándolo fijamente demasiado tiempo, su presencia te consume la mente.\n" +
+			"Si escuchas una estática aguda y la pantalla parpadea, ¡DATE LA VUELTA Y CORRE!\n" +
+			"No dejes que se acerque.",
+
+			"<b>EXPEDIENTE TÉCNICO DE INSTALACIONES:</b>\n\n" +
+			"El sistema de drenaje principal ha sido contaminado por residuos del laboratorio de arriba.\n" +
+			"Se informa de ruidos de metal doblándose y crujidos en las pasarelas (catwalks).\n" +
+			"Cuidado con las chispas eléctricas expuestas; pueden dañar la linterna del camcorder.\n" +
+			"Si el generador principal de los túneles se apaga por sobrecarga, usa los interruptores de los paneles eléctricos secundarios.",
+
+			"<b>GARABATO APRESURADO:</b>\n\n" +
+			"La escotilla de escape está sellada. La consola de bombeo requiere presurizar los tres tanques principales.\n" +
+			"No hay energía. El interruptor principal está en la cabina del generador...\n" +
+			"Pero hay una estática insoportable que se mueve por el pasillo central.\n" +
+			"Si estás leyendo esto, no intentes pelear contra lo que acecha en la niebla negra. Solo corre y reza."
+		};
+
+		// Filtrar puntos para no spawnear cerca del ascensor y asegurar que estén en NavMesh y sean alcanzables (dentro del mapa)
+		List<Vector3> validPoints = new List<Vector3>();
+		float minDistanceToElevator = 14f * mapScale;
+		UnityEngine.AI.NavMeshPath navPath = new UnityEngine.AI.NavMeshPath();
+
+		foreach (Vector3 p in patrolPoints)
+		{
+			if (Vector3.Distance(p, playerSpawnPos) > minDistanceToElevator)
+			{
+				// Asegurar que el punto está sobre el NavMesh del túnel
+				if (UnityEngine.AI.NavMesh.SamplePosition(p, out UnityEngine.AI.NavMeshHit hit, 2.0f * mapScale, UnityEngine.AI.NavMesh.AllAreas))
+				{
+					// Verificar si hay un camino completo desde el inicio para evitar celdas desconectadas/fuera de mapa
+					if (UnityEngine.AI.NavMesh.CalculatePath(playerSpawnPos, hit.position, UnityEngine.AI.NavMesh.AllAreas, navPath))
+					{
+						if (navPath.status == UnityEngine.AI.NavMeshPathStatus.PathComplete)
+						{
+							validPoints.Add(hit.position);
+						}
+					}
+				}
+			}
+		}
+
+		if (validPoints.Count < 3)
+		{
+			// Fallback secundario si el chequeo de ruta estricta es demasiado riguroso en este layout
+			validPoints.Clear();
+			foreach (Vector3 p in patrolPoints)
+			{
+				if (Vector3.Distance(p, playerSpawnPos) > minDistanceToElevator)
+				{
+					if (UnityEngine.AI.NavMesh.SamplePosition(p, out UnityEngine.AI.NavMeshHit hit, 3.0f * mapScale, UnityEngine.AI.NavMesh.AllAreas))
+					{
+						validPoints.Add(hit.position);
+					}
+				}
+			}
+		}
+
+		if (validPoints.Count < 3)
+		{
+			validPoints = new List<Vector3>(patrolPoints);
+			validPoints.Sort((a, b) => Vector3.Distance(b, playerSpawnPos).CompareTo(Vector3.Distance(a, playerSpawnPos)));
+		}
+
+		int step = Mathf.Max(1, validPoints.Count / 4);
+		int[] targetIndices = new int[] { step, step * 2, step * 3 };
+
+		for (int i = 0; i < 3; i++)
+		{
+			int idx = targetIndices[i];
+			if (idx >= validPoints.Count) idx = validPoints.Count - 1 - i;
+			if (idx < 0) idx = 0;
+
+			Vector3 basePos = validPoints[idx];
+			Vector3 spawnPos = basePos; // Sin offset para evitar traspasar las estrechas pasarelas y paredes de los túneles
+
+			Vector3 finalPos = spawnPos;
+			RaycastHit hit;
+			if (Physics.Raycast(spawnPos + Vector3.up * 2f, Vector3.down, out hit, 5f))
+			{
+				finalPos = hit.point + Vector3.up * 0.015f;
+			}
+			else
+			{
+				finalPos = new Vector3(spawnPos.x, spawnPos.y + 0.015f, spawnPos.z);
+			}
+
+			GameObject noteObj;
+			float scaleFactor = 1.6f * mapScale; // Ajustado para ser más grandes y visibles en los túneles
+
+			if (notePrefab != null)
+			{
+				noteObj = Object.Instantiate(notePrefab, finalPos, Quaternion.Euler(90f, Random.Range(0f, 360f), 0f), loreRoot.transform);
+				noteObj.transform.localScale = notePrefab.transform.localScale * scaleFactor;
+			}
+			else
+			{
+				noteObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
+				noteObj.transform.position = finalPos;
+				noteObj.transform.rotation = Quaternion.Euler(90f, Random.Range(0f, 360f), 0f);
+				noteObj.transform.localScale = new Vector3(0.5f * scaleFactor, 0.6f * scaleFactor, 1f);
+				noteObj.transform.SetParent(loreRoot.transform);
+				
+				Renderer rend = noteObj.GetComponent<Renderer>();
+				if (rend != null)
+				{
+					rend.material = new Material(Shader.Find("Sprites/Default"));
+					rend.material.color = new Color(0.82f, 0.68f, 0.44f, 1.0f);
+				}
+			}
+
+			noteObj.name = $"[Tunnel_Lore_Note_{i + 1}]";
+
+			NoteItem oldItem = noteObj.GetComponent<NoteItem>();
+			if (oldItem != null) Object.DestroyImmediate(oldItem);
+
+			// Configurar un BoxCollider agrandado proporcional a la escala para facilitar la interacción por raycast
+			BoxCollider box = noteObj.GetComponent<BoxCollider>();
+			MeshCollider meshCol = noteObj.GetComponent<MeshCollider>();
+			if (meshCol != null) Object.DestroyImmediate(meshCol);
+
+			if (box == null) box = noteObj.AddComponent<BoxCollider>();
+			box.isTrigger = false;
+			box.center = Vector3.zero;
+			box.size = new Vector3(0.45f, 0.3f, 0.45f); // Tamaño absoluto cómodo en 3D
+
+			LoreNoteItem loreComp = noteObj.AddComponent<LoreNoteItem>();
+			loreComp.loreId = 4 + i;
+			loreComp.noteTitle = loreTitles[i];
+			loreComp.noteBody = loreBodies[i];
+			loreComp.interactDistance = 3.5f;
+		}
+
+		UnityEngine.Debug.Log("[TunnelsGenerator] Se generaron con éxito las 3 notas de lore (IDs 4, 5, 6) en el laberinto de túneles.");
 	}
 }
