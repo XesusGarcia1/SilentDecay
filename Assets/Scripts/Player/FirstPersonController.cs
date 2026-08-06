@@ -68,6 +68,9 @@ namespace StarterAssets
         private CharacterController _controller;
         private StarterAssetsInputs _input;
         private GameObject _mainCamera;
+        private Transform _headBone; // Referencia al hueso de la cabeza del personaje
+        private string _currentAnimName = "Idle_Player"; // Almacena el nombre de la animación actual
+        private Animator _animator; // Referencia al animador del modelo de personaje
 
         private const float _threshold = 0.01f;
 
@@ -105,6 +108,41 @@ namespace StarterAssets
             Debug.LogError("Starter Assets package is missing dependencies. Please use Tools/Starter Assets/Reinstall Dependencies to fix it");
 #endif
 
+            // Log scale hierarchy for debugging
+            Debug.LogFormat("[PlayerScaleDebug] GameObject: {0}, localScale: {1}, lossyScale: {2}", name, transform.localScale, transform.lossyScale);
+            Transform parentTrans = transform.parent;
+            while (parentTrans != null)
+            {
+                Debug.LogFormat("[PlayerScaleDebug] Parent: {0}, localScale: {1}, lossyScale: {2}", parentTrans.name, parentTrans.localScale, parentTrans.lossyScale);
+                parentTrans = parentTrans.parent;
+            }
+            foreach (Transform child in GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name.Contains("Ethan") || child.name.Contains("char1"))
+                {
+                    Debug.LogFormat("[PlayerScaleDebug] Child: {0}, localScale: {1}, lossyScale: {2}", child.name, child.localScale, child.lossyScale);
+                }
+            }
+
+            // Buscar animador en los hijos (modelo 3D)
+            _animator = GetComponentInChildren<Animator>();
+            // Desactivar Root Motion para que las animaciones no muevan la posición del modelo
+            // (el movimiento lo controla el CharacterController, no las animaciones)
+            if (_animator != null)
+            {
+                _animator.applyRootMotion = false;
+            }
+
+            // Buscar el hueso de la cabeza de Ethan para poder escalarlo e invisibilizarlo
+            foreach (Transform child in GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name.ToLower() == "head")
+                {
+                    _headBone = child;
+                    break;
+                }
+            }
+
             // reset our timeouts on start
             _jumpTimeoutDelta = JumpTimeout;
             _fallTimeoutDelta = FallTimeout;
@@ -123,6 +161,12 @@ namespace StarterAssets
         private void LateUpdate()
         {
             CameraRotation();
+
+            // Encoger la cabeza a cero cada frame (después de las animaciones) para hacerla invisible
+            if (_headBone != null)
+            {
+                _headBone.localScale = Vector3.zero;
+            }
         }
 
         private void GroundedCheck()
@@ -187,6 +231,26 @@ namespace StarterAssets
             }
 
             _controller.Move(inputDirection.normalized * (_speed * Time.deltaTime) + new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+
+            if (_animator != null)
+            {
+                // Determinar el nombre de la animación según la velocidad y el input
+                string animName = "Idle_Player";
+                
+                // Si el jugador realmente se está moviendo con el input
+                if (_input.move != Vector2.zero && _speed > 0.1f)
+                {
+                    // Si corre, usar running_Player; si camina, usar walking_Player
+                    animName = _input.sprint ? "running_Player" : "walking_Player";
+                }
+
+                // Solo iniciar la transición si cambiamos de animación
+                if (animName != _currentAnimName)
+                {
+                    _currentAnimName = animName;
+                    _animator.CrossFade(animName, 0.15f);
+                }
+            }
 
             PlayFootstepsSound();
         }
