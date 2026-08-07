@@ -5,6 +5,33 @@ using System.Collections.Generic;
 
 public class CrawlerAI : MonoBehaviour
 {
+    /// <summary>
+    /// Forzar al monstruo a una posición lejana y segura durante el respawn del jugador,
+    /// para evitar que campee en el punto de muerte.
+    /// </summary>
+    public void ForceRelocateFarAway(Vector3 safePlayerPos)
+    {
+        if (agent == null) return;
+        
+        Vector3 farPos = safePlayerPos - (Vector3.forward * 40f);
+        
+        UnityEngine.AI.NavMeshHit hit;
+        if (UnityEngine.AI.NavMesh.SamplePosition(farPos, out hit, 60f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            agent.Warp(hit.position);
+            Debug.Log("[CrawlerAI] Relocalizado lejos del jugador en el respawn a: " + hit.position);
+        }
+        else
+        {
+            if (UnityEngine.AI.NavMesh.SamplePosition(transform.position, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                agent.Warp(hit.position);
+            }
+        }
+        
+        agent.ResetPath();
+        isFleeing = false;
+    }
     [Header("Ajustes de Acecho y Movimiento")]
     [Tooltip("Velocidad de caminata/arrastre sigiloso (Lenta y aterradora)")]
     public float walkSpeed = 1.35f;

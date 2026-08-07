@@ -26,9 +26,19 @@ public class CrawlerDecalTrail : MonoBehaviour
         lastSpawnPos = transform.position;
 
         if (moldTexture == null)
-            moldTexture = Resources.Load<Texture2D>("dark_mold_decay_1") ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Dnk_Dev/El Rastrero/dark_mold_decay_1.jpg");
+        {
+            moldTexture = Resources.Load<Texture2D>("dark_mold_decay_1");
+#if UNITY_EDITOR
+            if (moldTexture == null) moldTexture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Dnk_Dev/El Rastrero/dark_mold_decay_1.jpg");
+#endif
+        }
         if (veinsTexture == null)
-            veinsTexture = Resources.Load<Texture2D>("organic_veins_decay_2") ?? UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Dnk_Dev/El Rastrero/organic_veins_decay_2.jpg");
+        {
+            veinsTexture = Resources.Load<Texture2D>("organic_veins_decay_2");
+#if UNITY_EDITOR
+            if (veinsTexture == null) veinsTexture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Dnk_Dev/El Rastrero/organic_veins_decay_2.jpg");
+#endif
+        }
     }
 
     void Update()

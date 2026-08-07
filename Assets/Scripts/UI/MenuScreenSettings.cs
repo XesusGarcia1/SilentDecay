@@ -53,8 +53,8 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.Space(20);
 
         // ─── Pestañas ─────────────────────────────────────────────────────────
-        GUIStyle tabStyle = new GUIStyle(GUI.skin.button);
-        tabStyle.fontSize  = 16;
+        GUIStyle tabStyle = new GUIStyle(s.OptionSelect);
+        tabStyle.fontSize  = 18;
         tabStyle.fontStyle = FontStyle.Bold;
         tabStyle.hover.textColor = Color.red;
 

@@ -190,7 +190,7 @@ public class SceneLoader : MonoBehaviour
             terminalStyle.fontSize = 20;
             terminalStyle.normal.textColor = new Color(0.1f, 0.85f, 0.15f, 0.95f); // Verde fósforo
             terminalStyle.wordWrap = true;
-            terminalStyle.alignment = TextAnchor.MiddleLeft;
+            terminalStyle.alignment = TextAnchor.UpperCenter;
 
             promptStyle = new GUIStyle(terminalStyle);
             promptStyle.fontSize = 17;

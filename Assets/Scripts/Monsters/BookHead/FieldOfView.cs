@@ -45,8 +45,19 @@ public class FieldOfView : MonoBehaviour
         RaycastHit hit;
         if (Physics.Linecast(startPoint, endPoint, out hit, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
         {
-            if (!hit.transform.CompareTag("Player") && hit.transform.root != player.root)
+            // Si el raycast golpea algo, verificamos si es el jugador.
+            // Con los nuevos personajes separados (PlayerMale / PlayerFemale / PlayerCapsule), 
+            // comprobamos si el objeto golpeado pertenece a alguno de ellos por su nombre de raíz o tag.
+            bool hitPlayer = hit.transform.CompareTag("Player") || 
+                             hit.transform.root == player.root ||
+                             hit.transform.root.name.Contains("Player") ||
+                             hit.transform.GetComponentInParent<StarterAssets.FirstPersonController>() != null;
+
+            // Si golpeó una pared u obstáculo (no es el jugador), no lo puede ver.
+            if (!hitPlayer)
+            {
                 return false;
+            }
         }
 
         return true;

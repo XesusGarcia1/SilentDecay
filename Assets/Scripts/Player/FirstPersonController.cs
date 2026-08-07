@@ -62,12 +62,27 @@ namespace StarterAssets
         private float _nextStepTime = 0.0f;
         public float stepInterval = 0.5f; // Intervalo entre pasos
 
+        [Header("Stamina System")]
+        public float maxStamina = 100f;
+        public float staminaDrainRate = 12f;
+        public float staminaRegenRate = 8f;
+        private float _currentStamina;
+        private bool _isExhausted = false;
+
+        private AudioSource _breathAudioSource;
+        private AudioClip _breathMaleClip;
+        private AudioClip _breathFemaleClip;
+        private UnityEngine.UI.Image _mobileSprintButtonImage;
+
 #if ENABLE_INPUT_SYSTEM
         private PlayerInput _playerInput;
 #endif
         private CharacterController _controller;
         private StarterAssetsInputs _input;
         private GameObject _mainCamera;
+        private string _currentAnimName = "Idle_Player"; // Almacena el nombre de la animación actual
+        private bool _isFemaleAnimationSet = false; // Indica si se usan las animaciones con sufijo 'Female'
+        private Animator _animator; // Referencia al animador del modelo de personaje
 
         private const float _threshold = 0.01f;
 
@@ -85,6 +100,41 @@ namespace StarterAssets
 
         private void Awake()
         {
+            // Lógica robusta de selección de personaje (incluso si uno está desactivado en el Inspector)
+            string selected = PlayerPrefs.GetString("SelectedCharacter", "Male");
+            string rootName = transform.root.gameObject.name;
+
+            // Buscar en todos los objetos raíz de la escena para asegurar que encendemos al que corresponde
+            GameObject male = null;
+            GameObject female = null;
+            foreach (GameObject go in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+            {
+                if (go.name.Contains("PlayerMale")) male = go;
+                if (go.name.Contains("PlayerFemale")) female = go;
+            }
+
+            if (selected == "Male" && rootName.Contains("PlayerFemale"))
+            {
+                if (male != null) male.SetActive(true);
+                transform.root.gameObject.SetActive(false);
+                return; // Detener la ejecución del Awake en el personaje desactivado
+            }
+            else if (selected == "Female" && rootName.Contains("PlayerMale"))
+            {
+                if (female != null) female.SetActive(true);
+                transform.root.gameObject.SetActive(false);
+                return; // Detener la ejecución del Awake en el personaje desactivado
+            }
+
+            // Sanitizar etiquetas (tags) para evitar ambigüedades en FindGameObjectWithTag.
+            // Si el objeto raíz está etiquetado como "Player", lo cambiamos a "Untagged"
+            // y nos aseguramos de que solo este objeto (la cápsula de control activa) tenga la etiqueta "Player".
+            if (transform.root.gameObject.tag == "Player")
+            {
+                transform.root.gameObject.tag = "Untagged";
+            }
+            gameObject.tag = "Player";
+
             // get a reference to our main camera
             if (_mainCamera == null)
             {
@@ -101,13 +151,73 @@ namespace StarterAssets
             _input = GetComponent<StarterAssetsInputs>();
 #if ENABLE_INPUT_SYSTEM
             _playerInput = GetComponent<PlayerInput>();
+            if (_playerInput != null)
+            {
+                // Forzar refresco del PlayerInput para evitar pérdida de dispositivos
+                // al activarse dinámicamente desde otro script en Awake.
+                _playerInput.enabled = false;
+                _playerInput.enabled = true;
+            }
 #else
             Debug.LogError("Starter Assets package is missing dependencies. Please use Tools/Starter Assets/Reinstall Dependencies to fix it");
 #endif
 
+            // Log scale hierarchy for debugging
+            Debug.LogFormat("[PlayerScaleDebug] GameObject: {0}, localScale: {1}, lossyScale: {2}", name, transform.localScale, transform.lossyScale);
+            Transform parentTrans = transform.parent;
+            while (parentTrans != null)
+            {
+                Debug.LogFormat("[PlayerScaleDebug] Parent: {0}, localScale: {1}, lossyScale: {2}", parentTrans.name, parentTrans.localScale, parentTrans.lossyScale);
+                parentTrans = parentTrans.parent;
+            }
+            foreach (Transform child in GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name.Contains("Ethan") || child.name.Contains("char1"))
+                {
+                    Debug.LogFormat("[PlayerScaleDebug] Child: {0}, localScale: {1}, lossyScale: {2}", child.name, child.localScale, child.lossyScale);
+                }
+            }
+
+            // Buscar animador en los hijos (modelo 3D)
+            _animator = GetComponentInChildren<Animator>();
+            // Desactivar Root Motion para que las animaciones no muevan la posición del modelo
+            // (el movimiento lo controla el CharacterController, no las animaciones)
+            if (_animator != null)
+            {
+                _animator.applyRootMotion = false;
+                
+                // Detectar si el animator tiene los estados femeninos
+                _isFemaleAnimationSet = _animator.HasState(0, Animator.StringToHash("Idle_PlayerFemale"));
+                if (_isFemaleAnimationSet)
+                {
+                    _currentAnimName = "Idle_PlayerFemale";
+                }
+            }
+
+
             // reset our timeouts on start
             _jumpTimeoutDelta = JumpTimeout;
             _fallTimeoutDelta = FallTimeout;
+
+            // Inicializar Stamina
+            _currentStamina = maxStamina;
+            _breathAudioSource = gameObject.AddComponent<AudioSource>();
+            _breathAudioSource.loop = true;
+            _breathAudioSource.volume = 0f;
+            _breathAudioSource.playOnAwake = true;
+            _breathAudioSource.spatialBlend = 0f; // 2D sound for breathing
+            
+            _breathMaleClip = Resources.Load<AudioClip>("Audio/Players/RespiracionMale");
+            _breathFemaleClip = Resources.Load<AudioClip>("Audio/Players/RespiracionFemale");
+
+            string rootNameStr = transform.root.gameObject.name;
+            if (rootNameStr.Contains("PlayerFemale"))
+                _breathAudioSource.clip = _breathFemaleClip;
+            else
+                _breathAudioSource.clip = _breathMaleClip;
+
+            if (_breathAudioSource.clip != null)
+                _breathAudioSource.Play();
 
             // Configurar dinámicamente el canvas de inputs en móvil
             SetupMobileUI();
@@ -118,11 +228,24 @@ namespace StarterAssets
             JumpAndGravity();
             GroundedCheck();
             Move();
+
+            // Lógica de Audio de Respiración
+            if (_breathAudioSource != null)
+            {
+                // El volumen aumenta cuando la stamina baja. Cuando la stamina está llena (maxStamina), volumen = 0
+                float exhaustionLevel = 1f - (_currentStamina / maxStamina);
+                
+                // Si la stamina está arriba del 80%, forzamos silencio
+                if (exhaustionLevel < 0.2f) exhaustionLevel = 0f;
+                
+                _breathAudioSource.volume = Mathf.Lerp(_breathAudioSource.volume, exhaustionLevel, Time.deltaTime * 2f);
+            }
         }
 
         private void LateUpdate()
         {
             CameraRotation();
+
         }
 
         private void GroundedCheck()
@@ -162,8 +285,63 @@ namespace StarterAssets
 
         private void Move()
         {
+            // Lógica de Stamina
+            bool isMoving = _input.move != Vector2.zero;
+            if (_input.sprint && isMoving && !_isExhausted)
+            {
+                _currentStamina -= staminaDrainRate * Time.deltaTime;
+                if (_currentStamina <= 0f)
+                {
+                    _currentStamina = 0f;
+                    _isExhausted = true;
+                    _input.sprint = false;
+                    
+                    // Asegurar que el botón virtual se actualice
+                    if (_mobileSprintButtonImage != null)
+                    {
+                        var virtualButton = _mobileSprintButtonImage.GetComponent<UIVirtualButton>();
+                        // Simulamos que dejó de presionarlo si es posible, sino simplemente evitamos que corra
+                    }
+                }
+            }
+            else
+            {
+                if (_currentStamina < maxStamina)
+                {
+                    _currentStamina += staminaRegenRate * Time.deltaTime;
+                    if (_currentStamina > maxStamina) _currentStamina = maxStamina;
+                }
+                
+                // Permitir correr de nuevo si la stamina recuperó al menos 25%
+                if (_isExhausted && _currentStamina > maxStamina * 0.25f)
+                {
+                    _isExhausted = false;
+                }
+
+                // Si está exhausto, forzamos no correr
+                if (_isExhausted)
+                {
+                    _input.sprint = false;
+                }
+            }
+
+            // Actualizar interfaz visual
+            if (_mobileSprintButtonImage != null)
+            {
+                _mobileSprintButtonImage.fillAmount = _currentStamina / maxStamina;
+            }
+
+            // Velocidad objetivo normal
             float targetSpeed = _input.sprint ? SprintSpeed : MoveSpeed;
-            if (_input.move == Vector2.zero) targetSpeed = 0.0f;
+            
+            // Si está corriendo pero con poca energía (menos del 30%), pierde velocidad gradualmente
+            if (_input.sprint && isMoving && _currentStamina < maxStamina * 0.3f)
+            {
+                float factor = _currentStamina / (maxStamina * 0.3f);
+                targetSpeed = Mathf.Lerp(MoveSpeed, SprintSpeed, factor);
+            }
+
+            if (!isMoving) targetSpeed = 0.0f;
 
             float currentHorizontalSpeed = new Vector3(_controller.velocity.x, 0.0f, _controller.velocity.z).magnitude;
 
@@ -187,6 +365,27 @@ namespace StarterAssets
             }
 
             _controller.Move(inputDirection.normalized * (_speed * Time.deltaTime) + new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+
+            if (_animator != null)
+            {
+                // Determinar el nombre de la animación según la velocidad, el input y el género del personaje
+                string suffix = _isFemaleAnimationSet ? "Female" : "";
+                string animName = "Idle_Player" + suffix;
+                
+                // Si el jugador realmente se está moviendo con el input
+                if (_input.move != Vector2.zero && _speed > 0.1f)
+                {
+                    // Si corre, usar running_Player/running_PlayerFemale; si camina, usar walking_Player/walking_PlayerFemale
+                    animName = (_input.sprint ? "running_Player" : "walking_Player") + suffix;
+                }
+
+                // Solo iniciar la transición si cambiamos de animación
+                if (animName != _currentAnimName)
+                {
+                    _currentAnimName = animName;
+                    _animator.CrossFade(animName, 0.15f);
+                }
+            }
 
             PlayFootstepsSound();
         }
@@ -346,9 +545,19 @@ namespace StarterAssets
 
                 Debug.Log("[MobileSetup] ¡El trackpad de mirada táctil ya cubre la mitad derecha de la pantalla y el ojo ha sido removido!");
             }
-            else
+
+            // Buscar el botón de correr (Sprint) en la jerarquía del Canvas Móvil
+            GameObject sprintBtnObj = GameObject.Find("UI_Virtual_Button_Sprint");
+            if (sprintBtnObj != null)
             {
-                Debug.Log("[MobileSetup] No se encontró un control táctil de mirada.");
+                _mobileSprintButtonImage = sprintBtnObj.GetComponent<UnityEngine.UI.Image>();
+                if (_mobileSprintButtonImage != null)
+                {
+                    _mobileSprintButtonImage.type = UnityEngine.UI.Image.Type.Filled;
+                    _mobileSprintButtonImage.fillMethod = UnityEngine.UI.Image.FillMethod.Vertical; // O Radial360 dependiendo del diseño
+                    _mobileSprintButtonImage.fillOrigin = (int)UnityEngine.UI.Image.OriginVertical.Bottom;
+                    _mobileSprintButtonImage.fillAmount = 1f;
+                }
             }
         }
     }

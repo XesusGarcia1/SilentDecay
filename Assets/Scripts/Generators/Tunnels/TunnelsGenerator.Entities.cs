@@ -41,7 +41,7 @@ public partial class TunnelsGenerator
 		Camera[] array = Object.FindObjectsOfType<Camera>();
 		foreach (Camera camera in array)
 		{
-			if (camera.transform.root.name != "Player" && camera.transform.root.name != "NestedParent_Unpack" && camera.gameObject.name == "Main Camera")
+			if (!camera.transform.root.name.Contains("Player") && camera.transform.root.name != "NestedParent_Unpack" && camera.gameObject.name == "Main Camera")
 			{
 				camera.gameObject.SetActive(value: false);
 				UnityEngine.Debug.Log("[TunnelsGenerator] Cámara suelta '" + camera.gameObject.name + "' desactivada.");
@@ -54,6 +54,20 @@ public partial class TunnelsGenerator
 		_ = segmentLength;
 		_ = mapScale;
 		GameObject gameObject = GameObject.FindGameObjectWithTag("Player");
+		if (gameObject != null)
+		{
+			// Si el objeto con el tag "Player" es un contenedor raíz (como PlayerFemale) y no tiene el
+			// CharacterController adjunto directamente, buscamos el objeto hijo que sí lo tenga (la cápsula)
+			CharacterController ccDirect = gameObject.GetComponent<CharacterController>();
+			if (ccDirect == null)
+			{
+				CharacterController ccInChild = gameObject.GetComponentInChildren<CharacterController>(includeInactive: true);
+				if (ccInChild != null)
+				{
+					gameObject = ccInChild.gameObject;
+				}
+			}
+		}
 
 		// Determinar la celda del jugador en el grid
 		float num = segmentLength * mapScale;

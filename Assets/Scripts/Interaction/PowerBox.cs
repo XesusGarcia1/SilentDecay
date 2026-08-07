@@ -520,6 +520,9 @@ public class PowerBox : MonoBehaviour
 
     void OnGUI()
     {
+        // Ocultar si estamos leyendo una nota (lore) para no sobreponer textos
+        if (NotepadUIManager.IsOpen) return;
+
         // Ocultar si estamos en modo menú
         ModularHospital.ModularHospitalGenerator generator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
         if (generator != null && generator.isMenuMode) return;

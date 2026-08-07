@@ -290,9 +290,7 @@ public class NotepadUIManager : MonoBehaviour
 
         Rect padRect = new Rect(Screen.width / 2 - 200, Screen.height / 2 - 220, 400, 440);
         
-        GUI.color = new Color(0.96f, 0.94f, 0.82f, 0.98f);
-        GUI.DrawTexture(padRect, Texture2D.whiteTexture);
-        GUI.color = Color.white;
+        GUI.DrawTexture(padRect, ProceduralPaperTexture.GetPaperTexture());
         
         // PESTAÑAS SUPERIORES (Redistribuido a 3 pestañas para incluir el archivo de Lore)
         float tabW = 115f;
@@ -395,11 +393,11 @@ public class NotepadUIManager : MonoBehaviour
         string codeTitle = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_director_code") : "Codigo de la Oficina del Director:";
         GUI.Label(new Rect(padRect.x, padRect.y + 55, padRect.width, 30), codeTitle, subStyle);
 
-        float startX = padRect.x + 22f;
+        float startX = padRect.x + 52f;
         float startY = padRect.y + 90f;
-        float slotW = 42f;
+        float slotW = 38f;
         float slotH = 48f;
-        float spacingX = 7f;
+        float spacingX = 5f;
 
         GUIStyle slotStyle = new GUIStyle();
         slotStyle.fontSize = 24;
@@ -492,7 +490,8 @@ public class NotepadUIManager : MonoBehaviour
             }
         }
 
-        GUI.Label(new Rect(padRect.x + 25, padRect.y + 155, padRect.width - 50, 180), hintText, hintStyle);
+        // Margen aumentado para no tocar el contorno oscuro
+        GUI.Label(new Rect(padRect.x + 45, padRect.y + 155, padRect.width - 90, 180), hintText, hintStyle);
 
         // Si estamos en túneles, dibujar una gran X o líneas rayadas rojas sobre toda la hoja de notas
         if (isTunnelsMode)
@@ -1070,16 +1069,16 @@ public class NotepadUIManager : MonoBehaviour
             string noLoreMsg = LocalizationManager.Instance != null 
                 ? LocalizationManager.Instance.Get("notepad_no_lore") 
                 : "No has recopilado ningún informe ni documento de historia todavía.\n\nBusca papeles envejecidos y quemados en las mesas y consultas del hospital.";
-            GUI.Label(new Rect(padRect.x + 25, padRect.y + 120, padRect.width - 50, 150), noLoreMsg, emptyStyle);
+            GUI.Label(new Rect(padRect.x + 45, padRect.y + 120, padRect.width - 90, 150), noLoreMsg, emptyStyle);
             return;
         }
 
-        // Diseño en 2 columnas: Lista de notas a la izquierda, contenido a la derecha
-        float listW = 120f;
-        float viewW = 230f;
+        // Diseño en 2 columnas con márgenes aumentados para no solapar los bordes oscuros del pergamino
+        float listW = 100f;
+        float viewW = 195f;
         float height = 310f;
 
-        float listX = padRect.x + 15f;
+        float listX = padRect.x + 45f;
         float viewX = listX + listW + 15f;
         float startY = padRect.y + 55f;
 

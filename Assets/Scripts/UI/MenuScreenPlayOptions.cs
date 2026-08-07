@@ -13,8 +13,14 @@ public class MenuScreenPlayOptions : MonoBehaviour
 
     private int selectedMapSizeIndex    = 0;
     private int selectedDifficultyIndex = 1;
+    private int selectedCharacterIndex  = 0;
 
-    public void Init(MainMenuManager manager) => ctx = manager;
+    public void Init(MainMenuManager manager)
+    {
+        ctx = manager;
+        string character = PlayerPrefs.GetString("SelectedCharacter", "Male");
+        selectedCharacterIndex = (character == "Female") ? 1 : 0;
+    }
 
     public void Draw(MenuStyles s)
     {
@@ -52,7 +58,12 @@ public class MenuScreenPlayOptions : MonoBehaviour
         GUILayout.Label(title, s.SectionHeader, GUILayout.Height(30));
         GUILayout.Space(30);
 
-        // ─── Tamaño del mapa ──────────────────────────────────────────────────
+        GUILayout.BeginHorizontal();
+
+        // ─── COLUMNA IZQUIERDA: Configuraciones ───
+        GUILayout.BeginVertical(GUILayout.Width(500));
+        
+        // Tamaño del mapa
         GUILayout.Label(sizeLabel, s.Label);
         GUILayout.Space(5);
         DrawSelector(s, GetLocalizedSizes(), ref selectedMapSizeIndex);
@@ -61,23 +72,51 @@ public class MenuScreenPlayOptions : MonoBehaviour
         GUILayout.Label(descSize, s.SubTitle);
         GUILayout.Space(25);
 
-        // ─── Dificultad ───────────────────────────────────────────────────────
+        // Dificultad
         GUILayout.Label(diffLabel, s.Label);
         GUILayout.Space(5);
         DrawSelector(s, GetLocalizedDiffs(), ref selectedDifficultyIndex);
         GUILayout.Label(GetDiffDescription(), s.SubTitle);
-        GUILayout.Space(30);
+        GUILayout.Space(25);
 
-        // ─── Botón principal: Hospital ────────────────────────────────────────
+        // Selección de personaje
+        string charLabel = "Seleccionar Personaje:";
+        string[] charNames = { "ETHAN", "NORA" };
+        if (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH)
+        {
+            charLabel = "Select Character:";
+        }
+        else if (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.PORTUGUES)
+        {
+            charLabel = "Selecionar Personagem:";
+        }
+
+        GUILayout.Label(charLabel, s.Label);
+        GUILayout.Space(5);
+        DrawSelector(s, charNames, ref selectedCharacterIndex);
+
+        string charDesc = selectedCharacterIndex == 0 ? 
+            (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH ? "Male Character (Ethan)" : "Personaje Masculino (Ethan)") : 
+            (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH ? "Female Character (Nora)" : "Personaje Femenino (Nora)");
+
+        GUILayout.Label(charDesc, s.SubTitle);
+
+        GUILayout.EndVertical();
+
+        GUILayout.Space(40); // Espacio entre columnas
+
+        // ─── COLUMNA DERECHA: Botones de Acción ───
+        GUILayout.BeginVertical();
+        GUILayout.FlexibleSpace();
+
         var redBtn = RedButton(s);
         if (GUILayout.Button(startBtn, redBtn, GUILayout.Height(60)))
         {
             ctx.PlayClickSound();
             SaveAndLoad("Test_ModularHospital", HospitalWidth());
         }
-        GUILayout.Space(12);
+        GUILayout.Space(20);
 
-        // ─── Botón secundario: Túneles (condicionado por el Inspector) ───────
         if (ctx == null || ctx.enableTunnelsLevel)
         {
             var goldBtn = new GUIStyle(s.Button);
@@ -89,7 +128,7 @@ public class MenuScreenPlayOptions : MonoBehaviour
                 ctx.PlayClickSound();
                 SaveAndLoad("TunnelsMap", TunnelWidth());
             }
-            GUILayout.Space(25);
+            GUILayout.Space(20);
         }
 
         if (GUILayout.Button(backBtn, s.Button, GUILayout.Height(50)))
@@ -97,6 +136,11 @@ public class MenuScreenPlayOptions : MonoBehaviour
             ctx.PlayClickSound();
             ctx.GoTo(MainMenuManager.MenuState.Main);
         }
+
+        GUILayout.FlexibleSpace();
+        GUILayout.EndVertical();
+
+        GUILayout.EndHorizontal();
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -169,6 +213,7 @@ public class MenuScreenPlayOptions : MonoBehaviour
     {
         PlayerPrefs.SetInt("SelectedMapSize",       width);
         PlayerPrefs.SetString("SelectedDifficulty", DiffString());
+        PlayerPrefs.SetString("SelectedCharacter",  selectedCharacterIndex == 0 ? "Male" : "Female");
         PlayerPrefs.SetFloat("MouseSensitivity",    ctx.mouseSensitivity);
         PlayerPrefs.SetFloat("MasterVolume",        ctx.masterVolume);
         PlayerPrefs.SetFloat("CamcorderAccumulatedTime", 0f);

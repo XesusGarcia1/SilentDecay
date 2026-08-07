@@ -27,21 +27,23 @@ public class MenuScreenMain : MonoBehaviour
         string settingsBtn = Loc("menu_ajustes",  "CONFIGURACIÓN");
         string exitBtn     = Loc("menu_salir",    "SALIR DEL JUEGO");
 
-        if (GUILayout.Button($"  {playBtn}", s.Button, GUILayout.Height(60)))
+        GUILayout.Space(30);
+
+        if (GUILayout.Button($"  {playBtn}", s.Button, GUILayout.Height(75)))
         {
             ctx.PlayClickSound();
             ctx.GoTo(MainMenuManager.MenuState.LevelSelect);
         }
-        GUILayout.Space(25);
+        GUILayout.Space(35);
 
-        if (GUILayout.Button($"  {settingsBtn}", s.Button, GUILayout.Height(60)))
+        if (GUILayout.Button($"  {settingsBtn}", s.Button, GUILayout.Height(75)))
         {
             ctx.PlayClickSound();
             ctx.GoTo(MainMenuManager.MenuState.Settings);
         }
-        GUILayout.Space(25);
+        GUILayout.Space(35);
 
-        if (GUILayout.Button($"  {exitBtn}", s.Button, GUILayout.Height(60)))
+        if (GUILayout.Button($"  {exitBtn}", s.Button, GUILayout.Height(75)))
         {
             ctx.PlayClickSound();
             Application.Quit();
@@ -49,6 +51,8 @@ public class MenuScreenMain : MonoBehaviour
             UnityEditor.EditorApplication.isPlaying = false;
 #endif
         }
+        
+        GUILayout.FlexibleSpace();
     }
 
     public void DrawSocialButtons()
