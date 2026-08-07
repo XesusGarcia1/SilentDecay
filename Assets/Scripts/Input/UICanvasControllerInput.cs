@@ -8,6 +8,14 @@ namespace StarterAssets
         [Header("Output")]
         public StarterAssetsInputs starterAssetsInputs;
 
+        private void Start()
+        {
+            // Ocultar los botones en pantalla si no estamos en un dispositivo móvil
+            if (!Application.isMobilePlatform)
+            {
+                gameObject.SetActive(false);
+            }
+        }
         public void VirtualMoveInput(Vector2 virtualMoveDirection)
         {
             starterAssetsInputs.MoveInput(virtualMoveDirection);
