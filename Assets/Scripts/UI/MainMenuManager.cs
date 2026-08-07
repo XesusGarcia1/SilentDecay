@@ -182,8 +182,8 @@ public class MainMenuManager : MonoBehaviour
 
     public void PlayClickSound()
     {
-        if (sfxAudioSource != null && buttonClickSound != null)
-            sfxAudioSource.PlayOneShot(buttonClickSound);
+        if (buttonClickSound != null && sfxAudioSource != null)
+            sfxAudioSource.PlayOneShot(buttonClickSound, 0.45f);
     }
 
     public void GoTo(MenuState state) => currentState = state;

@@ -60,6 +60,10 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 1f;
         AudioListener.volume = 1f;
         
+        #if UNITY_ANDROID || UNITY_IOS
+        FixMobileCanvasScaling();
+        #endif
+
         // Solo reiniciar vidas al volver al menú principal.
         // IMPORTANTE: LoadingScene NO debe reiniciar vidas, porque es una pantalla intermedia
         // que se usa tanto para el primer acceso como para los reintentos mid-game.
@@ -75,6 +79,20 @@ public class GameManager : MonoBehaviour
             {
                 vidasActuales = 1;
                 Debug.LogWarning("GameManager: vidasActuales era 0 al entrar al mapa. Forzando a 1.");
+            }
+        }
+    }
+
+    private void FixMobileCanvasScaling()
+    {
+        UnityEngine.UI.CanvasScaler[] scalers = FindObjectsOfType<UnityEngine.UI.CanvasScaler>(true);
+        foreach (var scaler in scalers)
+        {
+            if (scaler.uiScaleMode == UnityEngine.UI.CanvasScaler.ScaleMode.ConstantPixelSize)
+            {
+                scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1920, 1080);
+                scaler.matchWidthOrHeight = 0.5f;
             }
         }
     }

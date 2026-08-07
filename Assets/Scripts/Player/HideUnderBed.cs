@@ -86,9 +86,9 @@ public class HideUnderBed : MonoBehaviour
             #if UNITY_ANDROID || UNITY_IOS
             if (playerInputs != null)
             {
-                // Leer del trackpad de pantalla táctil del móvil
-                mouseX = playerInputs.look.x * 0.15f;
-                mouseY = playerInputs.look.y * 0.15f;
+                // Leer del trackpad de pantalla táctil del móvil (corregido para no estar invertido y mejor sensibilidad)
+                mouseX = playerInputs.look.x * 0.45f;
+                mouseY = -playerInputs.look.y * 0.45f; // Invertido para que deslizar arriba mire arriba
             }
             #else
             mouseX = Input.GetAxis("Mouse X") * 2f;

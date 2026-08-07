@@ -155,7 +155,7 @@ public class PauseMenuManager : MonoBehaviour
         if (sfxSource != null && buttonClickSound != null)
         {
             sfxSource.volume = masterVolume * 0.85f;
-            sfxSource.PlayOneShot(buttonClickSound, 0.85f);
+            sfxSource.PlayOneShot(buttonClickSound, 0.45f);
         }
     }
 

@@ -748,6 +748,8 @@ public class PlayerHealth : MonoBehaviour
 
             if (Camera.main != null)
             {
+                Camera.main.transform.SetParent(null); // Cinemachine usa la cámara en la raíz
+                Camera.main.transform.position = originalCamPos;
                 Cinemachine.CinemachineBrain brain = Camera.main.GetComponent<Cinemachine.CinemachineBrain>();
                 if (brain != null) brain.enabled = true;
             }
