@@ -184,18 +184,24 @@ public class HideUnderBed : MonoBehaviour
         }
     }
 
+    private float lastToggleTime = 0f;
+
     void LateUpdate()
     {
         if (ElevatorController.isNotepadOpen) return;
 
+        // Prevenir que el mismo tap de interactuar para esconderte te saque de inmediato de la cama (cooldown de 0.40s)
+        if (Time.unscaledTime < lastToggleTime + 0.40f) return;
+
         if (isHiding)
         {
             #if UNITY_ANDROID || UNITY_IOS
-            if (MobileInput.GetKeyDown(KeyCode.E)) // En móviles sólo salir tocando el botón de interactuar (mano) para no bugearse al girar la cámara
+            if (MobileInput.GetKeyDown(KeyCode.E))
             #else
             if (MobileInput.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
             #endif
             {
+                MobileInput.ePressedDown = false;
                 ToggleHide(null);
             }
         }
@@ -204,6 +210,7 @@ public class HideUnderBed : MonoBehaviour
             // Interacción directa con cama: presionar E cuando nearBed es true
             if (nearBed && targetBed != null && MobileInput.GetKeyDown(KeyCode.E))
             {
+                MobileInput.ePressedDown = false;
                 ToggleHide(targetBed);
             }
         }
@@ -212,6 +219,9 @@ public class HideUnderBed : MonoBehaviour
     public void ToggleHide(Bed activeBed)
     {
         if (player == null || playerCapsule == null) return;
+
+        lastToggleTime = Time.unscaledTime;
+        MobileInput.ePressedDown = false;
 
         isHiding = !isHiding;
 
