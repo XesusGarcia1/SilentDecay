@@ -97,8 +97,8 @@ public class LoreNoteItem : MonoBehaviour
 
         if (isReading)
         {
-            // Cerrar con Escape, E, Tab o Clic
-            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Tab))
+            // Cerrar con Escape, E, Mobile E, Tab
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E) || MobileInput.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Tab))
             {
                 CloseReading();
             }
@@ -114,14 +114,14 @@ public class LoreNoteItem : MonoBehaviour
             return;
         }
 
-        // Raycast de mirilla
+        // Mirilla de cámara con tolerancia limpia (SphereCast de 0.25m): exige estar mirando la nota
         bool isHitDirectly = false;
         Camera cam = Camera.main;
         if (cam != null)
         {
             Ray ray = new Ray(cam.transform.position, cam.transform.forward);
             RaycastHit hit;
-            if (Physics.Raycast(ray, out hit, interactDistance))
+            if (Physics.SphereCast(ray, 0.25f, out hit, interactDistance))
             {
                 if (hit.transform == transform || hit.transform.IsChildOf(transform) || transform.IsChildOf(hit.transform))
                 {
@@ -226,6 +226,12 @@ public class LoreNoteItem : MonoBehaviour
         Destroy(gameObject); // Desaparece del suelo
     }
 
+    public void CloseReadingSilently()
+    {
+        isReading = false;
+        Destroy(gameObject);
+    }
+
     private void SetPlayerControlsActive(bool active)
     {
         GameObject p = GameObject.Find("NestedParent_Unpack");
@@ -239,6 +245,13 @@ public class LoreNoteItem : MonoBehaviour
 
     private void OnGUI()
     {
+        if (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsGamePaused)
+        {
+            return;
+        }
+
+        GUI.depth = 10;
+
         if (isReading)
         {
             DrawFullscreenReading();
@@ -283,6 +296,15 @@ public class LoreNoteItem : MonoBehaviour
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
+        // Aplicar escalado del usuario en tiempo real
+        float hudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+        Matrix4x4 oldMat = GUI.matrix;
+        if (hudScale != 1.0f)
+        {
+            Vector2 pivot = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            GUIUtility.ScaleAroundPivot(new Vector2(hudScale, hudScale), pivot);
+        }
+
         // 2. Rectángulo de papel pergamino centrado
         int w = Mathf.Min(600, Screen.width - 40);
         int h = Mathf.Min(560, Screen.height - 60);
@@ -322,7 +344,6 @@ public class LoreNoteItem : MonoBehaviour
         }
 
         // Margen y dibujo de texto
-        // Margen aumentado para evitar que el texto toque el contorno oscuro del pergamino
         GUILayout.BeginArea(new Rect(paperRect.x + 75, paperRect.y + 55, paperRect.width - 150, paperRect.height - 130));
         
         GUILayout.Label(finalTitle, titleStyle);
@@ -340,5 +361,7 @@ public class LoreNoteItem : MonoBehaviour
         {
             CloseReading();
         }
+
+        GUI.matrix = oldMat;
     }
 }

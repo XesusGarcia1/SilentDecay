@@ -368,6 +368,7 @@ public partial class TunnelsGenerator : MonoBehaviour
 			audioSource.spatialBlend = 0f;
 			audioSource.volume = 0.45f;
 			audioSource.playOnAwake = true;
+			audioSource.ignoreListenerPause = true;
 			audioSource.Play();
 		}
 

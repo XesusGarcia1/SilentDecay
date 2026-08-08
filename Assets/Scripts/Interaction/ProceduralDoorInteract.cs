@@ -47,13 +47,14 @@ public class ProceduralDoorInteract : MonoBehaviour
         audioSource.minDistance = 4.0f;  // Volumen máximo en un radio de 4 metros para móviles
         audioSource.maxDistance = 15.0f; // Completamente inaudible después de 15 metros
 
+        if (doorOpenSound == null) doorOpenSound = Resources.Load<AudioClip>("Audio/Hospital/doorOpenSound2");
+        if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("Audio/Hospital/doorCloseSound2");
 #if UNITY_EDITOR
-        doorOpenSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Dnk_Dev/HospitalHorrorPack/Models/Animation/doorOpenSound2.mp3");
-        doorCloseSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Dnk_Dev/HospitalHorrorPack/Models/Animation/doorCloseSound2.mp3");
+        if (doorOpenSound == null) doorOpenSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Dnk_Dev/HospitalHorrorPack/Models/Animation/doorOpenSound2.mp3");
+        if (doorCloseSound == null) doorCloseSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Dnk_Dev/HospitalHorrorPack/Models/Animation/doorCloseSound2.mp3");
 #endif
-        // Fallback si no se encuentran en editor o es standalone
-        if (doorOpenSound == null) doorOpenSound = Resources.Load<AudioClip>("Interruptor");
-        if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("Interruptor");
+        if (doorOpenSound == null) doorOpenSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
+        if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
     }
 
     void Update()

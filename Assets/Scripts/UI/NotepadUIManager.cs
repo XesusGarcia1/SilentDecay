@@ -34,10 +34,11 @@ public class NotepadUIManager : MonoBehaviour
     {
         get
         {
+            float baseScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
             #if UNITY_ANDROID || UNITY_IOS
-            return 1.75f;
+            return baseScale * 1.15f;
             #else
-            return 1.0f;
+            return baseScale;
             #endif
         }
     }
@@ -272,39 +273,37 @@ public class NotepadUIManager : MonoBehaviour
                 numGens = subGens.Length;
             }
 
-            float yPos = 98f;
-            if (numGens > 0)
+            float hudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+            Matrix4x4 oldHudMat = GUI.matrix;
+            if (hudScale != 1.0f)
             {
-                yPos = 98f + 65f + 8f; // Abajo de la caja de subgeneradores
-            }
-            else
-            {
-                yPos = 98f; // Si no hay subgeneradores, va justo abajo de la caja de fusibles (que termina en Y=90)
+                Vector2 pivot = new Vector2(Screen.width - 25, 25);
+                GUIUtility.ScaleAroundPivot(new Vector2(hudScale, hudScale), pivot);
             }
 
-            float rightEdge = Screen.width - 25f;
+            float yPos = (numGens > 0) ? (98f + 65f + 8f) : 98f;
             float btnSize = 50f;
-            Rect iconRect = new Rect(rightEdge - btnSize, yPos, btnSize, btnSize);
+            Rect iconRect = new Rect(Screen.width - 25f - btnSize, yPos, btnSize, btnSize);
 
-            // Fondo semitransparente oscuro unificado (como fusibles y subgeneradores, no azul)
+            // Fondo semitransparente oscuro unificado (como fusibles y subgeneradores)
             GUI.color = new Color(0f, 0f, 0f, 0.6f);
             GUI.DrawTexture(iconRect, Texture2D.whiteTexture);
             GUI.color = Color.white;
 
             GUIStyle iconStyle = new GUIStyle(GUI.skin.button);
-            iconStyle.fontSize = 22;
-            iconStyle.alignment = TextAnchor.MiddleCenter;
-            iconStyle.fontStyle = FontStyle.Bold;
             iconStyle.normal.background = null;
             iconStyle.hover.background = null;
             iconStyle.active.background = null;
-            iconStyle.normal.textColor = Color.white;
-            iconStyle.hover.textColor = new Color(0.9f, 0.9f, 0.9f);
 
-            if (GUI.Button(iconRect, "📝", iconStyle))
+            if (GUI.Button(iconRect, GUIContent.none, iconStyle))
             {
                 OpenNotepad();
             }
+            Texture2D nbTex = GetNotebookTexture();
+            Rect nbIconPadding = new Rect(iconRect.x + 4, iconRect.y + 4, iconRect.width - 8, iconRect.height - 8);
+            if (nbTex != null) GUI.DrawTexture(nbIconPadding, nbTex, ScaleMode.ScaleToFit, true);
+
+            GUI.matrix = oldHudMat;
             return;
         }
 
@@ -343,12 +342,14 @@ public class NotepadUIManager : MonoBehaviour
         activeTabStyle.fontSize = 12;
         activeTabStyle.fontStyle = FontStyle.Bold;
         activeTabStyle.alignment = TextAnchor.MiddleCenter;
+        activeTabStyle.padding.left = 22;
         activeTabStyle.normal.textColor = Color.white;
 
         GUIStyle inactiveTabStyle = new GUIStyle();
         inactiveTabStyle.fontSize = 11;
         inactiveTabStyle.fontStyle = FontStyle.Normal;
         inactiveTabStyle.alignment = TextAnchor.MiddleCenter;
+        inactiveTabStyle.padding.left = 22;
         inactiveTabStyle.normal.textColor = new Color(0.2f, 0.2f, 0.2f);
 
         // Pestaña 1: NOTAS DE CLAVE
@@ -366,35 +367,41 @@ public class NotepadUIManager : MonoBehaviour
         }
         else
         {
-            tab1Title = isTunnelsMode ? "<s>📝 CLAVE (N/A)</s>" : "📝 CLAVE";
+            tab1Title = isTunnelsMode ? "<s>CLAVE (N/A)</s>" : "CLAVE";
         }
 
         if (GUI.Button(tab1Rect, tab1Title, activeTab == 0 ? activeTabStyle : inactiveTabStyle))
         {
             if (!isTunnelsMode) activeTab = 0;
         }
+        Texture2D t1Icon = GetTabCodeTexture();
+        if (t1Icon != null) GUI.DrawTexture(new Rect(tab1Rect.x + 8, tab1Rect.y + (tab1Rect.height - 22) / 2f, 22, 22), t1Icon, ScaleMode.ScaleToFit, true);
 
         // Pestaña 2: PLANO DEL MAPA
         GUI.color = (activeTab == 1) ? new Color(0.12f, 0.35f, 0.25f, 0.95f) : new Color(0.85f, 0.82f, 0.70f, 0.9f);
         GUI.DrawTexture(tab2Rect, Texture2D.whiteTexture);
         GUI.color = Color.white;
         
-        string tab2Title = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_tab_map") : "🗺️ MAPA";
+        string tab2Title = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_tab_map") : "MAPA";
         if (GUI.Button(tab2Rect, tab2Title, activeTab == 1 ? activeTabStyle : inactiveTabStyle))
         {
             activeTab = 1;
         }
+        Texture2D t2Icon = GetTabMapTexture();
+        if (t2Icon != null) GUI.DrawTexture(new Rect(tab2Rect.x + 8, tab2Rect.y + (tab2Rect.height - 22) / 2f, 22, 22), t2Icon, ScaleMode.ScaleToFit, true);
 
         // Pestaña 3: ARCHIVOS DE LORE (Coleccionables de historia)
         GUI.color = (activeTab == 2) ? new Color(0.12f, 0.35f, 0.25f, 0.95f) : new Color(0.85f, 0.82f, 0.70f, 0.9f);
         GUI.DrawTexture(tab3Rect, Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        string tab3Title = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_tab_lore") : "📜 LORE";
+        string tab3Title = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_tab_lore") : "REGISTROS";
         if (GUI.Button(tab3Rect, tab3Title, activeTab == 2 ? activeTabStyle : inactiveTabStyle))
         {
             activeTab = 2;
         }
+        Texture2D t3Icon = GetTabLoreTexture();
+        if (t3Icon != null) GUI.DrawTexture(new Rect(tab3Rect.x + 8, tab3Rect.y + (tab3Rect.height - 22) / 2f, 22, 22), t3Icon, ScaleMode.ScaleToFit, true);
 
         if (activeTab == 0)
         {
@@ -1304,5 +1311,33 @@ public class NotepadUIManager : MonoBehaviour
 
             MobileInput.SetCursorState(true);
         }
+    }
+
+    private static Texture2D notebookTex;
+    private static Texture2D GetNotebookTexture()
+    {
+        if (notebookTex == null) notebookTex = Resources.Load<Texture2D>("UI/HUD_Notebook_Icon");
+        return notebookTex;
+    }
+
+    private static Texture2D tabCodeTex;
+    private static Texture2D GetTabCodeTexture()
+    {
+        if (tabCodeTex == null) tabCodeTex = Resources.Load<Texture2D>("UI/Tab_Code_Icon");
+        return tabCodeTex;
+    }
+
+    private static Texture2D tabMapTex;
+    private static Texture2D GetTabMapTexture()
+    {
+        if (tabMapTex == null) tabMapTex = Resources.Load<Texture2D>("UI/Tab_Map_Icon");
+        return tabMapTex;
+    }
+
+    private static Texture2D tabLoreTex;
+    private static Texture2D GetTabLoreTexture()
+    {
+        if (tabLoreTex == null) tabLoreTex = Resources.Load<Texture2D>("UI/Tab_Lore_Icon");
+        return tabLoreTex;
     }
 }

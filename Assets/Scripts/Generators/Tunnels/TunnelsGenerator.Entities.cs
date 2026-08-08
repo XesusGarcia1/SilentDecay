@@ -1078,8 +1078,14 @@ public partial class TunnelsGenerator
 				Renderer rend = noteObj.GetComponent<Renderer>();
 				if (rend != null)
 				{
-					rend.material = new Material(Shader.Find("Standard")); // Standard shader toma mejor la luz
-					rend.material.color = new Color(0.82f, 0.68f, 0.44f, 1.0f); // Parchment color
+					Shader noteShader = Shader.Find("Universal Render Pipeline/Lit");
+					if (noteShader == null) noteShader = Shader.Find("Universal Render Pipeline/Simple Lit");
+					if (noteShader == null) noteShader = Shader.Find("Sprites/Default");
+					if (noteShader == null) noteShader = Shader.Find("Standard");
+
+					Material mat = new Material(noteShader);
+					mat.color = new Color(0.88f, 0.80f, 0.65f, 1.0f); // Tono pergamino envejecido
+					rend.material = mat;
 				}
 			}
 
@@ -1096,7 +1102,7 @@ public partial class TunnelsGenerator
 			if (box == null) box = noteObj.AddComponent<BoxCollider>();
 			box.isTrigger = false;
 			box.center = Vector3.zero;
-			box.size = new Vector3(0.45f, 0.3f, 0.45f); // Tamaño absoluto cómodo en 3D
+			box.size = new Vector3(1.5f, 1.5f, 1.5f); // Tamaño amplio local para garantizar raycast fácil en móviles
 
 			LoreNoteItem loreComp = noteObj.AddComponent<LoreNoteItem>();
 			loreComp.loreId = 4 + i;

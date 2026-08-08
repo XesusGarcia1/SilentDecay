@@ -304,6 +304,7 @@ public class UIVirtualTouchZone : MonoBehaviour, IPointerDownHandler, IDragHandl
             pointerDown.callback.AddListener((data) => {
                 MobileInput.ePressed = true;
                 MobileInput.ePressedDown = true;
+                MobileInput.lastFrameEPressed = Time.frameCount;
                 
                 UnityEngine.UI.Image img = interactBtnObj.GetComponent<UnityEngine.UI.Image>();
                 if (img != null) img.color = activeColor;
@@ -315,7 +316,6 @@ public class UIVirtualTouchZone : MonoBehaviour, IPointerDownHandler, IDragHandl
             pointerUp.eventID = UnityEngine.EventSystems.EventTriggerType.PointerUp;
             pointerUp.callback.AddListener((data) => {
                 MobileInput.ePressed = false;
-                MobileInput.ePressedDown = false;
                 
                 UnityEngine.UI.Image img = interactBtnObj.GetComponent<UnityEngine.UI.Image>();
                 if (img != null) img.color = darkBgColor;
