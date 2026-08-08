@@ -1222,6 +1222,15 @@ public class NotepadUIManager : MonoBehaviour
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
+        // Aplicar escalado del usuario en tiempo real según configuración del HUD
+        float hudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+        Matrix4x4 oldMat = GUI.matrix;
+        if (hudScale != 1.0f)
+        {
+            Vector2 pivot = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            GUIUtility.ScaleAroundPivot(new Vector2(hudScale, hudScale), pivot);
+        }
+
         // 2. Rectángulo de papel pergamino centrado
         int w = Mathf.Min(600, Screen.width - 40);
         int h = Mathf.Min(560, Screen.height - 60);
@@ -1311,6 +1320,8 @@ public class NotepadUIManager : MonoBehaviour
 
             MobileInput.SetCursorState(true);
         }
+
+        GUI.matrix = oldMat;
     }
 
     private static Texture2D notebookTex;

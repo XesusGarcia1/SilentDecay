@@ -572,9 +572,26 @@ public class PauseMenuManager : MonoBehaviour
         GUILayout.BeginVertical(darkBoxStyle, GUILayout.Width(220), GUILayout.Height(220));
         GUI.backgroundColor = prevColor;
 
-        GUILayout.FlexibleSpace();
-        GUILayout.Label("⚙", gearIconStyle);
-        GUILayout.FlexibleSpace();
+        Texture2D gearTex = Resources.Load<Texture2D>("UI/HUD_Gear_Icon");
+        if (gearTex != null)
+        {
+            GUILayout.FlexibleSpace();
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            GUI.color = dynamicGearColor;
+            Rect gearRect = GUILayoutUtility.GetRect(130, 130, GUILayout.Width(130), GUILayout.Height(130));
+            GUI.DrawTexture(gearRect, gearTex, ScaleMode.ScaleToFit, true);
+            GUI.color = Color.white;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.FlexibleSpace();
+        }
+        else
+        {
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("⚙", gearIconStyle);
+            GUILayout.FlexibleSpace();
+        }
 
         GUILayout.EndVertical();
 

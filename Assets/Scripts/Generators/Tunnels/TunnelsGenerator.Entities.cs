@@ -1058,7 +1058,8 @@ public partial class TunnelsGenerator
 			// Intentar cargar dinámicamente si no está asignado
 			if (notePrefab == null)
 			{
-			    notePrefab = Resources.Load<GameObject>("Prefabs/Items/NoteItem"); // Asumimos que podría estar aquí
+			    notePrefab = Resources.Load<GameObject>("Prefabs/NoteItem");
+			    if (notePrefab == null) notePrefab = Resources.Load<GameObject>("Prefabs/Papel");
 			}
 
 			if (notePrefab != null)

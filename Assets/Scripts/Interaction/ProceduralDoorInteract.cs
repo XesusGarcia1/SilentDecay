@@ -102,6 +102,9 @@ public class ProceduralDoorInteract : MonoBehaviour
 
         if (playerNear && MobileInput.GetKeyDown(KeyCode.E) && !isUIActive())
         {
+            if (Time.unscaledTime < lastToggleTime + toggleCooldown) return;
+            lastToggleTime = Time.unscaledTime;
+            MobileInput.ePressedDown = false;
             ToggleDoor();
         }
 
