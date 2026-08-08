@@ -97,9 +97,13 @@ public class LoreNoteItem : MonoBehaviour
 
         if (isReading)
         {
+            // Prevenir cierre accidental por el mismo tap de abrir durante 0.35s
+            if (Time.unscaledTime < openTime + 0.35f) return;
+
             // Cerrar con Escape, E, Mobile E, Tab
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E) || MobileInput.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Tab))
             {
+                MobileInput.ePressedDown = false;
                 CloseReading();
             }
             return;
@@ -141,6 +145,8 @@ public class LoreNoteItem : MonoBehaviour
         }
     }
 
+    private float openTime = 0f;
+
     public static void ForceRead(int id)
     {
         LoreNoteItem[] items = FindObjectsOfType<LoreNoteItem>();
@@ -149,6 +155,7 @@ public class LoreNoteItem : MonoBehaviour
             if (item.loreId == id)
             {
                 item.isReading = true;
+                item.openTime = Time.unscaledTime;
                 Time.timeScale = 0f;
                 if (item.glowLight != null) item.glowLight.enabled = false;
                 MobileInput.SetCursorState(false);
@@ -160,6 +167,9 @@ public class LoreNoteItem : MonoBehaviour
 
     private void CollectAndReadLore()
     {
+        openTime = Time.unscaledTime;
+        MobileInput.ePressedDown = false; // Consumir tap para evitar doble activación
+
         // Reproducir sonido de papel en la cámara antes de pausar
         AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Hospital/Nota_Grab");
         if (pickupSound != null && Camera.main != null)
