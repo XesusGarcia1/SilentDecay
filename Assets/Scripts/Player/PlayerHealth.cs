@@ -56,6 +56,13 @@ public class PlayerHealth : MonoBehaviour
 
     void Start()
     {
+        #if UNITY_ANDROID || UNITY_IOS
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.FixMobileCanvasScaling();
+        }
+        #endif
+
         // Asegurar que el HUD de camara tipo camcorder este presente
         if (GetComponent<CamcorderOverlay>() == null)
         {
@@ -190,8 +197,7 @@ public class PlayerHealth : MonoBehaviour
                 Time.timeScale = 0f; // Pausar todo lo demás una vez finalizado el fade
                 
                 // Forzar cursor libre y visible para poder interactuar con los botones
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
+                MobileInput.SetCursorState(false);
             }
             return;
         }
@@ -429,8 +435,7 @@ public class PlayerHealth : MonoBehaviour
         }
 
         // Desbloquear cursor del mouse
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        MobileInput.SetCursorState(false);
     }
 
     private void UpdateRegenLimit()
@@ -749,9 +754,13 @@ public class PlayerHealth : MonoBehaviour
             if (Camera.main != null)
             {
                 Camera.main.transform.SetParent(null); // Cinemachine usa la cámara en la raíz
-                Camera.main.transform.position = originalCamPos;
+                Camera.main.transform.position = transform.position + Vector3.up * 1.5f; // Posición aproximada de la cabeza en el nuevo spawn
                 Cinemachine.CinemachineBrain brain = Camera.main.GetComponent<Cinemachine.CinemachineBrain>();
-                if (brain != null) brain.enabled = true;
+                if (brain != null) 
+                {
+                    brain.enabled = true;
+                    brain.ManualUpdate(); // Forzar actualización inmediata para evitar transiciones lentas desde el pasillo
+                }
             }
 
             FirstPersonController fpController = GetComponent<FirstPersonController>();
@@ -787,8 +796,9 @@ public class PlayerHealth : MonoBehaviour
             isRespawning = false;
             respawnCoroutineStarted = false;
             deathTimer = 0f;
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            
+            // Usar MobileInput para asegurar que en móviles no se bloquee el cursor
+            MobileInput.SetCursorState(true);
 
             StartCoroutine(DisableInvulnerabilityDelayed(3.0f));
         }
@@ -797,8 +807,7 @@ public class PlayerHealth : MonoBehaviour
             // Game Over definitivo (pantalla con botones)
             isRespawning = false;
             Time.timeScale = 0f;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            MobileInput.SetCursorState(false);
         }
     }
 

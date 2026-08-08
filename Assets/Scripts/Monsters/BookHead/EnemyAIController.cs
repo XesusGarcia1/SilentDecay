@@ -439,9 +439,13 @@ public class EnemyAIController : MonoBehaviour
                     audioSource.Play();
                 }
 
-                // Persiguiendo: volumen adaptativo por distancia (0.35 a 0.75)
-                float chaseVol = Mathf.Clamp01(1f - (dist - 2f) / 20f) * 0.75f;
-                audioSource.volume = Mathf.MoveTowards(audioSource.volume, Mathf.Max(0.35f, chaseVol), Time.deltaTime * 2f);
+                // Persiguiendo: volumen adaptativo por distancia estricto (solo se escucha si está a menos de 16m)
+                float chaseVol = 0f;
+                if (dist <= 16f)
+                {
+                    chaseVol = (1f - (dist / 16f)) * 0.8f; // Va de 0.8 (literalmente encima) a 0 (a 16 metros)
+                }
+                audioSource.volume = Mathf.MoveTowards(audioSource.volume, chaseVol, Time.deltaTime * 2.0f);
             }
             else
             {

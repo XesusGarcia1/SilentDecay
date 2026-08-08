@@ -165,14 +165,20 @@ public class PauseMenuManager : MonoBehaviour
         // Solo visible cuando no está pausado y el mouse está libre, o siempre como fallback táctil
         if (currentState == PauseState.None)
         {
+            float uiScale = 1f;
+            #if UNITY_ANDROID || UNITY_IOS
+            uiScale = 1.8f; // Ajustado para móviles
+            #endif
+            
             GUIStyle gearButtonStyle = new GUIStyle(GUI.skin.button);
-            gearButtonStyle.fontSize = 24;
+            gearButtonStyle.fontSize = (int)(20 * uiScale);
             gearButtonStyle.alignment = TextAnchor.MiddleCenter;
             gearButtonStyle.normal.textColor = Color.white;
             gearButtonStyle.hover.textColor = Color.red;
 
             // Posición en el lado izquierdo, debajo del indicador REC para evitar amontonarse
-            Rect gearRect = new Rect(35, 110, 45, 45);
+            float btnSize = 38 * uiScale;
+            Rect gearRect = new Rect(30, 115, btnSize, btnSize);
             if (GUI.Button(gearRect, "⚙", gearButtonStyle))
             {
                 PauseGame();

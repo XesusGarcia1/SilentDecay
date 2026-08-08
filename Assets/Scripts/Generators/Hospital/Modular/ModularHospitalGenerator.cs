@@ -3128,80 +3128,120 @@ namespace ModularHospital
 
             if (playerObj != null)
             {
-                // Buscar una celda de pasillo abierta limpia (gridMatrix == 1) lejos de paredes macizas
-                Vector2Int spawnCell = new Vector2Int(-1, -1);
-                for (int x = 2; x < sizeX - 2; x++)
+                Vector3 spawnPos = Vector3.zero;
+                bool foundRoom = false;
+
+                // Buscar directamente en los módulos instanciados usando la base de datos de habitaciones
+                foreach (HospitalModule mod in placedModules)
                 {
-                    for (int z = 2; z < sizeZ - 2; z++)
+                    if (mod == null) continue;
+
+                    bool isRoom = false;
+
+                    // 1. Verificar si el nombre del módulo instanciado coincide con algún prefab de habitación de la base de datos
+                    if (database != null && database.smallRoomPrefabs != null)
                     {
-                        if (gridMatrix[x, z] == 1) // Es pasillo puro
+                        foreach (var roomPrefab in database.smallRoomPrefabs)
                         {
-                            // EVITAR A TODA COSTA aparecer dentro del modelo 3D de una habitación grande (como Director's Office)
-                            bool nearRoom = (z + 1 < sizeZ && (gridMatrix[x, z + 1] == 2 || gridMatrix[x, z + 1] == 3)) ||
-                                            (z - 1 >= 0 && (gridMatrix[x, z - 1] == 2 || gridMatrix[x, z - 1] == 3)) ||
-                                            (x + 1 < sizeX && (gridMatrix[x + 1, z] == 2 || gridMatrix[x + 1, z] == 3)) ||
-                                            (x - 1 >= 0 && (gridMatrix[x - 1, z] == 2 || gridMatrix[x - 1, z] == 3));
-
-                            if (nearRoom) continue;
-
-                            int openNeighbors = 0;
-                            if (z + 1 < sizeZ && gridMatrix[x, z + 1] == 1) openNeighbors++;
-                            if (z - 1 >= 0 && gridMatrix[x, z - 1] == 1) openNeighbors++;
-                            if (x + 1 < sizeX && gridMatrix[x + 1, z] == 1) openNeighbors++;
-                            if (x - 1 >= 0 && gridMatrix[x - 1, z] == 1) openNeighbors++;
-
-                            if (openNeighbors >= 2)
+                            if (roomPrefab != null && mod.name.StartsWith(roomPrefab.name))
                             {
-                                spawnCell = new Vector2Int(x, z);
+                                isRoom = true;
                                 break;
                             }
                         }
                     }
-                    if (spawnCell.x != -1) break;
+
+                    // 2. Verificación secundaria por tipo o palabra clave en nombre
+                    if (!isRoom)
+                    {
+                        string n = mod.name.ToLower();
+                        if ((n.Contains("room") || n.Contains("habitacion") || n.Contains("cuarto") || n.Contains("bed") || 
+                             mod.moduleType == ModuleType.SmallRoom || mod.moduleType == ModuleType.LargeRoom || mod.moduleType == ModuleType.OfficeRoom) &&
+                            !n.Contains("director") && !n.Contains("elevator") && !n.Contains("corridor") && !n.Contains("pasillo"))
+                        {
+                            isRoom = true;
+                        }
+                    }
+
+                    if (isRoom)
+                    {
+                        spawnPos = mod.transform.position + Vector3.up * 0.5f;
+                        foundRoom = true;
+                        Debug.Log($"ModularHospitalGenerator: ¡HABITACIÓN ENCONTRADA! Módulo: '{mod.name}' en {spawnPos}. Registrando como spawn permanente.");
+                        break;
+                    }
                 }
 
-                // Fallback: cualquier celda gridMatrix == 1
-                if (spawnCell.x == -1)
+                // Fallback: Si no se encuentra ninguna habitación en placedModules, usar las coordenadas de gridMatrix
+                if (!foundRoom)
                 {
-                    for (int x = 1; x < sizeX - 1; x++)
+                    Vector2Int spawnCell = new Vector2Int(-1, -1);
+                    for (int x = 2; x < sizeX - 2; x++)
                     {
-                        for (int z = 1; z < sizeZ - 1; z++)
+                        for (int z = 2; z < sizeZ - 2; z++)
                         {
-                            if (gridMatrix[x, z] == 1)
+                            if (gridMatrix != null && x < gridMatrix.GetLength(0) && z < gridMatrix.GetLength(1) && gridMatrix[x, z] == 3)
                             {
-                                bool nearRoom = (z + 1 < sizeZ && (gridMatrix[x, z + 1] == 2 || gridMatrix[x, z + 1] == 3)) ||
-                                                (z - 1 >= 0 && (gridMatrix[x, z - 1] == 2 || gridMatrix[x, z - 1] == 3)) ||
-                                                (x + 1 < sizeX && (gridMatrix[x + 1, z] == 2 || gridMatrix[x + 1, z] == 3)) ||
-                                                (x - 1 >= 0 && (gridMatrix[x - 1, z] == 2 || gridMatrix[x - 1, z] == 3));
-
-                                if (nearRoom) continue;
-
                                 spawnCell = new Vector2Int(x, z);
                                 break;
                             }
                         }
                         if (spawnCell.x != -1) break;
                     }
+
+                    if (spawnCell.x == -1)
+                    {
+                        for (int x = 1; x < sizeX - 1; x++)
+                        {
+                            for (int z = 1; z < sizeZ - 1; z++)
+                            {
+                                if (gridMatrix != null && x < gridMatrix.GetLength(0) && z < gridMatrix.GetLength(1) && gridMatrix[x, z] == 1)
+                                {
+                                    spawnCell = new Vector2Int(x, z);
+                                    break;
+                                }
+                            }
+                            if (spawnCell.x != -1) break;
+                        }
+                    }
+
+                    if (spawnCell.x == -1) spawnCell = new Vector2Int(2, 2);
+
+                    float worldX = (spawnCell.x * 4.0f) - halfW + 2.0f;
+                    float worldZ = (spawnCell.y * 4.0f) - halfD + 2.0f;
+                    spawnPos = new Vector3(worldX, transform.position.y + 0.5f, worldZ);
                 }
 
-                if (spawnCell.x == -1) spawnCell = new Vector2Int(2, 2);
-
-                float worldX = (spawnCell.x * 4.0f) - halfW + 2.0f;
-                float worldZ = (spawnCell.y * 4.0f) - halfD + 2.0f;
-                Vector3 spawnPos = new Vector3(worldX, transform.position.y + 0.5f, worldZ);
+                // Buscar la raíz principal del jugador (PlayerMale)
+                Transform playerRoot = playerObj.transform;
+                while (playerRoot.parent != null)
+                {
+                    string pName = playerRoot.parent.name.ToLower();
+                    if (pName.Contains("generator") || pName.Contains("map") || pName.Contains("tunnels") || pName.Contains("hospital") || pName.Contains("scene") || pName.Contains("manager"))
+                    {
+                        break;
+                    }
+                    playerRoot = playerRoot.parent;
+                }
 
                 CharacterController cc = playerObj.GetComponentInChildren<CharacterController>();
                 if (cc != null) cc.enabled = false;
 
-                playerObj.transform.position = spawnPos;
+                // Mover la RAÍZ (PlayerMale) a la habitación y resetear la posición local del hijo (PlayerCapsule)
+                playerRoot.position = spawnPos;
+                playerRoot.rotation = Quaternion.identity;
 
+                playerObj.transform.localPosition = Vector3.zero;
+                playerObj.transform.localRotation = Quaternion.identity;
+
+                Physics.SyncTransforms();
                 if (cc != null) cc.enabled = true;
 
                 // CRÍTICO: Registrar el punto de spawn en GameManager para que RespawnSequence
                 // pueda teletransportar al jugador aquí cuando muera y tenga vidas restantes.
                 if (GameManager.Instance != null)
                 {
-                    GameManager.Instance.RegistrarSpawnJugador(spawnPos, playerObj.transform.rotation);
+                    GameManager.Instance.RegistrarSpawnJugador(spawnPos, playerRoot.rotation);
                 }
 
                 // Ajustar velocidad ágil y cómoda para el jugador

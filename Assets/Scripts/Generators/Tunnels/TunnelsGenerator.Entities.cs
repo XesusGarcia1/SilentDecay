@@ -1054,6 +1054,12 @@ public partial class TunnelsGenerator
 
 			GameObject noteObj;
 			float scaleFactor = 1.6f * mapScale; // Ajustado para ser más grandes y visibles en los túneles
+			
+			// Intentar cargar dinámicamente si no está asignado
+			if (notePrefab == null)
+			{
+			    notePrefab = Resources.Load<GameObject>("Prefabs/Items/NoteItem"); // Asumimos que podría estar aquí
+			}
 
 			if (notePrefab != null)
 			{
@@ -1065,14 +1071,15 @@ public partial class TunnelsGenerator
 				noteObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
 				noteObj.transform.position = finalPos;
 				noteObj.transform.rotation = Quaternion.Euler(90f, Random.Range(0f, 360f), 0f);
-				noteObj.transform.localScale = new Vector3(0.5f * scaleFactor, 0.6f * scaleFactor, 1f);
+				// Hacerlo más pequeño (tamaño de un papel real: 20cm x 30cm)
+				noteObj.transform.localScale = new Vector3(0.2f * scaleFactor, 0.3f * scaleFactor, 1f);
 				noteObj.transform.SetParent(loreRoot.transform);
 				
 				Renderer rend = noteObj.GetComponent<Renderer>();
 				if (rend != null)
 				{
-					rend.material = new Material(Shader.Find("Sprites/Default"));
-					rend.material.color = new Color(0.82f, 0.68f, 0.44f, 1.0f);
+					rend.material = new Material(Shader.Find("Standard")); // Standard shader toma mejor la luz
+					rend.material.color = new Color(0.82f, 0.68f, 0.44f, 1.0f); // Parchment color
 				}
 			}
 

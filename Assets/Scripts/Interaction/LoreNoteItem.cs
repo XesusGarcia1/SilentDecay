@@ -18,6 +18,7 @@ public class LoreNoteItem : MonoBehaviour
     public bool IsReading => isReading;
 
     private Texture2D paperReadingTex;
+    public static Texture2D globalPaperTexture;
     private GUIStyle contentStyle;
     private GUIStyle titleStyle;
     private GUIStyle closeStyle;
@@ -44,6 +45,7 @@ public class LoreNoteItem : MonoBehaviour
 
         // Textura para la lectura (pergamino arrugado procedural)
         paperReadingTex = ProceduralPaperTexture.GetPaperTexture();
+        globalPaperTexture = paperReadingTex;
 
         // 2. CREAR LUZ DE GUÍA CÁLIDA PULSANTE PARA LA OSCURIDAD
         GameObject lightObj = new GameObject("LoreNote_GlowLight");
@@ -139,8 +141,35 @@ public class LoreNoteItem : MonoBehaviour
         }
     }
 
+    public static void ForceRead(int id)
+    {
+        LoreNoteItem[] items = FindObjectsOfType<LoreNoteItem>();
+        foreach (var item in items)
+        {
+            if (item.loreId == id)
+            {
+                item.isReading = true;
+                Time.timeScale = 0f;
+                if (item.glowLight != null) item.glowLight.enabled = false;
+                MobileInput.SetCursorState(false);
+                item.SetPlayerControlsActive(false);
+                return;
+            }
+        }
+    }
+
     private void CollectAndReadLore()
     {
+        // Reproducir sonido de papel en la cámara antes de pausar
+        AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Hospital/Nota_Grab");
+        if (pickupSound != null && Camera.main != null)
+        {
+            AudioSource camAudio = Camera.main.GetComponent<AudioSource>();
+            if (camAudio == null) camAudio = Camera.main.gameObject.AddComponent<AudioSource>();
+            camAudio.ignoreListenerPause = true;
+            camAudio.PlayOneShot(pickupSound);
+        }
+
         isReading = true;
         Time.timeScale = 0f; // Pausar partida para lectura
 
@@ -152,13 +181,6 @@ public class LoreNoteItem : MonoBehaviour
 
         // Desactivar controles de movimiento del jugador
         SetPlayerControlsActive(false);
-
-        // Reproducir sonido de papel
-        AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Hospital/Nota_Grab");
-        if (pickupSound != null && Camera.main != null)
-        {
-            AudioSource.PlayClipAtPoint(pickupSound, Camera.main.transform.position, 1.0f);
-        }
 
         // Registrar la nota recogida en NotepadUIManager con textos traducidos
         string finalTitle = noteTitle;

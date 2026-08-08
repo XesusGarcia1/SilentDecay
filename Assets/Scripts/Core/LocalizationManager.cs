@@ -317,6 +317,6 @@ public class LocalizationManager : MonoBehaviour
         // Pestañas de Libreta
         Add("notepad_tab_code", "📝 CLAVE", "📝 CODE", "📝 CÓDIGO");
         Add("notepad_tab_map", "🗺️ MAPA", "🗺️ MAP", "🗺️ MAPA");
-        Add("notepad_tab_lore", "📜 LORE", "📜 LORE", "📜 HISTÓRIA");
+        Add("notepad_tab_lore", "📜 REGISTROS", "📜 RECORDS", "📜 REGISTROS");
     }
 }

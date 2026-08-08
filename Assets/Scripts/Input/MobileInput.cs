@@ -7,14 +7,27 @@ public static class MobileInput
     public static bool fPressedDown = false; // Solo para GetKeyDown (Taps de linterna)
     public static bool fPressed = false;
 
+    public static int lastFrameEPressed = -1;
+    public static int lastFrameFPressed = -1;
+
     public static bool GetKeyDown(KeyCode key)
     {
         if (key == KeyCode.E && ePressedDown)
         {
-            return true;
+            if (Time.frameCount > lastFrameEPressed + 1) 
+            { 
+                ePressedDown = false; // Expirado después del siguiente frame
+                return false; 
+            }
+            return true; // No lo consumimos aquí, para que otros scripts en el mismo frame puedan leerlo
         }
         if (key == KeyCode.F && fPressedDown)
         {
+            if (Time.frameCount > lastFrameFPressed + 1) 
+            { 
+                fPressedDown = false; 
+                return false; 
+            }
             return true;
         }
         return Input.GetKeyDown(key);

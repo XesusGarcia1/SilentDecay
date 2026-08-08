@@ -520,7 +520,10 @@ public class PowerBox : MonoBehaviour
 
     void OnGUI()
     {
-        // Ocultar si estamos leyendo una nota (lore) para no sobreponer textos
+        // Ocultar si el juego está pausado (ej. leyendo una nota a pantalla completa)
+        if (Time.timeScale == 0f) return;
+
+        // Ocultar si estamos en el cuaderno
         if (NotepadUIManager.IsOpen) return;
 
         // Ocultar si estamos en modo menú

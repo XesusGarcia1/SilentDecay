@@ -23,7 +23,25 @@ public class NotepadUIManager : MonoBehaviour
     public static Dictionary<int, LoreNoteData> collectedLoreNotes = new Dictionary<int, LoreNoteData>();
     private int selectedLoreNoteId = -1;
 
+    public static bool isReadingFullscreen = false;
+    public static string fullscreenTitle = "";
+    public static string fullscreenBody = "";
+    public static float openTime = 0f;
+
     private int activeTab = 0; // 0 = Notas, 1 = Mapa, 2 = Archivo Lore
+    
+    public float currentUIScale
+    {
+        get
+        {
+            #if UNITY_ANDROID || UNITY_IOS
+            return 1.75f;
+            #else
+            return 1.0f;
+            #endif
+        }
+    }
+
     private Transform playerTransform;
     private static HashSet<Vector2Int> discoveredRooms = new HashSet<Vector2Int>();
 
@@ -233,6 +251,12 @@ public class NotepadUIManager : MonoBehaviour
 
     void OnGUI()
     {
+        if (isReadingFullscreen)
+        {
+            DrawFullscreenReadingFromNotepad();
+            return;
+        }
+
         if (ShouldSuppressNotepadUI()) return;
 
         if (!IsOpen)
@@ -287,6 +311,15 @@ public class NotepadUIManager : MonoBehaviour
         // Evitar dibujar si el mapa de hospital de la escena actual no está disponible
         ModularHospital.ModularHospitalGenerator gen = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
         if (gen != null && gen.isMenuMode) return;
+        
+        // Aplicar escalado global a toda la libreta para móviles
+        Matrix4x4 oldMatrix = GUI.matrix;
+        float padScale = this.currentUIScale;
+        if (padScale > 1.0f)
+        {
+            Vector2 pivot = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            GUIUtility.ScaleAroundPivot(new Vector2(padScale, padScale), pivot);
+        }
 
         Rect padRect = new Rect(Screen.width / 2 - 200, Screen.height / 2 - 220, 400, 440);
         
@@ -382,6 +415,8 @@ public class NotepadUIManager : MonoBehaviour
         {
             CloseNotepad();
         }
+        
+        GUI.matrix = oldMatrix;
     }
 
     private void RenderNotesTab(Rect padRect, bool isTunnelsMode = false)
@@ -1084,8 +1119,6 @@ public class NotepadUIManager : MonoBehaviour
 
         // --- COLUMNA 1: LISTADO DE NOTAS DE LORE ---
         GUILayout.BeginArea(new Rect(listX, startY, listW, height));
-        string recordsTitle = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_lore_records") : "REGISTROS:";
-        GUILayout.Label(recordsTitle, titleStyle);
         GUILayout.Space(5);
 
         int firstKey = -1;
@@ -1120,10 +1153,156 @@ public class NotepadUIManager : MonoBehaviour
             GUILayout.Label(selectedData.title.ToUpper(), titleStyle);
             GUILayout.Space(8);
 
-            // Contenido en un scrollview simulado
-            GUILayout.Label(selectedData.body, bodyStyle);
+            // Contenido recortado (Concepto resumido)
+            string snippet = selectedData.body.Length > 90 ? selectedData.body.Substring(0, 90) + "..." : selectedData.body;
+            GUILayout.Label(snippet, bodyStyle);
+            
+            GUILayout.Space(15);
+            
+            GUIStyle btnStyle = new GUIStyle(GUI.skin.button);
+            btnStyle.fontSize = 12;
+            
+            if (GUILayout.Button("Ver más", btnStyle, GUILayout.Width(100), GUILayout.Height(30)))
+            {
+                // Reproducir sonido de papel en la cámara
+                AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Hospital/Nota_Grab");
+                if (pickupSound != null && Camera.main != null)
+                {
+                    AudioSource camAudio = Camera.main.GetComponent<AudioSource>();
+                    if (camAudio == null) camAudio = Camera.main.gameObject.AddComponent<AudioSource>();
+                    camAudio.ignoreListenerPause = true;
+                    camAudio.PlayOneShot(pickupSound);
+                }
+                
+                // Cerrar cuaderno
+                Instance.CloseNotepad();
+                
+                // Configurar lectura a pantalla completa global
+                fullscreenTitle = selectedData.title;
+                fullscreenBody = selectedData.body;
+                isReadingFullscreen = true;
+                openTime = Time.unscaledTime; // Registrar tiempo de apertura
+                Time.timeScale = 0f; // Pausar juego
+                MobileInput.SetCursorState(false); // Mostrar cursor para cerrar
+                
+                // Desactivar controles del jugador y resetear inputs a cero para evitar giros infinitos
+                var playerInput = FindObjectOfType<StarterAssets.StarterAssetsInputs>();
+                if (playerInput == null) playerInput = FindFirstObjectByType<StarterAssets.StarterAssetsInputs>();
+                if (playerInput != null)
+                {
+                    playerInput.move = Vector2.zero;
+                    playerInput.look = Vector2.zero;
+                    playerInput.enabled = false;
+                }
+
+                // Desactivar también el FirstPersonController para congelar físicamente la rotación de la cámara
+                var fpc = FindObjectOfType<StarterAssets.FirstPersonController>();
+                if (fpc == null) fpc = FindFirstObjectByType<StarterAssets.FirstPersonController>();
+                if (fpc != null)
+                {
+                    fpc.enabled = false;
+                }
+            }
 
             GUILayout.EndArea();
+        }
+    }
+
+    private void DrawFullscreenReadingFromNotepad()
+    {
+        // 1. Dibujar fondo oscuro traslúcido completo
+        GUI.color = new Color(0f, 0f, 0f, 0.75f);
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        // 2. Rectángulo de papel pergamino centrado
+        int w = Mathf.Min(600, Screen.width - 40);
+        int h = Mathf.Min(560, Screen.height - 60);
+        Rect paperRect = new Rect(Screen.width / 2 - w / 2, Screen.height / 2 - h / 2, w, h);
+
+        Texture2D tex = LoreNoteItem.globalPaperTexture;
+        if (tex == null) tex = ProceduralPaperTexture.GetPaperTexture();
+
+        GUI.DrawTexture(paperRect, tex);
+
+        // Estilos de texto
+        GUIStyle contentStyle = new GUIStyle();
+        contentStyle.fontSize = 17;
+        contentStyle.wordWrap = true;
+        contentStyle.normal.textColor = new Color(0.12f, 0.12f, 0.12f, 1f); // Gris oscuro legible
+        contentStyle.alignment = TextAnchor.UpperLeft;
+        contentStyle.richText = true;
+
+        GUIStyle titleStyle = new GUIStyle(contentStyle);
+        titleStyle.fontSize = 22;
+        titleStyle.fontStyle = FontStyle.Bold;
+        titleStyle.alignment = TextAnchor.MiddleCenter;
+
+        GUIStyle closeStyle = new GUIStyle(GUI.skin.button);
+        closeStyle.fontSize = 18;
+        closeStyle.fontStyle = FontStyle.Bold;
+
+        // Área del contenido
+        GUILayout.BeginArea(new Rect(paperRect.x + 75, paperRect.y + 55, paperRect.width - 150, paperRect.height - 130));
+        
+        GUILayout.Label(fullscreenTitle.ToUpper(), titleStyle);
+        GUILayout.Space(20);
+        GUILayout.Label(fullscreenBody, contentStyle);
+
+        GUILayout.EndArea();
+
+        // Botón inferior para cerrar la lectura
+        float btnW = 200f;
+        float btnH = 45f;
+        Rect closeBtnRect = new Rect(paperRect.x + paperRect.width / 2f - btnW / 2f, paperRect.y + paperRect.height - 70f, btnW, btnH);
+        
+        bool canClose = (Time.unscaledTime - openTime) > 0.3f;
+        bool closePressed = false;
+        
+        if (canClose)
+        {
+            if (GUI.Button(closeBtnRect, "Cerrar [E]", closeStyle) || Input.GetKeyDown(KeyCode.E) || MobileInput.GetKeyDown(KeyCode.E))
+            {
+                closePressed = true;
+            }
+        }
+        else
+        {
+            GUI.Button(closeBtnRect, "Cerrar [E]", closeStyle);
+        }
+
+        if (closePressed)
+        {
+            // Reproducir sonido de papel al cerrar
+            AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Hospital/Nota_Grab");
+            if (pickupSound != null && Camera.main != null)
+            {
+                AudioSource camAudio = Camera.main.GetComponent<AudioSource>();
+                if (camAudio != null) camAudio.PlayOneShot(pickupSound);
+            }
+
+            isReadingFullscreen = false;
+            Time.timeScale = 1f;
+            
+            // Reactivar controles del jugador
+            var playerInput = FindObjectOfType<StarterAssets.StarterAssetsInputs>();
+            if (playerInput == null) playerInput = FindFirstObjectByType<StarterAssets.StarterAssetsInputs>();
+            if (playerInput != null)
+            {
+                playerInput.enabled = true;
+                playerInput.cursorInputForLook = true;
+                playerInput.cursorLocked = true;
+            }
+
+            // Reactivar también el FirstPersonController para restaurar el movimiento de la cámara
+            var fpc = FindObjectOfType<StarterAssets.FirstPersonController>();
+            if (fpc == null) fpc = FindFirstObjectByType<StarterAssets.FirstPersonController>();
+            if (fpc != null)
+            {
+                fpc.enabled = true;
+            }
+
+            MobileInput.SetCursorState(true);
         }
     }
 }
