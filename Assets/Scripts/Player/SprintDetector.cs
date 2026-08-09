@@ -11,7 +11,7 @@ public class SprintDetector : MonoBehaviour
         input = GetComponent<StarterAssets.StarterAssetsInputs>();
         if (input == null)
         {
-            Debug.LogError("No se encontrÛ StarterAssetsInputs en el jugador. Aseg˙rate de tener este componente en el GameObject.");
+            Debug.LogError("No se encontr√≥ StarterAssetsInputs en el jugador. Aseg√∫rate de tener este componente en el GameObject.");
         }
     }
 
@@ -19,12 +19,12 @@ public class SprintDetector : MonoBehaviour
     {
         if (input != null)
         {
-            // Usa la variable 'sprint' de StarterAssetsInputs para determinar si el jugador est· corriendo
-            IsRunning = input.sprint;
+            // Determinar si realmente est√° corriendo: tiene que estar presionando correr Y adem√°s estar en movimiento
+            IsRunning = input.sprint && input.move.magnitude > 0.1f;
 
-            // Solo imprime el mensaje en el editor para evitar sobrecargar la consola en producciÛn
+            // Solo imprime el mensaje en el editor para evitar sobrecargar la consola en producci√≥n
 #if UNITY_EDITOR
-            Debug.Log(IsRunning ? "El jugador est· corriendo" : "El jugador NO est· corriendo");
+            Debug.Log(IsRunning ? "El jugador est√° corriendo" : "El jugador NO est√° corriendo");
 #endif
         }
     }

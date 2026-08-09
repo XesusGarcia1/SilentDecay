@@ -2,8 +2,16 @@ using UnityEngine;
 
 public class PauseMenuManager : MonoBehaviour
 {
+    public static PauseMenuManager Instance { get; private set; }
+    public bool IsGamePaused => currentState != PauseState.None;
+
     private enum PauseState { None, Paused, Settings }
     private PauseState currentState = PauseState.None;
+
+    private void Awake()
+    {
+        if (Instance == null) Instance = this;
+    }
 
     private float mouseSensitivity = 2.0f;
     private float masterVolume = 1.0f;
@@ -120,6 +128,16 @@ public class PauseMenuManager : MonoBehaviour
 
     public void PauseGame()
     {
+        // Si hay una nota de lore abierta, cerrarla silenciosamente al pausar
+        var activeNotes = FindObjectsOfType<LoreNoteItem>();
+        foreach (var note in activeNotes)
+        {
+            if (note != null && note.IsReading)
+            {
+                note.CloseReadingSilently();
+            }
+        }
+
         currentState = PauseState.Paused;
         Time.timeScale = 0f; // Congelar físicas y tiempo
 
@@ -155,28 +173,39 @@ public class PauseMenuManager : MonoBehaviour
         if (sfxSource != null && buttonClickSound != null)
         {
             sfxSource.volume = masterVolume * 0.85f;
-            sfxSource.PlayOneShot(buttonClickSound, 0.85f);
+            sfxSource.PlayOneShot(buttonClickSound, 0.45f);
         }
     }
 
     void OnGUI()
     {
+        GUI.depth = -100; // Garantizar que el menú de pausa se dibuje SIEMPRE por encima de cualquier otro elemento GUI
+
         // 1. DIBUJAR BOTÓN DE CONFIGURACIÓN (TUERCA) EN LA ESQUINA SUPERIOR DERECHA (Para móviles y ratón libre)
         // Solo visible cuando no está pausado y el mouse está libre, o siempre como fallback táctil
         if (currentState == PauseState.None)
         {
+            float uiScale = 1f;
+            #if UNITY_ANDROID || UNITY_IOS
+            uiScale = 1.8f; // Ajustado para móviles
+            #endif
+            
             GUIStyle gearButtonStyle = new GUIStyle(GUI.skin.button);
-            gearButtonStyle.fontSize = 24;
+            gearButtonStyle.fontSize = (int)(20 * uiScale);
             gearButtonStyle.alignment = TextAnchor.MiddleCenter;
             gearButtonStyle.normal.textColor = Color.white;
             gearButtonStyle.hover.textColor = Color.red;
 
             // Posición en el lado izquierdo, debajo del indicador REC para evitar amontonarse
-            Rect gearRect = new Rect(35, 110, 45, 45);
-            if (GUI.Button(gearRect, "⚙", gearButtonStyle))
+            float btnSize = 38 * uiScale;
+            Rect gearRect = new Rect(30, 115, btnSize, btnSize);
+            if (GUI.Button(gearRect, GUIContent.none, gearButtonStyle))
             {
                 PauseGame();
             }
+            Texture2D gTex = GetGearTexture();
+            Rect iconPadding = new Rect(gearRect.x + 3 * uiScale, gearRect.y + 3 * uiScale, gearRect.width - 6 * uiScale, gearRect.height - 6 * uiScale);
+            if (gTex != null) GUI.DrawTexture(iconPadding, gTex, ScaleMode.ScaleToFit, true);
 
             // --- FILTRO DE BRILLO / GAMMA UI EN TIEMPO REAL IN-GAME ---
             float currentGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
@@ -313,17 +342,23 @@ public class PauseMenuManager : MonoBehaviour
 
             if (activeSettingsTab == 0)
             {
-                // Control de volumen
-                GUILayout.Label($"Volumen de Audio: {Mathf.RoundToInt(masterVolume * 100)}%", labelStyle);
-                masterVolume = GUILayout.HorizontalSlider(masterVolume, 0f, 1f);
-                AudioListener.volume = masterVolume;
-                GUILayout.Space(15);
+                // Estilos para barras deslizantes gruesas y cómodas al tacto en móvil
+                GUIStyle sliderTrackStyle = new GUIStyle(GUI.skin.horizontalSlider);
+                sliderTrackStyle.fixedHeight = 22f;
 
-                // Control de sensibilidad
+                GUIStyle sliderThumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb);
+                sliderThumbStyle.fixedWidth = 32f;
+                sliderThumbStyle.fixedHeight = 32f;
+
+                // 1. Control de volumen
+                GUILayout.Label($"Volumen de Audio: {Mathf.RoundToInt(masterVolume * 100)}%", labelStyle);
+                masterVolume = GUILayout.HorizontalSlider(masterVolume, 0f, 1f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
+                AudioListener.volume = masterVolume;
+                GUILayout.Space(8);
+
+                // 2. Control de sensibilidad
                 GUILayout.Label($"Sensibilidad de Cámara: {mouseSensitivity:F1}", labelStyle);
-                mouseSensitivity = GUILayout.HorizontalSlider(mouseSensitivity, 0.5f, 6.0f);
-                
-                // Aplicar sensibilidad al controlador en tiempo real si existe
+                mouseSensitivity = GUILayout.HorizontalSlider(mouseSensitivity, 0.5f, 6.0f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
                 if (playerObj != null)
                 {
                     var controller = playerObj.GetComponentInChildren<StarterAssets.FirstPersonController>();
@@ -332,7 +367,18 @@ public class PauseMenuManager : MonoBehaviour
                         controller.RotationSpeed = mouseSensitivity;
                     }
                 }
-                GUILayout.Space(15);
+                GUILayout.Space(8);
+
+                // 3. Control de Escala de Interfaz / HUD (Móvil y PC)
+                float currentHudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+                GUILayout.Label($"Tamaño de Interfaz / HUD: {currentHudScale:F2}x", labelStyle);
+                float newHudScale = GUILayout.HorizontalSlider(currentHudScale, 0.85f, 1.75f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
+                if (Mathf.Abs(newHudScale - currentHudScale) > 0.01f)
+                {
+                    PlayerPrefs.SetFloat("HUDScale", newHudScale);
+                    PlayerPrefs.Save();
+                }
+                GUILayout.Space(8);
 
                 // Pantalla completa
                 GUILayout.BeginHorizontal();
@@ -471,8 +517,15 @@ public class PauseMenuManager : MonoBehaviour
         GUILayout.Label($"Brillo del Juego: {tempGamma:F2}x", labelStyle);
         GUILayout.Space(5);
 
+        GUIStyle sliderTrackStyle = new GUIStyle(GUI.skin.horizontalSlider);
+        sliderTrackStyle.fixedHeight = 26f;
+
+        GUIStyle sliderThumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb);
+        sliderThumbStyle.fixedWidth = 36f;
+        sliderThumbStyle.fixedHeight = 36f;
+
         // Slider de Brillo
-        float newGamma = GUILayout.HorizontalSlider(tempGamma, 0.5f, 2.0f, GUILayout.Height(30), GUILayout.Width(360));
+        float newGamma = GUILayout.HorizontalSlider(tempGamma, 0.5f, 2.0f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(36f), GUILayout.Width(360));
         if (Mathf.Abs(newGamma - tempGamma) > 0.005f)
         {
             tempGamma = newGamma;
@@ -519,9 +572,26 @@ public class PauseMenuManager : MonoBehaviour
         GUILayout.BeginVertical(darkBoxStyle, GUILayout.Width(220), GUILayout.Height(220));
         GUI.backgroundColor = prevColor;
 
-        GUILayout.FlexibleSpace();
-        GUILayout.Label("⚙", gearIconStyle);
-        GUILayout.FlexibleSpace();
+        Texture2D gearTex = Resources.Load<Texture2D>("UI/HUD_Gear_Icon");
+        if (gearTex != null)
+        {
+            GUILayout.FlexibleSpace();
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            GUI.color = dynamicGearColor;
+            Rect gearRect = GUILayoutUtility.GetRect(130, 130, GUILayout.Width(130), GUILayout.Height(130));
+            GUI.DrawTexture(gearRect, gearTex, ScaleMode.ScaleToFit, true);
+            GUI.color = Color.white;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.FlexibleSpace();
+        }
+        else
+        {
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("⚙", gearIconStyle);
+            GUILayout.FlexibleSpace();
+        }
 
         GUILayout.EndVertical();
 
@@ -553,5 +623,12 @@ public class PauseMenuManager : MonoBehaviour
         }
 
         GUILayout.EndHorizontal();
+    }
+
+    private static Texture2D gearTex;
+    private static Texture2D GetGearTexture()
+    {
+        if (gearTex == null) gearTex = Resources.Load<Texture2D>("UI/HUD_Gear_Icon");
+        return gearTex;
     }
 }

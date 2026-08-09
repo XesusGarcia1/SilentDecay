@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using StarterAssets;
 using Unity.AI.Navigation;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Rendering;
@@ -214,6 +216,97 @@ public partial class TunnelsGenerator : MonoBehaviour
 
 	private Vector3 playerSpawnPos;
 
+	private GameObject globalWaterPlaneObj;
+	private float waterFullY = 0.08f;
+	private float waterDrainedY = -0.45f;
+
+	private void CreateFloodedWaterPlane()
+	{
+		if (globalWaterPlaneObj != null) Object.DestroyImmediate(globalWaterPlaneObj);
+
+		float cellDim = segmentLength * mapScale;
+		float mapWorldWidth = width * cellDim;
+		float mapWorldHeight = height * cellDim;
+
+		// Detectar la altura Y real del suelo del mapa generado
+		float floorY = 0f;
+		if (playerSpawnTargetPos != Vector3.zero)
+		{
+			floorY = playerSpawnTargetPos.y;
+		}
+		else
+		{
+			GameObject pObj = GameObject.FindGameObjectWithTag("Player");
+			if (pObj != null) floorY = pObj.transform.position.y - 0.9f;
+		}
+
+		waterFullY = floorY + 0.38f; // Inundación: 38cm por encima del piso (pantorrillas/espinillas)
+		waterDrainedY = floorY - 0.05f; // Drenado: alcanza el nivel del suelo exactamente al finalizar los 45s
+
+		globalWaterPlaneObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
+		globalWaterPlaneObj.name = "[Global_Tunnel_Water_Plane]";
+		// Orientar cara frontal del Quad hacia arriba (90 en X)
+		globalWaterPlaneObj.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+		globalWaterPlaneObj.transform.position = new Vector3(mapWorldWidth * 0.5f, waterFullY, mapWorldHeight * 0.5f);
+		globalWaterPlaneObj.transform.localScale = new Vector3(mapWorldWidth * 1.5f, mapWorldHeight * 1.5f, 1f);
+
+		// Remover MeshCollider predeterminado del Quad y usar BoxCollider como Trigger (evita error de MeshCollider cóncavo)
+		MeshCollider meshCol = globalWaterPlaneObj.GetComponent<MeshCollider>();
+		if (meshCol != null) Object.DestroyImmediate(meshCol);
+
+		BoxCollider boxCol = globalWaterPlaneObj.GetComponent<BoxCollider>();
+		if (boxCol == null) boxCol = globalWaterPlaneObj.AddComponent<BoxCollider>();
+		boxCol.isTrigger = true;
+		boxCol.size = new Vector3(1f, 1f, 0.2f);
+
+		// Cargar el material de agua URP oficial
+		Material waterMat = Resources.Load<Material>("Texturas/Mundo/Mat_Agua_Tuneles");
+		if (waterMat == null) waterMat = Resources.Load<Material>("Mat_Agua_Tuneles");
+		if (waterMat == null) waterMat = waterPuddleMaterial;
+
+		Renderer rend = globalWaterPlaneObj.GetComponent<Renderer>();
+		if (rend != null && waterMat != null)
+		{
+			Material matInstance = new Material(waterMat);
+			matInstance.name = "Mat_Agua_Tuneles_RuntimeInstance";
+			
+			// Habilitar renderizado de doble cara (_Cull = 0)
+			matInstance.SetFloat("_Cull", 0f);
+
+			// Ajustar visibilidad y brillo del agua a un nivel oscuro industrial orgánico (sin destellos de ruido)
+			Color waterColor = new Color(0.06f, 0.18f, 0.22f, 0.65f);
+			if (matInstance.HasProperty("_BaseColor"))
+			{
+				matInstance.SetColor("_BaseColor", waterColor);
+			}
+			matInstance.color = waterColor;
+			matInstance.SetFloat("_Smoothness", 0.82f);
+			matInstance.SetFloat("_Metallic", 0.02f);
+
+			// Tiling óptimo suave para evitar ruido de moiré y destellos
+			Vector2 scaleTiling = new Vector2(mapWorldWidth * 0.08f, mapWorldHeight * 0.08f);
+			if (matInstance.HasProperty("_BumpMap")) matInstance.SetTextureScale("_BumpMap", scaleTiling);
+			if (matInstance.HasProperty("_BaseMap")) matInstance.SetTextureScale("_BaseMap", scaleTiling);
+			if (matInstance.HasProperty("_MainTex")) matInstance.SetTextureScale("_MainTex", scaleTiling);
+
+			rend.material = matInstance;
+		}
+
+		// Asignar animador de olas móvil ultra-ligero (WaterAnimator)
+		if (globalWaterPlaneObj.GetComponent<WaterAnimator>() == null)
+		{
+			WaterAnimator anim = globalWaterPlaneObj.AddComponent<WaterAnimator>();
+			anim.scrollSpeedX = 0.015f;
+			anim.scrollSpeedY = 0.022f;
+		}
+
+		// Asignar detector de pisadas en agua (WaterPuddle)
+		if (globalWaterPlaneObj.GetComponent<WaterPuddle>() == null)
+		{
+			globalWaterPlaneObj.AddComponent<WaterPuddle>();
+		}
+	}
+
 	// Datos de la celda del jugador para validación y reposicionamiento post-física
 	[HideInInspector] public int playerSpawnGridX;
 	[HideInInspector] public int playerSpawnGridZ;
@@ -353,6 +446,7 @@ public partial class TunnelsGenerator : MonoBehaviour
 
 		stopwatch.Restart();
 		SpawnEntities();
+		CreateFloodedWaterPlane();
 		stopwatch.Stop();
 		UnityEngine.Debug.Log($"[Performance] Paso 4: Spawn de entidades: {stopwatch.ElapsedMilliseconds} ms");
 
@@ -366,6 +460,7 @@ public partial class TunnelsGenerator : MonoBehaviour
 			audioSource.spatialBlend = 0f;
 			audioSource.volume = 0.45f;
 			audioSource.playOnAwake = true;
+			audioSource.ignoreListenerPause = true;
 			audioSource.Play();
 		}
 
@@ -504,6 +599,24 @@ public partial class TunnelsGenerator : MonoBehaviour
 		else if (escapeState == EscapeState.Draining)
 		{
 			currentDrainageTime -= Time.deltaTime;
+
+			// Reducir paulatinamente el nivel y la opacidad del agua sincronizado con los 45s del temporizador
+			float fillRatio = Mathf.Clamp01(currentDrainageTime / drainageDuration);
+			float currentWaterY = Mathf.Lerp(waterDrainedY, waterFullY, fillRatio);
+			if (globalWaterPlaneObj != null)
+			{
+				globalWaterPlaneObj.transform.position = new Vector3(globalWaterPlaneObj.transform.position.x, currentWaterY, globalWaterPlaneObj.transform.position.z);
+
+				// Desvanecer también sutilmente la opacidad del agua a medida que se filtra por el drenaje
+				Renderer r = globalWaterPlaneObj.GetComponent<Renderer>();
+				if (r != null && r.material != null)
+				{
+					float currentAlpha = Mathf.Lerp(0.0f, 0.65f, fillRatio);
+					Color waterCol = new Color(0.06f, 0.18f, 0.22f, currentAlpha);
+					if (r.material.HasProperty("_BaseColor")) r.material.SetColor("_BaseColor", waterCol);
+					r.material.color = waterCol;
+				}
+			}
 			bool flag = Time.time % 0.6f < 0.3f;
 			if (consoleIndicatorLight != null)
 			{
@@ -550,6 +663,10 @@ public partial class TunnelsGenerator : MonoBehaviour
 			if (currentDrainageTime <= 0f)
 			{
 				escapeState = EscapeState.Ready;
+				if (globalWaterPlaneObj != null)
+				{
+					globalWaterPlaneObj.transform.position = new Vector3(globalWaterPlaneObj.transform.position.x, waterDrainedY, globalWaterPlaneObj.transform.position.z);
+				}
 				AudioClip audioClip4 = Resources.Load<AudioClip>("Audio/Hospital/successSound");
 				if (audioClip4 == null) audioClip4 = Resources.Load<AudioClip>("successSound");
 				if (audioClip4 != null)
@@ -730,9 +847,9 @@ public partial class TunnelsGenerator : MonoBehaviour
 					cardStyle.normal.textColor = Color.white;
 					cardStyle.alignment = TextAnchor.MiddleCenter;
 
-					string socialText = "📷 Instagram: @lxesusgarcial\n\n" +
-					                    "📘 Facebook: lXesusGarcial\n\n" +
-					                    "▶️ YouTube: @Xesus_Garcia";
+					string socialText = "INSTAGRAM: @lxesusgarcial\n\n" +
+					                    "FACEBOOK: lXesusGarcial\n\n" +
+					                    "YOUTUBE: @Xesus_Garcia";
 
 					GUI.Label(new Rect(sWidth * 0.1f, sHeight * 0.35f, sWidth * 0.8f, sHeight * 0.45f), socialText, cardStyle);
 				}
@@ -778,11 +895,20 @@ public partial class TunnelsGenerator : MonoBehaviour
 					progressRemainingTex = MakeTex(2, 2, new Color(0.2f, 0.05f, 0.05f, 0.6f));
 				}
 
-				float boxWidth = 330f;
-				float boxHeight = 135f;
-				// Colocar el cuadro dejando suficiente espacio a la derecha para que no solape el botón del bloc de notas (btnSize 50 + margen)
-				float boxX = (float)Screen.width - boxWidth - 80f;
-				float boxY = 80f;
+				// Aplicar el mismo escalado de matriz HUDScale anclado en la esquina superior derecha
+				float hudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+				Matrix4x4 oldMat = GUI.matrix;
+				if (hudScale != 1.0f)
+				{
+					Vector2 pivot = new Vector2(Screen.width - 25f, 25f);
+					GUIUtility.ScaleAroundPivot(new Vector2(hudScale, hudScale), pivot);
+				}
+
+				float boxWidth = 320f;
+				float boxHeight = 130f;
+				// Posicionar a la izquierda del botón de la libreta (deja 35px libres antes de la libreta)
+				float boxX = (float)Screen.width - boxWidth - 110f;
+				float boxY = 25f;
 
 				GUI.DrawTexture(new Rect(boxX, boxY, boxWidth, boxHeight), alarmBgTex);
 				GUI.DrawTexture(new Rect(boxX, boxY, boxWidth, 3f), alarmBorderTex);
@@ -792,10 +918,10 @@ public partial class TunnelsGenerator : MonoBehaviour
 
 				if (escapeState == EscapeState.Draining)
 				{
-					// LÍNEA 1: TÍTULO Y BOMBA (Separados en rectángulos independientes sin solaparse)
-					GUI.Label(new Rect(boxX + 12f, boxY + 10f, 165f, 22f), ((Time.time % 0.8f < 0.4f) ? "⚠️" : "  ") + " ALARMA DE SISTEMA", new GUIStyle(GUI.skin.label)
+					// LÍNEA 1: TÍTULO Y BOMBA
+					GUI.Label(new Rect(boxX + 12f, boxY + 10f, 165f, 22f), ((Time.time % 0.8f < 0.4f) ? "[!]" : "   ") + " ALARMA DE SISTEMA", new GUIStyle(GUI.skin.label)
 					{
-						fontSize = 13,
+						fontSize = 12,
 						fontStyle = FontStyle.Bold,
 						normal = { textColor = Color.red },
 						alignment = TextAnchor.MiddleLeft
@@ -803,7 +929,7 @@ public partial class TunnelsGenerator : MonoBehaviour
 
 					GUI.Label(new Rect(boxX + boxWidth - 150f, boxY + 10f, 140f, 22f), "BOMBA HIDRÁULICA ACTIVA", new GUIStyle(GUI.skin.label)
 					{
-						fontSize = 10,
+						fontSize = 9,
 						fontStyle = FontStyle.Bold,
 						normal = { textColor = new Color(1f, 0.6f, 0.6f, 0.8f) },
 						alignment = TextAnchor.MiddleRight
@@ -825,7 +951,7 @@ public partial class TunnelsGenerator : MonoBehaviour
 					// LÍNEA 3: EVACUANDO AGUA Y TIEMPO RESTANTE
 					GUI.Label(new Rect(boxX + 15f, boxY + 58f, boxWidth - 30f, 22f), "EVACUANDO AGUA" + ((Time.time % 1.2f < 0.4f) ? "." : ((Time.time % 1.2f < 0.8f) ? ".." : "...")), new GUIStyle(GUI.skin.label)
 					{
-						fontSize = 12,
+						fontSize = 11,
 						fontStyle = FontStyle.Bold,
 						normal = { textColor = Color.white },
 						alignment = TextAnchor.MiddleLeft
@@ -833,16 +959,16 @@ public partial class TunnelsGenerator : MonoBehaviour
 
 					GUI.Label(new Rect(boxX + 15f, boxY + 58f, boxWidth - 30f, 22f), $"{Mathf.CeilToInt(currentDrainageTime)}s RESTANTES", new GUIStyle(GUI.skin.label)
 					{
-						fontSize = 12,
+						fontSize = 11,
 						fontStyle = FontStyle.Bold,
 						normal = { textColor = Color.red },
 						alignment = TextAnchor.MiddleRight
 					});
 
-					// LÍNEA 4: ADVERTENCIA INFESTACIÓN
-					GUI.Label(new Rect(boxX + 15f, boxY + 95f, boxWidth - 30f, 25f), "⚠️ ACTIVIDAD PARANORMAL DETECTADA: INFESTACIÓN ⚠️", new GUIStyle(GUI.skin.label)
+					// LÍNEA 4: ADVERTENCIA INFESTACIÓN (Sin caracteres emoji rotos)
+					GUI.Label(new Rect(boxX + 15f, boxY + 92f, boxWidth - 30f, 25f), "[!] ACTIVIDAD PARANORMAL DETECTADA: INFESTACIÓN [!]", new GUIStyle(GUI.skin.label)
 					{
-						fontSize = 10,
+						fontSize = 9,
 						fontStyle = FontStyle.Bold,
 						normal = { textColor = new Color(1f, 0.3f, 0.3f, 0.9f) },
 						alignment = TextAnchor.MiddleCenter
@@ -853,10 +979,10 @@ public partial class TunnelsGenerator : MonoBehaviour
 					// ESTADO COMPLETADO: ALERTA DE EVACUACIÓN / BUSCAR SALIDA
 					bool blink = Time.time % 0.8f < 0.4f;
 
-					// LÍNEA 1: SISTEMA DRENADO (Izquierda) Y ESCOTILLA ABIERTA (Derecha) bien separados
-					GUI.Label(new Rect(boxX + 12f, boxY + 12f, 180f, 25f), (blink ? "⚠️" : "  ") + " SISTEMA DRENADO", new GUIStyle(GUI.skin.label)
+					// LÍNEA 1: SISTEMA DRENADO (Izquierda) Y ESCOTILLA ABIERTA (Derecha)
+					GUI.Label(new Rect(boxX + 12f, boxY + 12f, 180f, 25f), (blink ? "[!]" : "   ") + " SISTEMA DRENADO", new GUIStyle(GUI.skin.label)
 					{
-						fontSize = 13,
+						fontSize = 12,
 						fontStyle = FontStyle.Bold,
 						normal = { textColor = Color.green },
 						alignment = TextAnchor.MiddleLeft
@@ -864,29 +990,31 @@ public partial class TunnelsGenerator : MonoBehaviour
 
 					GUI.Label(new Rect(boxX + boxWidth - 145f, boxY + 12f, 135f, 25f), "ESCOTILLA ABIERTA", new GUIStyle(GUI.skin.label)
 					{
-						fontSize = 11,
+						fontSize = 10,
 						fontStyle = FontStyle.Bold,
 						normal = { textColor = Color.yellow },
 						alignment = TextAnchor.MiddleRight
 					});
 
 					// MENSAJE PARPANDEANTE DE INSTRUCCIÓN DE SALIDA
-					GUI.Label(new Rect(boxX + 15f, boxY + 50f, boxWidth - 30f, 35f), "¡AGUA EVACUADA!\nBUSCA LA ESCOTILLA DE SALIDA", new GUIStyle(GUI.skin.label)
+					GUI.Label(new Rect(boxX + 15f, boxY + 48f, boxWidth - 30f, 35f), "¡AGUA EVACUADA!\nBUSCA LA ESCOTILLA DE SALIDA", new GUIStyle(GUI.skin.label)
 					{
-						fontSize = 13,
+						fontSize = 12,
 						fontStyle = FontStyle.Bold,
 						normal = { textColor = Color.white },
 						alignment = TextAnchor.MiddleCenter
 					});
 
-					GUI.Label(new Rect(boxX + 15f, boxY + 95f, boxWidth - 30f, 25f), (blink ? "⚠️ ¡EVACÚA INMEDIATAMENTE! ⚠️" : "  ¡EVACÚA INMEDIATAMENTE!  "), new GUIStyle(GUI.skin.label)
+					GUI.Label(new Rect(boxX + 15f, boxY + 92f, boxWidth - 30f, 25f), (blink ? "[!] ¡EVACÚA INMEDIATAMENTE! [!]" : "   ¡EVACÚA INMEDIATAMENTE!   "), new GUIStyle(GUI.skin.label)
 					{
-						fontSize = 11,
+						fontSize = 10,
 						fontStyle = FontStyle.Bold,
 						normal = { textColor = new Color(1f, 0.8f, 0.2f, 1f) },
 						alignment = TextAnchor.MiddleCenter
 					});
 				}
+
+				GUI.matrix = oldMat;
 			}
 			if (escapeState == EscapeState.Idle)
 			{

@@ -1054,6 +1054,13 @@ public partial class TunnelsGenerator
 
 			GameObject noteObj;
 			float scaleFactor = 1.6f * mapScale; // Ajustado para ser más grandes y visibles en los túneles
+			
+			// Intentar cargar dinámicamente si no está asignado
+			if (notePrefab == null)
+			{
+			    notePrefab = Resources.Load<GameObject>("Prefabs/NoteItem");
+			    if (notePrefab == null) notePrefab = Resources.Load<GameObject>("Prefabs/Papel");
+			}
 
 			if (notePrefab != null)
 			{
@@ -1065,14 +1072,21 @@ public partial class TunnelsGenerator
 				noteObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
 				noteObj.transform.position = finalPos;
 				noteObj.transform.rotation = Quaternion.Euler(90f, Random.Range(0f, 360f), 0f);
-				noteObj.transform.localScale = new Vector3(0.5f * scaleFactor, 0.6f * scaleFactor, 1f);
+				// Hacerlo más pequeño (tamaño de un papel real: 20cm x 30cm)
+				noteObj.transform.localScale = new Vector3(0.2f * scaleFactor, 0.3f * scaleFactor, 1f);
 				noteObj.transform.SetParent(loreRoot.transform);
 				
 				Renderer rend = noteObj.GetComponent<Renderer>();
 				if (rend != null)
 				{
-					rend.material = new Material(Shader.Find("Sprites/Default"));
-					rend.material.color = new Color(0.82f, 0.68f, 0.44f, 1.0f);
+					Shader noteShader = Shader.Find("Universal Render Pipeline/Lit");
+					if (noteShader == null) noteShader = Shader.Find("Universal Render Pipeline/Simple Lit");
+					if (noteShader == null) noteShader = Shader.Find("Sprites/Default");
+					if (noteShader == null) noteShader = Shader.Find("Standard");
+
+					Material mat = new Material(noteShader);
+					mat.color = new Color(0.88f, 0.80f, 0.65f, 1.0f); // Tono pergamino envejecido
+					rend.material = mat;
 				}
 			}
 
@@ -1089,7 +1103,7 @@ public partial class TunnelsGenerator
 			if (box == null) box = noteObj.AddComponent<BoxCollider>();
 			box.isTrigger = false;
 			box.center = Vector3.zero;
-			box.size = new Vector3(0.45f, 0.3f, 0.45f); // Tamaño absoluto cómodo en 3D
+			box.size = new Vector3(1.5f, 1.5f, 1.5f); // Tamaño amplio local para garantizar raycast fácil en móviles
 
 			LoreNoteItem loreComp = noteObj.AddComponent<LoreNoteItem>();
 			loreComp.loreId = 4 + i;

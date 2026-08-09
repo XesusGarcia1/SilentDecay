@@ -304,6 +304,7 @@ public class UIVirtualTouchZone : MonoBehaviour, IPointerDownHandler, IDragHandl
             pointerDown.callback.AddListener((data) => {
                 MobileInput.ePressed = true;
                 MobileInput.ePressedDown = true;
+                MobileInput.lastFrameEPressed = Time.frameCount;
                 
                 UnityEngine.UI.Image img = interactBtnObj.GetComponent<UnityEngine.UI.Image>();
                 if (img != null) img.color = activeColor;
@@ -315,7 +316,6 @@ public class UIVirtualTouchZone : MonoBehaviour, IPointerDownHandler, IDragHandl
             pointerUp.eventID = UnityEngine.EventSystems.EventTriggerType.PointerUp;
             pointerUp.callback.AddListener((data) => {
                 MobileInput.ePressed = false;
-                MobileInput.ePressedDown = false;
                 
                 UnityEngine.UI.Image img = interactBtnObj.GetComponent<UnityEngine.UI.Image>();
                 if (img != null) img.color = darkBgColor;
@@ -435,12 +435,14 @@ public class UIVirtualTouchZone : MonoBehaviour, IPointerDownHandler, IDragHandl
     {
         Debug.Log("[TouchZone] ¡Tap de interacción detectado! Activando MobileInput.ePressedDown.");
         MobileInput.ePressedDown = true;
+        MobileInput.lastFrameEPressed = Time.frameCount;
     }
 
     private void TriggerVirtualFlashlight()
     {
         Debug.Log("[TouchZone] ¡Doble Tap detectado! Activando MobileInput.fPressedDown.");
         MobileInput.fPressedDown = true;
+        MobileInput.lastFrameFPressed = Time.frameCount;
     }
 
     void Update()
@@ -454,18 +456,7 @@ public class UIVirtualTouchZone : MonoBehaviour, IPointerDownHandler, IDragHandl
         }
     }
 
-    void LateUpdate()
-    {
-        // Limpiar el estado de pulsación al final del frame para que dure exactamente un frame de Update
-        if (MobileInput.ePressedDown)
-        {
-            MobileInput.ePressedDown = false;
-        }
-        if (MobileInput.fPressedDown)
-        {
-            MobileInput.fPressedDown = false;
-        }
-    }
+    // LateUpdate eliminado para que MobileInput controle su propio consumo de inputs
 
     void OutputPointerEventValue(Vector2 pointerPosition)
     {

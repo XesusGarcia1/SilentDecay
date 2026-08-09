@@ -60,6 +60,10 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 1f;
         AudioListener.volume = 1f;
         
+        #if UNITY_ANDROID || UNITY_IOS
+        FixMobileCanvasScaling();
+        #endif
+
         // Solo reiniciar vidas al volver al menú principal.
         // IMPORTANTE: LoadingScene NO debe reiniciar vidas, porque es una pantalla intermedia
         // que se usa tanto para el primer acceso como para los reintentos mid-game.
@@ -76,6 +80,18 @@ public class GameManager : MonoBehaviour
                 vidasActuales = 1;
                 Debug.LogWarning("GameManager: vidasActuales era 0 al entrar al mapa. Forzando a 1.");
             }
+        }
+    }
+
+    public void FixMobileCanvasScaling()
+    {
+        UnityEngine.UI.CanvasScaler[] scalers = FindObjectsOfType<UnityEngine.UI.CanvasScaler>(true);
+        foreach (var scaler in scalers)
+        {
+            // Forzar a 1600x900 en celulares (tamaño intermedio ideal para no ser ni muy pequeño ni muy gigante)
+            scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1600, 900);
+            scaler.matchWidthOrHeight = 0.5f;
         }
     }
 
@@ -131,6 +147,8 @@ public class GameManager : MonoBehaviour
         // 3. Determinar posición y rotación seguras de destino
         Vector3 targetPos = hasSpawnPoint ? playerSpawnPosition : (player.transform.position.y < -5f ? Vector3.up * 0.5f : player.transform.position);
         Quaternion targetRot = hasSpawnPoint ? playerSpawnRotation : Quaternion.identity;
+        
+        Debug.Log($"[GameManager] ReaparecerJugador invocado para: '{player.name}'. hasSpawnPoint: {hasSpawnPoint}, playerSpawnPosition (registrado): {playerSpawnPosition}, Destino Final (targetPos): {targetPos}");
 
         // 4. Encontrar la raíz del personaje (sin subir a la escena o generadores)
         Transform current = player.transform;
@@ -146,22 +164,20 @@ public class GameManager : MonoBehaviour
             playerRoot = current;
         }
 
-        // 5. Mover directamente el personaje y su raíz a la posición exacta de spawn
-        player.transform.position = targetPos;
-        player.transform.rotation = targetRot;
+        // 5. Mover directamente la RAÍZ (PlayerMale) y el HIJO (PlayerCapsule) a la posición exacta de spawn
+        playerRoot.position = targetPos;
+        playerRoot.rotation = targetRot;
 
-        if (playerRoot != player.transform)
-        {
-            playerRoot.position = targetPos;
-            playerRoot.rotation = targetRot;
-            player.transform.localPosition = Vector3.zero;
-        }
+        player.transform.localPosition = Vector3.zero;
+        player.transform.localRotation = Quaternion.identity;
 
-        // 6. Detener físicas/fuerzas residuales de Rigidbody
+        // 6. Detener físicas/fuerzas residuales de Rigidbody y forzar su posición en el motor de físicas
         Rigidbody rb = player.GetComponent<Rigidbody>();
         if (rb == null) rb = player.GetComponentInParent<Rigidbody>();
         if (rb != null)
         {
+            rb.position = targetPos;
+            rb.rotation = targetRot;
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
         }

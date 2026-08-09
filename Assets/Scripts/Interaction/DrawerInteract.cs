@@ -78,6 +78,8 @@ namespace ModularHospital
         }
     }
 
+    private float lastInteractTime = 0f;
+
     void Update()
     {
         // Animar desplazamiento suave del cajón
@@ -100,6 +102,10 @@ namespace ModularHospital
 
         if (isFocused && MobileInput.GetKeyDown(KeyCode.E))
         {
+            if (Time.unscaledTime < lastInteractTime + 0.35f) return;
+            lastInteractTime = Time.unscaledTime;
+            MobileInput.ePressedDown = false; // Consumir tap para evitar doble activación
+
             // Si el cajón está abierto y la tarjeta está dentro, presionar E recoge directamente la tarjeta de acceso
             if (isOpen && keycardInside != null)
             {

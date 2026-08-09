@@ -50,7 +50,7 @@ public class MenuScreenSettings : MonoBehaviour
         // ─── Título ───────────────────────────────────────────────────────────
         string title = GetLocalized("CONFIGURACIÓN DE HARDWARE", "HARDWARE SETTINGS", "CONFIGURAÇÃO DE HARDWARE");
         GUILayout.Label(title, s.SectionHeader, GUILayout.Height(30));
-        GUILayout.Space(20);
+        GUILayout.Space(10);
 
         // ─── Pestañas ─────────────────────────────────────────────────────────
         GUIStyle tabStyle = new GUIStyle(s.OptionSelect);
@@ -62,23 +62,23 @@ public class MenuScreenSettings : MonoBehaviour
 
         tabStyle.normal.textColor = activeTab == 0 ? Color.red : Color.gray;
         string tab0 = GetLocalized("AUDIO Y CONTROLES", "AUDIO & CONTROLS", "ÁUDIO E CONTROLES");
-        if (GUILayout.Button(tab0, tabStyle, GUILayout.Height(40))) { ctx.PlayClickSound(); activeTab = 0; }
+        if (GUILayout.Button(tab0, tabStyle, GUILayout.Height(35))) { ctx.PlayClickSound(); activeTab = 0; }
 
         tabStyle.normal.textColor = activeTab == 1 ? Color.red : Color.gray;
         string tab1 = GetLocalized("GRÁFICOS Y RENDIMIENTO", "GRAPHICS & RUNTIME", "GRÁFICOS E VIDEO");
-        if (GUILayout.Button(tab1, tabStyle, GUILayout.Height(40))) { ctx.PlayClickSound(); activeTab = 1; }
+        if (GUILayout.Button(tab1, tabStyle, GUILayout.Height(35))) { ctx.PlayClickSound(); activeTab = 1; }
 
         GUILayout.EndHorizontal();
-        GUILayout.Space(30);
+        GUILayout.Space(12);
 
         if (activeTab == 0) DrawAudioTab(s);
         else                DrawGraphicsTab(s);
 
-        GUILayout.Space(45);
+        GUILayout.Space(12);
 
         // ─── Guardar y Volver ─────────────────────────────────────────────────
         string saveBtn = GetLocalized("  GUARDAR Y VOLVER", "  SAVE & BACK", "  SALVAR E VOLTAR");
-        if (GUILayout.Button(saveBtn, s.Button, GUILayout.Height(55)))
+        if (GUILayout.Button(saveBtn, s.Button, GUILayout.Height(48)))
         {
             ctx.PlayClickSound();
             PlayerPrefs.SetFloat("MouseSensitivity", ctx.mouseSensitivity);
@@ -93,27 +93,46 @@ public class MenuScreenSettings : MonoBehaviour
 
     void DrawAudioTab(MenuStyles s)
     {
+        GUIStyle sliderTrackStyle = new GUIStyle(GUI.skin.horizontalSlider);
+        sliderTrackStyle.fixedHeight = 22f;
+
+        GUIStyle sliderThumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb);
+        sliderThumbStyle.fixedWidth = 32f;
+        sliderThumbStyle.fixedHeight = 32f;
+
         // Volumen
         string volLabel = Loc("menu_volumen", "Volumen General");
         GUILayout.Label($"{volLabel}: {Mathf.RoundToInt(ctx.masterVolume * 100)}%", s.Label);
-        ctx.masterVolume     = GUILayout.HorizontalSlider(ctx.masterVolume, 0f, 1f);
+        ctx.masterVolume     = GUILayout.HorizontalSlider(ctx.masterVolume, 0f, 1f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
         AudioListener.volume = ctx.masterVolume;
         if (ctx.menuAudioSource != null) ctx.menuAudioSource.volume = ctx.masterVolume * 0.6f;
         if (ctx.sfxAudioSource  != null) ctx.sfxAudioSource.volume  = ctx.masterVolume * 0.85f;
-        GUILayout.Space(25);
+        GUILayout.Space(8);
 
         // Sensibilidad
         string sensLabel = Loc("menu_sensibilidad", "Sensibilidad de Cámara");
         GUILayout.Label($"{sensLabel}: {ctx.mouseSensitivity:F1}", s.Label);
-        ctx.mouseSensitivity = GUILayout.HorizontalSlider(ctx.mouseSensitivity, 0.5f, 6.0f);
-        GUILayout.Space(25);
+        ctx.mouseSensitivity = GUILayout.HorizontalSlider(ctx.mouseSensitivity, 0.5f, 6.0f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
+        GUILayout.Space(8);
+
+        // Tamaño de Interfaz / HUD
+        float currentHudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+        string hudLabel = GetLocalized("Tamaño de Interfaz / HUD", "UI / HUD Scale", "Tamanho de HUD / UI");
+        GUILayout.Label($"{hudLabel}: {currentHudScale:F2}x", s.Label);
+        float newHudScale = GUILayout.HorizontalSlider(currentHudScale, 0.85f, 1.75f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
+        if (Mathf.Abs(newHudScale - currentHudScale) > 0.01f)
+        {
+            PlayerPrefs.SetFloat("HUDScale", newHudScale);
+            PlayerPrefs.Save();
+        }
+        GUILayout.Space(8);
 
         // Idioma
         string langLabel = Loc("menu_idioma", "Idioma");
         GUILayout.Label($"{langLabel}:", s.Label);
-        GUILayout.Space(5);
+        GUILayout.Space(3);
         DrawLanguageSelector(s);
-        GUILayout.Space(25);
+        GUILayout.Space(8);
 
         // Pantalla completa
         string fsLabel = GetLocalized("Pantalla Completa", "Full Screen", "Tela Cheia");
@@ -300,8 +319,15 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.Label($"{labelVal}: {tempGamma:F2}x", s.Label);
         GUILayout.Space(5);
 
+        GUIStyle sliderTrackStyle = new GUIStyle(GUI.skin.horizontalSlider);
+        sliderTrackStyle.fixedHeight = 26f;
+
+        GUIStyle sliderThumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb);
+        sliderThumbStyle.fixedWidth = 36f;
+        sliderThumbStyle.fixedHeight = 36f;
+
         // Slider Horizontal Principal
-        float newGamma = GUILayout.HorizontalSlider(tempGamma, 0.5f, 2.0f, GUILayout.Height(30), GUILayout.Width(380));
+        float newGamma = GUILayout.HorizontalSlider(tempGamma, 0.5f, 2.0f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(36f), GUILayout.Width(380));
         if (Mathf.Abs(newGamma - tempGamma) > 0.005f)
         {
             tempGamma = newGamma;
@@ -351,9 +377,26 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.BeginVertical(darkBoxStyle, GUILayout.Width(220), GUILayout.Height(220));
         GUI.backgroundColor = prevColor;
 
-        GUILayout.FlexibleSpace();
-        GUILayout.Label("⚙", gearIconStyle);
-        GUILayout.FlexibleSpace();
+        Texture2D gearTex = Resources.Load<Texture2D>("UI/HUD_Gear_Icon");
+        if (gearTex != null)
+        {
+            GUILayout.FlexibleSpace();
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            GUI.color = dynamicGearColor;
+            Rect gearRect = GUILayoutUtility.GetRect(130, 130, GUILayout.Width(130), GUILayout.Height(130));
+            GUI.DrawTexture(gearRect, gearTex, ScaleMode.ScaleToFit, true);
+            GUI.color = Color.white;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.FlexibleSpace();
+        }
+        else
+        {
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("⚙", gearIconStyle);
+            GUILayout.FlexibleSpace();
+        }
 
         GUILayout.EndVertical();
 

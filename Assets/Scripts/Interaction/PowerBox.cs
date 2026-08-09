@@ -520,7 +520,10 @@ public class PowerBox : MonoBehaviour
 
     void OnGUI()
     {
-        // Ocultar si estamos leyendo una nota (lore) para no sobreponer textos
+        // Ocultar si el juego está pausado (ej. leyendo una nota a pantalla completa)
+        if (Time.timeScale == 0f) return;
+
+        // Ocultar si estamos en el cuaderno
         if (NotepadUIManager.IsOpen) return;
 
         // Ocultar si estamos en modo menú
@@ -566,7 +569,15 @@ public class PowerBox : MonoBehaviour
             GUI.Label(rect, uiMessage, style);
         }
 
-        // 2. HUD de Subgeneradores Dinámico (Se adapta al tamaño de mapa Chico, Mediano, Grande)
+        // 2. HUD de Subgeneradores y Fusibles Dinámico (Escalable según configuración de usuario)
+        float hudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+        Matrix4x4 oldHudMat = GUI.matrix;
+        if (hudScale != 1.0f)
+        {
+            Vector2 pivot = new Vector2(Screen.width - 25, 25);
+            GUIUtility.ScaleAroundPivot(new Vector2(hudScale, hudScale), pivot);
+        }
+
         SubGenerator[] subGens = FindObjectsOfType<SubGenerator>();
         if (subGens != null && subGens.Length > 0)
         {
@@ -632,6 +643,12 @@ public class PowerBox : MonoBehaviour
 #if UNITY_EDITOR
             fuseIcon = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Dnk_Dev/FuseBox/Fuse_Icon.png");
 #endif
+            if (fuseIcon == null) fuseIcon = Resources.Load<Texture2D>("Fuse_Icon");
+            if (fuseIcon == null) fuseIcon = Resources.Load<Texture2D>("UI/Fuse_Icon");
+            if (fuseIcon == null)
+            {
+                fuseIcon = GetProceduralFuseTexture();
+            }
         }
 
         Rect iconRect = new Rect(hudRect.x + 8, hudRect.y + 6, 44, 52);
@@ -653,6 +670,8 @@ public class PowerBox : MonoBehaviour
         hudStyle.normal.textColor = fusesCount > 0 ? Color.white : new Color(0.7f, 0.7f, 0.7f);
         Rect textRect = new Rect(hudRect.x + 60, hudRect.y, 45, hudRect.height);
         GUI.Label(textRect, "x" + fusesCount, hudStyle);
+
+        GUI.matrix = oldHudMat;
     }
 
     public void ForceKeycardBlackoutAndRoar()
@@ -772,5 +791,45 @@ public class PowerBox : MonoBehaviour
             Vector3 pos = Camera.main != null ? Camera.main.transform.position : transform.position;
             AudioSource.PlayClipAtPoint(clip, pos, 1.0f);
         }
+    }
+
+    private static Texture2D proceduralFuseTex;
+    private static Texture2D GetProceduralFuseTexture()
+    {
+        if (proceduralFuseTex != null) return proceduralFuseTex;
+        int w = 32, h = 48;
+        proceduralFuseTex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        Color transparent = new Color(0, 0, 0, 0);
+        Color metalColor = new Color(0.85f, 0.85f, 0.88f, 1f); // Tapa metálica
+        Color glassColor = new Color(0.95f, 0.70f, 0.15f, 1f); // Cristal dorado
+        Color wireColor = new Color(0.2f, 0.2f, 0.2f, 1f);     // Filamento
+
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                if (x >= 6 && x <= 25 && y >= 4 && y <= 43)
+                {
+                    if (y >= 34 || y <= 13)
+                    {
+                        proceduralFuseTex.SetPixel(x, y, metalColor);
+                    }
+                    else if (x >= 14 && x <= 17)
+                    {
+                        proceduralFuseTex.SetPixel(x, y, wireColor);
+                    }
+                    else
+                    {
+                        proceduralFuseTex.SetPixel(x, y, glassColor);
+                    }
+                }
+                else
+                {
+                    proceduralFuseTex.SetPixel(x, y, transparent);
+                }
+            }
+        }
+        proceduralFuseTex.Apply();
+        return proceduralFuseTex;
     }
 }

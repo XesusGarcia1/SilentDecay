@@ -18,6 +18,7 @@ public class LoreNoteItem : MonoBehaviour
     public bool IsReading => isReading;
 
     private Texture2D paperReadingTex;
+    public static Texture2D globalPaperTexture;
     private GUIStyle contentStyle;
     private GUIStyle titleStyle;
     private GUIStyle closeStyle;
@@ -44,6 +45,7 @@ public class LoreNoteItem : MonoBehaviour
 
         // Textura para la lectura (pergamino arrugado procedural)
         paperReadingTex = ProceduralPaperTexture.GetPaperTexture();
+        globalPaperTexture = paperReadingTex;
 
         // 2. CREAR LUZ DE GUÍA CÁLIDA PULSANTE PARA LA OSCURIDAD
         GameObject lightObj = new GameObject("LoreNote_GlowLight");
@@ -95,9 +97,13 @@ public class LoreNoteItem : MonoBehaviour
 
         if (isReading)
         {
-            // Cerrar con Escape, E, Tab o Clic
-            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Tab))
+            // Prevenir cierre accidental por el mismo tap de abrir durante 0.35s
+            if (Time.unscaledTime < openTime + 0.35f) return;
+
+            // Cerrar con Escape, E, Mobile E, Tab
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E) || MobileInput.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Tab))
             {
+                MobileInput.ePressedDown = false;
                 CloseReading();
             }
             return;
@@ -112,14 +118,14 @@ public class LoreNoteItem : MonoBehaviour
             return;
         }
 
-        // Raycast de mirilla
+        // Mirilla de cámara con tolerancia limpia (SphereCast de 0.25m): exige estar mirando la nota
         bool isHitDirectly = false;
         Camera cam = Camera.main;
         if (cam != null)
         {
             Ray ray = new Ray(cam.transform.position, cam.transform.forward);
             RaycastHit hit;
-            if (Physics.Raycast(ray, out hit, interactDistance))
+            if (Physics.SphereCast(ray, 0.25f, out hit, interactDistance))
             {
                 if (hit.transform == transform || hit.transform.IsChildOf(transform) || transform.IsChildOf(hit.transform))
                 {
@@ -139,8 +145,41 @@ public class LoreNoteItem : MonoBehaviour
         }
     }
 
+    private float openTime = 0f;
+
+    public static void ForceRead(int id)
+    {
+        LoreNoteItem[] items = FindObjectsOfType<LoreNoteItem>();
+        foreach (var item in items)
+        {
+            if (item.loreId == id)
+            {
+                item.isReading = true;
+                item.openTime = Time.unscaledTime;
+                Time.timeScale = 0f;
+                if (item.glowLight != null) item.glowLight.enabled = false;
+                MobileInput.SetCursorState(false);
+                item.SetPlayerControlsActive(false);
+                return;
+            }
+        }
+    }
+
     private void CollectAndReadLore()
     {
+        openTime = Time.unscaledTime;
+        MobileInput.ePressedDown = false; // Consumir tap para evitar doble activación
+
+        // Reproducir sonido de papel en la cámara antes de pausar
+        AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Hospital/Nota_Grab");
+        if (pickupSound != null && Camera.main != null)
+        {
+            AudioSource camAudio = Camera.main.GetComponent<AudioSource>();
+            if (camAudio == null) camAudio = Camera.main.gameObject.AddComponent<AudioSource>();
+            camAudio.ignoreListenerPause = true;
+            camAudio.PlayOneShot(pickupSound);
+        }
+
         isReading = true;
         Time.timeScale = 0f; // Pausar partida para lectura
 
@@ -152,13 +191,6 @@ public class LoreNoteItem : MonoBehaviour
 
         // Desactivar controles de movimiento del jugador
         SetPlayerControlsActive(false);
-
-        // Reproducir sonido de papel
-        AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Hospital/Nota_Grab");
-        if (pickupSound != null && Camera.main != null)
-        {
-            AudioSource.PlayClipAtPoint(pickupSound, Camera.main.transform.position, 1.0f);
-        }
 
         // Registrar la nota recogida en NotepadUIManager con textos traducidos
         string finalTitle = noteTitle;
@@ -204,6 +236,12 @@ public class LoreNoteItem : MonoBehaviour
         Destroy(gameObject); // Desaparece del suelo
     }
 
+    public void CloseReadingSilently()
+    {
+        isReading = false;
+        Destroy(gameObject);
+    }
+
     private void SetPlayerControlsActive(bool active)
     {
         GameObject p = GameObject.Find("NestedParent_Unpack");
@@ -217,6 +255,13 @@ public class LoreNoteItem : MonoBehaviour
 
     private void OnGUI()
     {
+        if (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsGamePaused)
+        {
+            return;
+        }
+
+        GUI.depth = 10;
+
         if (isReading)
         {
             DrawFullscreenReading();
@@ -261,6 +306,15 @@ public class LoreNoteItem : MonoBehaviour
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
+        // Aplicar escalado del usuario en tiempo real
+        float hudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+        Matrix4x4 oldMat = GUI.matrix;
+        if (hudScale != 1.0f)
+        {
+            Vector2 pivot = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            GUIUtility.ScaleAroundPivot(new Vector2(hudScale, hudScale), pivot);
+        }
+
         // 2. Rectángulo de papel pergamino centrado
         int w = Mathf.Min(600, Screen.width - 40);
         int h = Mathf.Min(560, Screen.height - 60);
@@ -300,7 +354,6 @@ public class LoreNoteItem : MonoBehaviour
         }
 
         // Margen y dibujo de texto
-        // Margen aumentado para evitar que el texto toque el contorno oscuro del pergamino
         GUILayout.BeginArea(new Rect(paperRect.x + 75, paperRect.y + 55, paperRect.width - 150, paperRect.height - 130));
         
         GUILayout.Label(finalTitle, titleStyle);
@@ -318,5 +371,7 @@ public class LoreNoteItem : MonoBehaviour
         {
             CloseReading();
         }
+
+        GUI.matrix = oldMat;
     }
 }

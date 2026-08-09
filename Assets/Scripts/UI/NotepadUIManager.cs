@@ -23,7 +23,26 @@ public class NotepadUIManager : MonoBehaviour
     public static Dictionary<int, LoreNoteData> collectedLoreNotes = new Dictionary<int, LoreNoteData>();
     private int selectedLoreNoteId = -1;
 
+    public static bool isReadingFullscreen = false;
+    public static string fullscreenTitle = "";
+    public static string fullscreenBody = "";
+    public static float openTime = 0f;
+
     private int activeTab = 0; // 0 = Notas, 1 = Mapa, 2 = Archivo Lore
+    
+    public float currentUIScale
+    {
+        get
+        {
+            float baseScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+            #if UNITY_ANDROID || UNITY_IOS
+            return baseScale * 1.15f;
+            #else
+            return baseScale;
+            #endif
+        }
+    }
+
     private Transform playerTransform;
     private static HashSet<Vector2Int> discoveredRooms = new HashSet<Vector2Int>();
 
@@ -233,6 +252,12 @@ public class NotepadUIManager : MonoBehaviour
 
     void OnGUI()
     {
+        if (isReadingFullscreen)
+        {
+            DrawFullscreenReadingFromNotepad();
+            return;
+        }
+
         if (ShouldSuppressNotepadUI()) return;
 
         if (!IsOpen)
@@ -248,45 +273,52 @@ public class NotepadUIManager : MonoBehaviour
                 numGens = subGens.Length;
             }
 
-            float yPos = 98f;
-            if (numGens > 0)
+            float hudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+            Matrix4x4 oldHudMat = GUI.matrix;
+            if (hudScale != 1.0f)
             {
-                yPos = 98f + 65f + 8f; // Abajo de la caja de subgeneradores
-            }
-            else
-            {
-                yPos = 98f; // Si no hay subgeneradores, va justo abajo de la caja de fusibles (que termina en Y=90)
+                Vector2 pivot = new Vector2(Screen.width - 25, 25);
+                GUIUtility.ScaleAroundPivot(new Vector2(hudScale, hudScale), pivot);
             }
 
-            float rightEdge = Screen.width - 25f;
+            float yPos = (numGens > 0) ? (98f + 65f + 8f) : 98f;
             float btnSize = 50f;
-            Rect iconRect = new Rect(rightEdge - btnSize, yPos, btnSize, btnSize);
+            Rect iconRect = new Rect(Screen.width - 25f - btnSize, yPos, btnSize, btnSize);
 
-            // Fondo semitransparente oscuro unificado (como fusibles y subgeneradores, no azul)
+            // Fondo semitransparente oscuro unificado (como fusibles y subgeneradores)
             GUI.color = new Color(0f, 0f, 0f, 0.6f);
             GUI.DrawTexture(iconRect, Texture2D.whiteTexture);
             GUI.color = Color.white;
 
             GUIStyle iconStyle = new GUIStyle(GUI.skin.button);
-            iconStyle.fontSize = 22;
-            iconStyle.alignment = TextAnchor.MiddleCenter;
-            iconStyle.fontStyle = FontStyle.Bold;
             iconStyle.normal.background = null;
             iconStyle.hover.background = null;
             iconStyle.active.background = null;
-            iconStyle.normal.textColor = Color.white;
-            iconStyle.hover.textColor = new Color(0.9f, 0.9f, 0.9f);
 
-            if (GUI.Button(iconRect, "📝", iconStyle))
+            if (GUI.Button(iconRect, GUIContent.none, iconStyle))
             {
                 OpenNotepad();
             }
+            Texture2D nbTex = GetNotebookTexture();
+            Rect nbIconPadding = new Rect(iconRect.x + 4, iconRect.y + 4, iconRect.width - 8, iconRect.height - 8);
+            if (nbTex != null) GUI.DrawTexture(nbIconPadding, nbTex, ScaleMode.ScaleToFit, true);
+
+            GUI.matrix = oldHudMat;
             return;
         }
 
         // Evitar dibujar si el mapa de hospital de la escena actual no está disponible
         ModularHospital.ModularHospitalGenerator gen = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
         if (gen != null && gen.isMenuMode) return;
+        
+        // Aplicar escalado global a toda la libreta para móviles
+        Matrix4x4 oldMatrix = GUI.matrix;
+        float padScale = this.currentUIScale;
+        if (padScale > 1.0f)
+        {
+            Vector2 pivot = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            GUIUtility.ScaleAroundPivot(new Vector2(padScale, padScale), pivot);
+        }
 
         Rect padRect = new Rect(Screen.width / 2 - 200, Screen.height / 2 - 220, 400, 440);
         
@@ -310,12 +342,14 @@ public class NotepadUIManager : MonoBehaviour
         activeTabStyle.fontSize = 12;
         activeTabStyle.fontStyle = FontStyle.Bold;
         activeTabStyle.alignment = TextAnchor.MiddleCenter;
+        activeTabStyle.padding.left = 22;
         activeTabStyle.normal.textColor = Color.white;
 
         GUIStyle inactiveTabStyle = new GUIStyle();
         inactiveTabStyle.fontSize = 11;
         inactiveTabStyle.fontStyle = FontStyle.Normal;
         inactiveTabStyle.alignment = TextAnchor.MiddleCenter;
+        inactiveTabStyle.padding.left = 22;
         inactiveTabStyle.normal.textColor = new Color(0.2f, 0.2f, 0.2f);
 
         // Pestaña 1: NOTAS DE CLAVE
@@ -333,35 +367,41 @@ public class NotepadUIManager : MonoBehaviour
         }
         else
         {
-            tab1Title = isTunnelsMode ? "<s>📝 CLAVE (N/A)</s>" : "📝 CLAVE";
+            tab1Title = isTunnelsMode ? "<s>CLAVE (N/A)</s>" : "CLAVE";
         }
 
         if (GUI.Button(tab1Rect, tab1Title, activeTab == 0 ? activeTabStyle : inactiveTabStyle))
         {
             if (!isTunnelsMode) activeTab = 0;
         }
+        Texture2D t1Icon = GetTabCodeTexture();
+        if (t1Icon != null) GUI.DrawTexture(new Rect(tab1Rect.x + 8, tab1Rect.y + (tab1Rect.height - 22) / 2f, 22, 22), t1Icon, ScaleMode.ScaleToFit, true);
 
         // Pestaña 2: PLANO DEL MAPA
         GUI.color = (activeTab == 1) ? new Color(0.12f, 0.35f, 0.25f, 0.95f) : new Color(0.85f, 0.82f, 0.70f, 0.9f);
         GUI.DrawTexture(tab2Rect, Texture2D.whiteTexture);
         GUI.color = Color.white;
         
-        string tab2Title = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_tab_map") : "🗺️ MAPA";
+        string tab2Title = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_tab_map") : "MAPA";
         if (GUI.Button(tab2Rect, tab2Title, activeTab == 1 ? activeTabStyle : inactiveTabStyle))
         {
             activeTab = 1;
         }
+        Texture2D t2Icon = GetTabMapTexture();
+        if (t2Icon != null) GUI.DrawTexture(new Rect(tab2Rect.x + 8, tab2Rect.y + (tab2Rect.height - 22) / 2f, 22, 22), t2Icon, ScaleMode.ScaleToFit, true);
 
         // Pestaña 3: ARCHIVOS DE LORE (Coleccionables de historia)
         GUI.color = (activeTab == 2) ? new Color(0.12f, 0.35f, 0.25f, 0.95f) : new Color(0.85f, 0.82f, 0.70f, 0.9f);
         GUI.DrawTexture(tab3Rect, Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        string tab3Title = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_tab_lore") : "📜 LORE";
+        string tab3Title = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_tab_lore") : "REGISTROS";
         if (GUI.Button(tab3Rect, tab3Title, activeTab == 2 ? activeTabStyle : inactiveTabStyle))
         {
             activeTab = 2;
         }
+        Texture2D t3Icon = GetTabLoreTexture();
+        if (t3Icon != null) GUI.DrawTexture(new Rect(tab3Rect.x + 8, tab3Rect.y + (tab3Rect.height - 22) / 2f, 22, 22), t3Icon, ScaleMode.ScaleToFit, true);
 
         if (activeTab == 0)
         {
@@ -382,6 +422,8 @@ public class NotepadUIManager : MonoBehaviour
         {
             CloseNotepad();
         }
+        
+        GUI.matrix = oldMatrix;
     }
 
     private void RenderNotesTab(Rect padRect, bool isTunnelsMode = false)
@@ -1084,8 +1126,6 @@ public class NotepadUIManager : MonoBehaviour
 
         // --- COLUMNA 1: LISTADO DE NOTAS DE LORE ---
         GUILayout.BeginArea(new Rect(listX, startY, listW, height));
-        string recordsTitle = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("notepad_lore_records") : "REGISTROS:";
-        GUILayout.Label(recordsTitle, titleStyle);
         GUILayout.Space(5);
 
         int firstKey = -1;
@@ -1120,10 +1160,195 @@ public class NotepadUIManager : MonoBehaviour
             GUILayout.Label(selectedData.title.ToUpper(), titleStyle);
             GUILayout.Space(8);
 
-            // Contenido en un scrollview simulado
-            GUILayout.Label(selectedData.body, bodyStyle);
+            // Contenido recortado (Concepto resumido)
+            string snippet = selectedData.body.Length > 90 ? selectedData.body.Substring(0, 90) + "..." : selectedData.body;
+            GUILayout.Label(snippet, bodyStyle);
+            
+            GUILayout.Space(15);
+            
+            GUIStyle btnStyle = new GUIStyle(GUI.skin.button);
+            btnStyle.fontSize = 12;
+            
+            if (GUILayout.Button("Ver más", btnStyle, GUILayout.Width(100), GUILayout.Height(30)))
+            {
+                // Reproducir sonido de papel en la cámara
+                AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Hospital/Nota_Grab");
+                if (pickupSound != null && Camera.main != null)
+                {
+                    AudioSource camAudio = Camera.main.GetComponent<AudioSource>();
+                    if (camAudio == null) camAudio = Camera.main.gameObject.AddComponent<AudioSource>();
+                    camAudio.ignoreListenerPause = true;
+                    camAudio.PlayOneShot(pickupSound);
+                }
+                
+                // Cerrar cuaderno
+                Instance.CloseNotepad();
+                
+                // Configurar lectura a pantalla completa global
+                fullscreenTitle = selectedData.title;
+                fullscreenBody = selectedData.body;
+                isReadingFullscreen = true;
+                openTime = Time.unscaledTime; // Registrar tiempo de apertura
+                Time.timeScale = 0f; // Pausar juego
+                MobileInput.SetCursorState(false); // Mostrar cursor para cerrar
+                
+                // Desactivar controles del jugador y resetear inputs a cero para evitar giros infinitos
+                var playerInput = FindObjectOfType<StarterAssets.StarterAssetsInputs>();
+                if (playerInput == null) playerInput = FindFirstObjectByType<StarterAssets.StarterAssetsInputs>();
+                if (playerInput != null)
+                {
+                    playerInput.move = Vector2.zero;
+                    playerInput.look = Vector2.zero;
+                    playerInput.enabled = false;
+                }
+
+                // Desactivar también el FirstPersonController para congelar físicamente la rotación de la cámara
+                var fpc = FindObjectOfType<StarterAssets.FirstPersonController>();
+                if (fpc == null) fpc = FindFirstObjectByType<StarterAssets.FirstPersonController>();
+                if (fpc != null)
+                {
+                    fpc.enabled = false;
+                }
+            }
 
             GUILayout.EndArea();
         }
+    }
+
+    private void DrawFullscreenReadingFromNotepad()
+    {
+        // 1. Dibujar fondo oscuro traslúcido completo
+        GUI.color = new Color(0f, 0f, 0f, 0.75f);
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        // Aplicar escalado del usuario en tiempo real según configuración del HUD
+        float hudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+        Matrix4x4 oldMat = GUI.matrix;
+        if (hudScale != 1.0f)
+        {
+            Vector2 pivot = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            GUIUtility.ScaleAroundPivot(new Vector2(hudScale, hudScale), pivot);
+        }
+
+        // 2. Rectángulo de papel pergamino centrado
+        int w = Mathf.Min(600, Screen.width - 40);
+        int h = Mathf.Min(560, Screen.height - 60);
+        Rect paperRect = new Rect(Screen.width / 2 - w / 2, Screen.height / 2 - h / 2, w, h);
+
+        Texture2D tex = LoreNoteItem.globalPaperTexture;
+        if (tex == null) tex = ProceduralPaperTexture.GetPaperTexture();
+
+        GUI.DrawTexture(paperRect, tex);
+
+        // Estilos de texto
+        GUIStyle contentStyle = new GUIStyle();
+        contentStyle.fontSize = 17;
+        contentStyle.wordWrap = true;
+        contentStyle.normal.textColor = new Color(0.12f, 0.12f, 0.12f, 1f); // Gris oscuro legible
+        contentStyle.alignment = TextAnchor.UpperLeft;
+        contentStyle.richText = true;
+
+        GUIStyle titleStyle = new GUIStyle(contentStyle);
+        titleStyle.fontSize = 22;
+        titleStyle.fontStyle = FontStyle.Bold;
+        titleStyle.alignment = TextAnchor.MiddleCenter;
+
+        GUIStyle closeStyle = new GUIStyle(GUI.skin.button);
+        closeStyle.fontSize = 18;
+        closeStyle.fontStyle = FontStyle.Bold;
+
+        // Área del contenido
+        GUILayout.BeginArea(new Rect(paperRect.x + 75, paperRect.y + 55, paperRect.width - 150, paperRect.height - 130));
+        
+        GUILayout.Label(fullscreenTitle.ToUpper(), titleStyle);
+        GUILayout.Space(20);
+        GUILayout.Label(fullscreenBody, contentStyle);
+
+        GUILayout.EndArea();
+
+        // Botón inferior para cerrar la lectura
+        float btnW = 200f;
+        float btnH = 45f;
+        Rect closeBtnRect = new Rect(paperRect.x + paperRect.width / 2f - btnW / 2f, paperRect.y + paperRect.height - 70f, btnW, btnH);
+        
+        bool canClose = (Time.unscaledTime - openTime) > 0.3f;
+        bool closePressed = false;
+        
+        if (canClose)
+        {
+            if (GUI.Button(closeBtnRect, "Cerrar [E]", closeStyle) || Input.GetKeyDown(KeyCode.E) || MobileInput.GetKeyDown(KeyCode.E))
+            {
+                closePressed = true;
+            }
+        }
+        else
+        {
+            GUI.Button(closeBtnRect, "Cerrar [E]", closeStyle);
+        }
+
+        if (closePressed)
+        {
+            // Reproducir sonido de papel al cerrar
+            AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Hospital/Nota_Grab");
+            if (pickupSound != null && Camera.main != null)
+            {
+                AudioSource camAudio = Camera.main.GetComponent<AudioSource>();
+                if (camAudio != null) camAudio.PlayOneShot(pickupSound);
+            }
+
+            isReadingFullscreen = false;
+            Time.timeScale = 1f;
+            
+            // Reactivar controles del jugador
+            var playerInput = FindObjectOfType<StarterAssets.StarterAssetsInputs>();
+            if (playerInput == null) playerInput = FindFirstObjectByType<StarterAssets.StarterAssetsInputs>();
+            if (playerInput != null)
+            {
+                playerInput.enabled = true;
+                playerInput.cursorInputForLook = true;
+                playerInput.cursorLocked = true;
+            }
+
+            // Reactivar también el FirstPersonController para restaurar el movimiento de la cámara
+            var fpc = FindObjectOfType<StarterAssets.FirstPersonController>();
+            if (fpc == null) fpc = FindFirstObjectByType<StarterAssets.FirstPersonController>();
+            if (fpc != null)
+            {
+                fpc.enabled = true;
+            }
+
+            MobileInput.SetCursorState(true);
+        }
+
+        GUI.matrix = oldMat;
+    }
+
+    private static Texture2D notebookTex;
+    private static Texture2D GetNotebookTexture()
+    {
+        if (notebookTex == null) notebookTex = Resources.Load<Texture2D>("UI/HUD_Notebook_Icon");
+        return notebookTex;
+    }
+
+    private static Texture2D tabCodeTex;
+    private static Texture2D GetTabCodeTexture()
+    {
+        if (tabCodeTex == null) tabCodeTex = Resources.Load<Texture2D>("UI/Tab_Code_Icon");
+        return tabCodeTex;
+    }
+
+    private static Texture2D tabMapTex;
+    private static Texture2D GetTabMapTexture()
+    {
+        if (tabMapTex == null) tabMapTex = Resources.Load<Texture2D>("UI/Tab_Map_Icon");
+        return tabMapTex;
+    }
+
+    private static Texture2D tabLoreTex;
+    private static Texture2D GetTabLoreTexture()
+    {
+        if (tabLoreTex == null) tabLoreTex = Resources.Load<Texture2D>("UI/Tab_Lore_Icon");
+        return tabLoreTex;
     }
 }

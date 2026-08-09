@@ -77,11 +77,11 @@ public class PlayerMonologueManager : MonoBehaviour
             subtitleStyle.wordWrap = true;
         }
 
-        // Posicionamiento de la barra de subtítulo abajo de la pantalla
+        // Posicionamiento de la barra de subtítulo (ubicada arriba del prompt de interacción para evitar empalmes)
         float width = Mathf.Min(800f, Screen.width - 60f);
-        float height = 75f;
+        float height = 70f;
         float x = Screen.width / 2f - width / 2f;
-        float y = Screen.height - 130f; // Justo por encima de los joysticks táctiles del móvil
+        float y = Screen.height - 210f; // Posicionado limpiamente por encima de las alertas de interacción (Y = Screen.height - 120f)
 
         Rect barRect = new Rect(x, y, width, height);
 

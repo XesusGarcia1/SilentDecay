@@ -198,12 +198,6 @@ public class SceneLoader : MonoBehaviour
             promptStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
         }
 
-        // Efecto scanlines VHS sutil
-        float scanlineAlpha = Mathf.PingPong(vhsNoiseTimer * 2f, 0.05f);
-        GUI.color = new Color(1f, 1f, 1f, scanlineAlpha);
-        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-        GUI.color = Color.white;
-
         // Contenedor centrado
         int w = Mathf.Min(800, Screen.width - 40);
         int h = 480;
@@ -226,6 +220,16 @@ public class SceneLoader : MonoBehaviour
         }
 
         GUILayout.EndArea();
+
+        // Efecto de Scanlines CRT suaves dibujados POR ENCIMA del texto
+        // Esto da la sensación de VHS/CRT sin generar destellos de epilepsia.
+        GUI.color = new Color(0f, 0.05f, 0f, 0.45f); // Tinte negro-verdoso oscuro
+        float offset = (Time.unscaledTime * 40f) % 6f; 
+        for (float y = offset; y < Screen.height; y += 6f)
+        {
+            GUI.DrawTexture(new Rect(0, y, Screen.width, 2f), Texture2D.whiteTexture); 
+        }
+        GUI.color = Color.white;
     }
 
     // ==================== PANTALLA DE CARGA NORMAL ====================

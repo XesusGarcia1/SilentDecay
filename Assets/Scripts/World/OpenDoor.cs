@@ -11,11 +11,17 @@ public class OpenDoor : MonoBehaviour
     private bool isOpen = false;
     private bool playerNearby = false; // Solo la puerta cercana reacciona
 
+    private float lastInteractTime = 0f;
+
     void Update()
     {
-        // Verifica si el jugador est cerca y presiona 'E' para abrir o cerrar la puerta
+        // Verifica si el jugador está cerca y presiona 'E' para abrir o cerrar la puerta
         if (playerNearby && MobileInput.GetKeyDown(KeyCode.E))
         {
+            if (Time.unscaledTime < lastInteractTime + 0.35f) return;
+            lastInteractTime = Time.unscaledTime;
+            MobileInput.ePressedDown = false;
+
             isOpen = !isOpen;
             Debug.Log("isOpen: " + isOpen);
 
