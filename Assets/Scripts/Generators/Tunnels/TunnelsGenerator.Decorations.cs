@@ -269,33 +269,6 @@ public partial class TunnelsGenerator
 			{
 				component7.enabled = true;
 			}
-			GameObject gameObject8 = GameObject.CreatePrimitive(PrimitiveType.Quad);
-			gameObject8.name = "WaterPuddle_" + wallDir;
-			gameObject8.transform.SetParent(parent.transform);
-			float num6 = 0.85f;
-			Vector3 zero = Vector3.zero;
-			zero = ((!(wallDir == "West") && !(wallDir == "East")) ? new Vector3(0f, 0.005f, localPos.z * num6) : new Vector3(localPos.x * num6, 0.005f, 0f));
-			if (Physics.Raycast(parent.transform.TransformPoint(new Vector3(zero.x, y, zero.z)), Vector3.down, out var hitInfo, y + 2f, -5, QueryTriggerInteraction.Ignore))
-			{
-				zero.y = parent.transform.InverseTransformPoint(hitInfo.point).y + 0.005f;
-			}
-			gameObject8.transform.localPosition = zero;
-			gameObject8.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-			gameObject8.transform.localScale = new Vector3(0.9f * mapScale, 0.9f * mapScale, 1f);
-			if (waterPuddleMaterial != null)
-			{
-				gameObject8.GetComponent<Renderer>().material = waterPuddleMaterial;
-			}
-			Collider component8 = gameObject8.GetComponent<Collider>();
-			if (component8 != null)
-			{
-				Object.Destroy(component8);
-			}
-			BoxCollider boxCollider = gameObject8.AddComponent<BoxCollider>();
-			boxCollider.isTrigger = true;
-			boxCollider.size = new Vector3(1.2f, 1.2f, 0.3f);
-			boxCollider.center = new Vector3(0f, 0f, 0f);
-			gameObject8.AddComponent<WaterPuddle>();
 			GameObject obj2 = new GameObject("DripPoint");
 			obj2.transform.SetParent(gameObject7.transform);
 			obj2.transform.localPosition = new Vector3(0f, 0.95f, 0f);

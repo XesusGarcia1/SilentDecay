@@ -12,11 +12,14 @@ public class ArrivalElevatorController : MonoBehaviour
 	private Vector3 leftDoorOpenPos;
 	private Vector3 rightDoorOpenPos;
 
+	public static bool IsPlayerInElevator = true;
+
 	private bool doorsShouldOpen = false;
 	private StarterAssets.FirstPersonController fpsController;
 
 	void Start()
 	{
+		IsPlayerInElevator = true;
 		// Encontrar referencia del jugador
 		GameObject player = GameObject.FindGameObjectWithTag("Player");
 		if (player != null)
@@ -192,5 +195,7 @@ public class ArrivalElevatorController : MonoBehaviour
 			var cc = player.GetComponentInChildren<CharacterController>(true);
 			if (cc != null) cc.enabled = true;
 		}
+
+		IsPlayerInElevator = false;
 	}
 }

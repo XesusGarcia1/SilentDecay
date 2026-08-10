@@ -122,6 +122,11 @@ public class InteractionFocusManager : MonoBehaviour
                             // Si el obstáculo no pertenece al objeto interactuable
                             if (obstacle != obj && !obstacle.transform.IsChildOf(obj.transform) && !obj.transform.IsChildOf(obstacle.transform))
                             {
+                                if (obj.GetComponent<ProceduralDoorInteract>() != null || obj.GetComponentInParent<ProceduralDoorInteract>() != null)
+                                {
+                                    return true;
+                                }
+
                                 string oName = obstacle.name.ToLower();
                                 if (oName.Contains("wall") || oName.Contains("pared") || oName.Contains("solid") || oName.Contains("pillar") || oName.Contains("column") || oName.Contains("bloque"))
                                 {

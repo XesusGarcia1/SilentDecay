@@ -27,6 +27,9 @@ public class WaterPuddle : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
+        // Si el jugador aún está dentro del ascensor de llegada, no reproducir pasos de agua
+        if (ArrivalElevatorController.IsPlayerInElevator) return;
+
         // 1. Si entra una gota de agua procedimental
         if (other.name.Contains("WaterDroplet"))
         {
@@ -36,15 +39,27 @@ public class WaterPuddle : MonoBehaviour
             Destroy(other.gameObject); // Destruir la gota de forma silenciosa (el audio ya suena en bucle en el tubo emisor)
         }
 
-        // 2. Si entra el jugador
-        if (other.CompareTag("Player") || other.name.Contains("Player") || other.GetComponent<CharacterController>() != null)
+        // 2. Si entra el jugador (solo si el mapa ya inició y el jugador se está moviendo)
+        if (Time.time > 0.8f && (other.CompareTag("Player") || other.name.Contains("Player") || other.GetComponent<CharacterController>() != null))
         {
-            PlayWetStepSound(other.transform.position);
+            CharacterController cc = other.GetComponent<CharacterController>();
+            Rigidbody rb = other.GetComponent<Rigidbody>();
+            float speed = 0f;
+            if (cc != null) speed = cc.velocity.magnitude;
+            else if (rb != null) speed = rb.linearVelocity.magnitude;
+
+            if (speed > 0.5f)
+            {
+                PlayWetStepSound(other.transform.position);
+            }
         }
     }
 
     void OnTriggerStay(Collider other)
     {
+        // Si el jugador aún está dentro del ascensor de llegada, no reproducir pasos de agua
+        if (ArrivalElevatorController.IsPlayerInElevator) return;
+
         // Si el jugador camina dentro del charco, reproducir el sonido a intervalos según su velocidad
         if (other.CompareTag("Player") || other.name.Contains("Player") || other.GetComponent<CharacterController>() != null)
         {

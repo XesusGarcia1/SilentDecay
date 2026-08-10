@@ -6,10 +6,10 @@ public class ProceduralDoorInteract : MonoBehaviour
     public float openAngle = 90f;
     public float speed = 4f;
     public bool isLocked = false;
-    public float interactDistance = 1.8f;
+    public float interactDistance = 3.2f;
 
     private Transform player;
-    private bool playerNear = false;
+    public bool playerNear = false;
     private bool isOpen = false;
     private Quaternion closedRot;
     private Quaternion targetRot;
@@ -18,9 +18,12 @@ public class ProceduralDoorInteract : MonoBehaviour
     private AudioClip doorOpenSound;
     private AudioClip doorCloseSound;
 
+    private float lastToggleTime = 0f;
+    public float toggleCooldown = 0.25f;
+
     void Start()
     {
-        // Desactivar Animator en el objeto y sus hijos para evitar el bucle de rotación continua de 360 grados
+        // Desactivar Animators conflictivos para evitar giros continuos
         Animator[] anims = GetComponentsInChildren<Animator>(true);
         foreach (Animator a in anims)
         {
@@ -30,22 +33,15 @@ public class ProceduralDoorInteract : MonoBehaviour
         closedRot = transform.localRotation;
         targetRot = closedRot;
 
-        UnityEngine.CharacterController cc = FindObjectOfType<UnityEngine.CharacterController>();
-        if (cc != null) { player = cc.transform; }
-        else {
-            GameObject playerObj = GameObject.Find("NestedParent_Unpack");
-            if (playerObj == null) playerObj = GameObject.FindGameObjectWithTag("Player");
-            if (playerObj != null) player = playerObj.transform;
-        }
+        FindPlayerReference();
 
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
         
-        // Configurar el AudioSource para que sea sonido 3D espacial (atenuación por distancia)
-        audioSource.spatialBlend = 0.85f; // Mezcla 3D (para que se escuche mejor en estéreo móvil)
+        audioSource.spatialBlend = 0.85f;
         audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
-        audioSource.minDistance = 4.0f;  // Volumen máximo en un radio de 4 metros para móviles
-        audioSource.maxDistance = 15.0f; // Completamente inaudible después de 15 metros
+        audioSource.minDistance = 4.0f;
+        audioSource.maxDistance = 15.0f;
 
         if (doorOpenSound == null) doorOpenSound = Resources.Load<AudioClip>("Audio/Hospital/doorOpenSound2");
         if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("Audio/Hospital/doorCloseSound2");
@@ -57,9 +53,27 @@ public class ProceduralDoorInteract : MonoBehaviour
         if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
     }
 
+    private void FindPlayerReference()
+    {
+        UnityEngine.CharacterController cc = FindObjectOfType<UnityEngine.CharacterController>();
+        if (cc != null) { player = cc.transform; }
+        else {
+            GameObject playerObj = GameObject.Find("NestedParent_Unpack");
+            if (playerObj == null) playerObj = GameObject.FindGameObjectWithTag("Player");
+            if (playerObj != null) player = playerObj.transform;
+        }
+    }
+
     void Update()
     {
         if (isLocked) return;
+
+        if (player == null)
+        {
+            FindPlayerReference();
+        }
+
+        playerNear = false;
 
         if (player != null)
         {
@@ -68,21 +82,35 @@ public class ProceduralDoorInteract : MonoBehaviour
 
             if (cam != null)
             {
-                Transform panel = transform.Find("Puerta_Panel");
-                Vector3 targetPos = panel != null ? panel.position : transform.position;
-
-                float distToHinge = Vector3.Distance(transform.position, cam.transform.position);
-                float distToPanel = Vector3.Distance(targetPos, cam.transform.position);
-                float minDist = Mathf.Min(distToHinge, distToPanel);
-
-                playerNear = false;
-
-                if (minDist <= 3.2f) // Distancia cómoda y accesible de 3.2m para interactuar con la puerta fácilmente
+                // Calcular distancia a cualquier hijo o centro de la puerta
+                float dist = Vector3.Distance(transform.position, cam.transform.position);
+                
+                // Buscar si la cámara o el jugador apuntan/miran a la puerta
+                if (dist <= 3.5f)
                 {
-                    bool isFocused = InteractionFocusManager.IsFocused(gameObject, 3.2f);
-                    if (!isFocused && panel != null)
+                    bool isFocused = InteractionFocusManager.IsFocused(gameObject, 3.5f);
+                    
+                    // Si no detectó por el padre, probar con todos los hijos (mallas de la puerta)
+                    if (!isFocused)
                     {
-                        isFocused = InteractionFocusManager.IsFocused(panel.gameObject, 3.2f);
+                        foreach (Transform child in transform)
+                        {
+                            if (InteractionFocusManager.IsFocused(child.gameObject, 3.5f))
+                            {
+                                isFocused = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Fallback de proximidad directa si está a menos de 2.2m mirando hacia la puerta
+                    if (!isFocused && dist <= 2.2f)
+                    {
+                        Vector3 dirToDoor = (transform.position - cam.transform.position).normalized;
+                        if (Vector3.Dot(cam.transform.forward, dirToDoor) > 0.35f)
+                        {
+                            isFocused = true;
+                        }
                     }
 
                     if (isFocused)
@@ -92,44 +120,36 @@ public class ProceduralDoorInteract : MonoBehaviour
                 }
             }
         }
-        else
-        {
-            GameObject playerObj = GameObject.Find("NestedParent_Unpack");
-            if (playerObj == null) playerObj = GameObject.FindGameObjectWithTag("Player");
-            if (playerObj != null) player = playerObj.transform;
-            playerNear = false;
-        }
 
-        if (playerNear && MobileInput.GetKeyDown(KeyCode.E) && !isUIActive())
+        // Detectar entrada de Tecla E (PC) o Boton USO (Móvil)
+        bool ePressed = Input.GetKeyDown(KeyCode.E) || MobileInput.GetKeyDown(KeyCode.E) || MobileInput.ePressedDown;
+
+        if (playerNear && ePressed && !isUIActive())
         {
             if (Time.unscaledTime < lastToggleTime + toggleCooldown) return;
-            lastToggleTime = Time.unscaledTime;
             MobileInput.ePressedDown = false;
             ToggleDoor();
         }
 
-        // Interpolar rotación limpia y fluida hacia el ángulo objetivo sin giros de 360 grados
+        // Interpolar rotación
         transform.localRotation = Quaternion.RotateTowards(transform.localRotation, targetRot, Time.deltaTime * speed * 35f);
     }
 
-    private float lastToggleTime = 0f;
-    public float toggleCooldown = 0.25f;
-
     public void ToggleDoor()
     {
-        if (Time.time - lastToggleTime < toggleCooldown) return;
-        lastToggleTime = Time.time;
+        if (Time.unscaledTime < lastToggleTime + toggleCooldown && lastToggleTime > 0f) return;
+        lastToggleTime = Time.unscaledTime;
 
         isOpen = !isOpen;
         targetRot = isOpen ? closedRot * Quaternion.Euler(0f, openAngle, 0f) : closedRot;
         
         if (audioSource != null)
         {
-            audioSource.Stop(); // Detener reproducción previa para evitar superposición y desfasamiento
+            audioSource.Stop();
             AudioClip clipToPlay = isOpen ? doorOpenSound : doorCloseSound;
             if (clipToPlay != null)
             {
-                audioSource.PlayOneShot(clipToPlay, 1.0f); // Subido al 100%
+                audioSource.PlayOneShot(clipToPlay, 1.0f);
             }
         }
     }
@@ -142,14 +162,14 @@ public class ProceduralDoorInteract : MonoBehaviour
             promptStyle.fontSize = 20;
             promptStyle.alignment = TextAnchor.MiddleCenter;
             promptStyle.fontStyle = FontStyle.Bold;
-            promptStyle.normal.textColor = Color.white;
+            promptStyle.normal.textColor = isLocked ? new Color(1f, 0.3f, 0.3f) : Color.white;
 
             Rect promptRect = new Rect(Screen.width / 2 - 200, Screen.height - 120, 400, 40);
-            GUI.color = new Color(0f, 0.1f, 0.2f, 0.75f);
+            GUI.color = isLocked ? new Color(0.3f, 0f, 0f, 0.85f) : new Color(0f, 0.1f, 0.2f, 0.75f);
             GUI.DrawTexture(new Rect(promptRect.x - 10, promptRect.y - 5, promptRect.width + 20, promptRect.height + 10), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            string action = isOpen ? "Cerrar Puerta" : "Abrir Puerta";
+            string action = isLocked ? "Puerta Bloqueada" : (isOpen ? "Cerrar Puerta" : "Abrir Puerta");
             GUI.Label(promptRect, "[E] " + action, promptStyle);
         }
     }
@@ -165,4 +185,3 @@ public class ProceduralDoorInteract : MonoBehaviour
         return false;
     }
 }
-

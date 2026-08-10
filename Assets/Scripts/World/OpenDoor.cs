@@ -2,56 +2,80 @@ using UnityEngine;
 
 public class OpenDoor : MonoBehaviour
 {
-    public Animator doorAnimator;  // Referencia al Animator de la puerta
-    public AudioSource audioSource; // Referencia al AudioSource
-    public AudioClip doorOpenSound; // Sonido de apertura
-    public AudioClip doorCloseSound; // Sonido de cierre
+    public Animator doorAnimator;
+    public AudioSource audioSource;
+    public AudioClip doorOpenSound;
+    public AudioClip doorCloseSound;
 
-    public bool isLocked = false; // Si está bloqueada, no responde a la interacción del jugador
+    public bool isLocked = false;
     private bool isOpen = false;
-    private bool playerNearby = false; // Solo la puerta cercana reacciona
+    public bool playerNearby = false;
 
     private float lastInteractTime = 0f;
 
     void Update()
     {
-        // Verifica si el jugador está cerca y presiona 'E' para abrir o cerrar la puerta
-        if (playerNearby && MobileInput.GetKeyDown(KeyCode.E))
+        if (isLocked) return;
+
+        // Autodetectar proximidad si el trigger fallara
+        bool near = playerNearby;
+        if (!near)
+        {
+            UnityEngine.CharacterController cc = FindObjectOfType<UnityEngine.CharacterController>();
+            if (cc != null && Vector3.Distance(transform.position, cc.transform.position) <= 2.8f)
+            {
+                near = true;
+            }
+            else
+            {
+                GameObject pObj = GameObject.Find("NestedParent_Unpack");
+                if (pObj == null) pObj = GameObject.FindGameObjectWithTag("Player");
+                if (pObj != null && Vector3.Distance(transform.position, pObj.transform.position) <= 2.8f)
+                {
+                    near = true;
+                }
+            }
+        }
+
+        bool ePressed = Input.GetKeyDown(KeyCode.E) || MobileInput.GetKeyDown(KeyCode.E) || MobileInput.ePressedDown;
+
+        if (near && ePressed)
         {
             if (Time.unscaledTime < lastInteractTime + 0.35f) return;
             lastInteractTime = Time.unscaledTime;
             MobileInput.ePressedDown = false;
 
             isOpen = !isOpen;
-            Debug.Log("isOpen: " + isOpen);
 
-            // Usa el parmetro 'isOpen' para controlar la animacin de la puerta
-            doorAnimator.SetBool("isOpen", isOpen);
-
-            // Reproducir sonido correspondiente
-            if (audioSource)
+            if (doorAnimator != null)
             {
-                audioSource.PlayOneShot(isOpen ? doorOpenSound : doorCloseSound);
+                doorAnimator.enabled = true;
+                doorAnimator.SetBool("isOpen", isOpen);
+            }
+
+            if (audioSource != null)
+            {
+                AudioClip clipToPlay = isOpen ? doorOpenSound : doorCloseSound;
+                if (clipToPlay != null)
+                {
+                    audioSource.PlayOneShot(clipToPlay);
+                }
             }
         }
     }
 
     void OnTriggerEnter(Collider other)
     {
-        // Verifica si el objeto que entra al trigger tiene la etiqueta "Player"
-        if (other.CompareTag("Player"))
+        if (other.CompareTag("Player") || other.transform.root.CompareTag("Player") || other.GetComponentInParent<UnityEngine.CharacterController>() != null)
         {
-            Debug.Log("Jugador detectado en el trigger");
             playerNearby = true;
         }
     }
 
     void OnTriggerExit(Collider other)
     {
-        // Verifica si el objeto que sale del trigger tiene la etiqueta "Player"
-        if (other.CompareTag("Player"))
+        if (other.CompareTag("Player") || other.transform.root.CompareTag("Player") || other.GetComponentInParent<UnityEngine.CharacterController>() != null)
         {
-            Debug.Log("Jugador sali del trigger");
             playerNearby = false;
         }
     }
