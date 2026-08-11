@@ -46,7 +46,7 @@ Light:
   m_Type: 2
   m_Color: {r: 1, g: 0.7176471, b: 0.3019608, a: 1}
   m_Intensity: 3.5
-  m_Range: 6
+  m_Range: 8
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize: 10
@@ -134,14 +134,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f7bcb733884a7643be9c620b421637b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  lightSource: {fileID: 0}
-  flickerSound: {fileID: 0}
   minIntensity: 0.3
   maxIntensity: 20
   flickerSpeed: 0.1
-  timeToTurnOff: 1
-  colorChangeChance: 0.2
-  maxSoundDistance: 10
+  blackoutChance: 0.15
+  audioSource: {fileID: 0}
+  errorLightClip: {fileID: 0}
 --- !u!1001 &8173285332579170820
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -23,6 +23,7 @@ public class PlayerHealth : MonoBehaviour
     private Transform monsterTransform;
     private Vector3 originalCamPos;
     private Vector3 originalPlayerPos;
+    private Texture2D customScreamerTex;
 
     [Header("Animación de Muerte de Cordura")]
     private bool diedBySanity = false;
@@ -312,7 +313,7 @@ public class PlayerHealth : MonoBehaviour
             originalCamPos = Camera.main.transform.position;
         }
 
-        // Buscar al monstruo en la escena (funciona en ambos mapas: Hospital y Túneles)
+        // Buscar al monstruo en la escena (funciona en ambos mapas: Hospital, Túneles y Depósito Industrial)
         GameObject monsterObj = GameObject.Find("ThePhenomenon");
         if (monsterObj == null)
         {
@@ -331,10 +332,50 @@ public class PlayerHealth : MonoBehaviour
             var creep = FindFirstObjectByType<CrawlerAI>();
             if (creep != null) monsterObj = creep.gameObject;
         }
+        // La Réplica: TheRebuttal (ReplicaAIController)
+        if (monsterObj == null)
+        {
+            var replica = FindFirstObjectByType<ReplicaAIController>();
+            if (replica != null) monsterObj = replica.gameObject;
+        }
+        
         if (monsterObj == null) monsterObj = GameObject.Find("BookHead");
         if (monsterObj == null) monsterObj = GameObject.Find("BookHeadMonster");
         if (monsterObj == null) monsterObj = GameObject.Find("TheCreep");
+        if (monsterObj == null) monsterObj = GameObject.Find("TheRebuttal");
+        
         monsterTransform = monsterObj != null ? monsterObj.transform : null;
+
+        // Cargar imagen de screamer específica si morimos por La Réplica (TheRebuttal)
+        customScreamerTex = null;
+        if (monsterObj != null && (monsterObj.name.Contains("TheRebuttal") || monsterObj.GetComponent<ReplicaAIController>() != null))
+        {
+            Debug.Log("[PlayerHealth]: Cargando screamer para La Réplica...");
+            customScreamerTex = Resources.Load<Texture2D>("DepositoIndustrial/La Replica/La Replica/LaReplicaScream");
+            if (customScreamerTex == null) customScreamerTex = Resources.Load<Texture2D>("DepositoIndustrial/La Replica/LaReplicaScream");
+            if (customScreamerTex == null) customScreamerTex = Resources.Load<Texture2D>("LaReplicaScream");
+
+            // Fallback ultra-robusto: buscar recursivamente cualquier Texture2D con nombre lareplicascream
+            if (customScreamerTex == null)
+            {
+                Debug.Log("[PlayerHealth]: Intentando búsqueda por escaneo en Resources...");
+                Texture2D[] allTexs = Resources.LoadAll<Texture2D>("");
+                foreach (Texture2D t in allTexs)
+                {
+                    if (t != null && t.name.ToLower().Contains("lareplicascream"))
+                    {
+                        customScreamerTex = t;
+                        Debug.Log("[PlayerHealth]: Screamer encontrado por escaneo: " + t.name);
+                        break;
+                    }
+                }
+            }
+
+            if (customScreamerTex == null)
+            {
+                Debug.LogError("[PlayerHealth]: No se pudo encontrar la textura 'LaReplicaScream' en Resources mediante ningún método.");
+            }
+        }
 
 
         // Reproducir grito aterrador en 2D al volumen máximo (independiente de la atenuación)
@@ -492,6 +533,18 @@ public class PlayerHealth : MonoBehaviour
         {
             if (isPlaying3DScare)
             {
+                if (customScreamerTex != null)
+                {
+                    GUI.color = Color.white;
+                    GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), customScreamerTex, ScaleMode.ScaleAndCrop);
+                }
+                else
+                {
+                    // Fallback visual en caso de que la imagen falle: pintar pantalla roja con fondo oscuro
+                    GUI.color = new Color(0.15f, 0.02f, 0.02f, 1f);
+                    GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+                    GUI.color = Color.white;
+                }
                 return; // No dibujar fundido a negro durante el jumpscare 3D
             }
 

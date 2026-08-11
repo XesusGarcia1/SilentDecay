@@ -12,8 +12,9 @@ public class FlickeringLight : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float blackoutChance = 0.15f;
 
-    [Header("Optional Audio")]
+    [Header("Audio SFX")]
     [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip errorLightClip;
 
     private Light targetLight;
     private float timer;
@@ -25,6 +26,17 @@ public class FlickeringLight : MonoBehaviour
         {
             maxIntensity = targetLight.intensity;
         }
+
+        if (audioSource == null) audioSource = GetComponent<AudioSource>();
+        if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+
+        audioSource.spatialBlend = 1.0f; // Sonido 3D estéreo
+        audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
+        audioSource.minDistance = 2.0f;
+        audioSource.maxDistance = 12.0f;
+
+        if (errorLightClip == null) errorLightClip = Resources.Load<AudioClip>("Audio/Hospital/ErrorLightSound");
+        if (errorLightClip == null) errorLightClip = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
     }
 
     private void Update()
@@ -40,10 +52,10 @@ public class FlickeringLight : MonoBehaviour
             if (Random.value < blackoutChance)
             {
                 targetLight.intensity = 0f;
-                if (audioSource != null && !audioSource.isPlaying)
+                if (audioSource != null && errorLightClip != null && !audioSource.isPlaying)
                 {
                     audioSource.pitch = Random.Range(0.85f, 1.15f);
-                    audioSource.Play();
+                    audioSource.PlayOneShot(errorLightClip, 0.45f);
                 }
             }
             else
