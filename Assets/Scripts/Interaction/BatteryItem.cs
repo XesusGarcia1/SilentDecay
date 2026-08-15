@@ -18,14 +18,12 @@ public class BatteryItem : MonoBehaviour
         interactDistance = 3.2f; // Distancia cómoda de interacción
         FindPlayer();
 
-        CapsuleCollider box = GetComponent<CapsuleCollider>();
+        BoxCollider box = GetComponent<BoxCollider>();
         if (box == null)
         {
-            box = gameObject.AddComponent<CapsuleCollider>();
+            box = gameObject.AddComponent<BoxCollider>();
             box.isTrigger = true;
         }
-        box.radius = 0.4f;
-        box.height = 0.8f;
     }
 
     void FindPlayer()
@@ -83,8 +81,9 @@ public class BatteryItem : MonoBehaviour
     void LateUpdate()
     {
         bool isTarget = playerNear && InteractionFocusManager.IsFocused(gameObject, interactDistance);
-        if (isTarget && MobileInput.GetKeyDown(KeyCode.E))
+        if (isTarget && (Input.GetKeyDown(KeyCode.E) || MobileInput.GetKeyDown(KeyCode.E) || MobileInput.ePressedDown))
         {
+            MobileInput.ePressedDown = false;
             CollectBattery();
         }
     }

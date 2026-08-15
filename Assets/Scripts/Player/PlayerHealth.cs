@@ -346,10 +346,12 @@ public class PlayerHealth : MonoBehaviour
         
         monsterTransform = monsterObj != null ? monsterObj.transform : null;
 
+        bool playDefaultScream = true;
         // Cargar imagen de screamer específica si morimos por La Réplica (TheRebuttal)
         customScreamerTex = null;
         if (monsterObj != null && (monsterObj.name.Contains("TheRebuttal") || monsterObj.GetComponent<ReplicaAIController>() != null))
         {
+            playDefaultScream = false;
             Debug.Log("[PlayerHealth]: Cargando screamer para La Réplica...");
             customScreamerTex = Resources.Load<Texture2D>("DepositoIndustrial/La Replica/La Replica/LaReplicaScream");
             if (customScreamerTex == null) customScreamerTex = Resources.Load<Texture2D>("DepositoIndustrial/La Replica/LaReplicaScream");
@@ -379,7 +381,7 @@ public class PlayerHealth : MonoBehaviour
 
 
         // Reproducir grito aterrador en 2D al volumen máximo (independiente de la atenuación)
-        if (screamerSound != null || secondaryScreamerSound != null)
+        if (playDefaultScream && (screamerSound != null || secondaryScreamerSound != null))
         {
             GameObject screamObj = new GameObject("ScreamTempAudio");
             
@@ -722,6 +724,12 @@ public class PlayerHealth : MonoBehaviour
                 if (creep != null) monsterObj = creep.gameObject;
             }
             if (monsterObj == null) monsterObj = GameObject.Find("TheCreep");
+            if (monsterObj == null)
+            {
+                var replica = UnityEngine.Object.FindFirstObjectByType<ReplicaAIController>();
+                if (replica != null) monsterObj = replica.gameObject;
+            }
+            if (monsterObj == null) monsterObj = GameObject.Find("TheRebuttal");
             if (monsterObj != null)
             {
                 // Desactivar NavMeshAgent antes de SetActive(false) para evitar errores de Unity
@@ -787,6 +795,12 @@ public class PlayerHealth : MonoBehaviour
                 if (crawlerCtrl != null)
                 {
                     crawlerCtrl.TriggerRespawnGracePeriod(90f);
+                }
+
+                var replicaCtrl = monsterObj.GetComponent<ReplicaAIController>();
+                if (replicaCtrl != null)
+                {
+                    replicaCtrl.ResetToInitialState();
                 }
  
                 Debug.Log("PlayerHealth: Monstruo reactivado de forma simple. IA toma el control de su reposicionamiento.");

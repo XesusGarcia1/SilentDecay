@@ -15,6 +15,40 @@ public class MannequinSpot : MonoBehaviour
     [Tooltip("Indica si este nodo está actualmente visible en la cámara del jugador")]
     public bool isVisibleByPlayer = false;
 
+    [Tooltip("Los renderers que se ocultarán cuando el monstruo ocupe este spot")]
+    public Renderer[] defaultRenderers;
+    private Collider[] defaultColliders;
+
+    public void SetOccupiedByMonster(bool state)
+    {
+        isOccupied = state;
+        
+        if (defaultRenderers != null)
+        {
+            foreach (Renderer r in defaultRenderers)
+            {
+                if (r != null) r.enabled = !state;
+            }
+        }
+        
+        if (defaultColliders != null)
+        {
+            foreach (Collider c in defaultColliders)
+            {
+                if (c != null) c.enabled = !state;
+            }
+        }
+    }
+
+    private void Awake()
+    {
+        if (defaultRenderers == null || defaultRenderers.Length == 0)
+        {
+            defaultRenderers = GetComponentsInChildren<Renderer>();
+        }
+        defaultColliders = GetComponentsInChildren<Collider>();
+    }
+
     private void OnDrawGizmos()
     {
         Gizmos.color = isOccupied ? Color.red : Color.cyan;

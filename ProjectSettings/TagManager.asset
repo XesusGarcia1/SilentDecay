@@ -9,6 +9,8 @@ TagManager:
   - Switch
   - PowerBox
   - BedArea
+  - BlockedMetalicDoor
+  - MetalicDoor
   layers:
   - Default
   - TransparentFX

@@ -28,8 +28,8 @@ public class ReplicaAIController : MonoBehaviour
 
     [Header("Configuración de Visión y Alcance")]
     public float maxDetectionDistance = 25.0f;
-    public float attackDistance = 2.2f; // Incrementado para ser más generoso con los desfases de animación
-    public float startAttackAnimationDistance = 4.5f;
+    public float attackDistance = 2.5f; // Tolerancia de distancia letal (2D)
+    public float startAttackAnimationDistance = 3.2f; // Reducido para que no ataque desde tan lejos
     public float relocateCooldown = 5.0f;
 
     [Header("Audio SFX Espacializado 3D")]
@@ -65,6 +65,16 @@ public class ReplicaAIController : MonoBehaviour
     private bool isTransitioning = false;
     private bool hasTriggeredAttackAnimation = false;
     private bool isPlayerDead = false;
+    [Header("Debug Casería (Solo Lectura)")]
+    public bool isHuntingDebug = false;
+    public bool playerInZoneDebug = false;
+    public float distanceToPlayer = 0f;
+    public int relocationsDebug = 0;
+    
+    [Header("Mecánicas de Supervivencia")]
+    public float safeZoneTimer = 0f;
+    public float stareTimer = 0f;
+    private float zoneCheckTimer = 0f;
 
     private struct LightState
     {
@@ -228,16 +238,116 @@ public class ReplicaAIController : MonoBehaviour
         // F3 es la fase final: persigue agresivamente sin congelarse al mirar
         if (currentPhase == ReplicaPhase.F3_MonstrousForm)
         {
+            isHuntingDebug = true;
             isBeingObserved = false;
             HandleActiveChaseBehavior();
             return;
         }
+        else
+        {
+            isHuntingDebug = false;
+        }
 
         CheckIfObservedByPlayer();
+        HandleSafeZoneMechanic();
+        HandleStareDownMechanic();
         HandleStalkingBehavior();
         HandleRandomBreathingSFX();
         HandleAnimatorTwitch();
         HandlePhaseTransitionTriggers();
+    }
+
+    private void HandleSafeZoneMechanic()
+    {
+        // Actualizar el estado de la zona de forma más ligera (1 vez por segundo)
+        zoneCheckTimer += Time.deltaTime;
+        if (zoneCheckTimer >= 1.0f)
+        {
+            zoneCheckTimer = 0f;
+            UpdatePlayerInZoneStatus();
+        }
+
+        // Si estamos lejos de cualquier maniquí por 8 segundos y no está en F0, se resetea
+        if (!playerInZoneDebug && currentPhase != ReplicaPhase.F0_InertMannequin)
+        {
+            safeZoneTimer += Time.deltaTime;
+            if (safeZoneTimer >= 8.0f)
+            {
+                Debug.Log("[Replica] Jugador en Zona Segura por 8s. Reseteando a Fase 0.");
+                ResetToF0();
+            }
+        }
+        else if (playerInZoneDebug)
+        {
+            safeZoneTimer = 0f;
+        }
+    }
+
+    private void HandleStareDownMechanic()
+    {
+        // Si lo miramos fijamente en F1 o F2 por 4 segundos, se resetea
+        if (isBeingObserved && currentPhase != ReplicaPhase.F0_InertMannequin && currentPhase != ReplicaPhase.F3_MonstrousForm)
+        {
+            stareTimer += Time.deltaTime;
+            if (stareTimer >= 4.0f)
+            {
+                Debug.Log("[Replica] Concurso de miradas ganado. Reseteando a Fase 0.");
+                ResetToF0();
+            }
+        }
+        else
+        {
+            stareTimer = 0f;
+        }
+    }
+
+    private void ResetToF0()
+    {
+        if (currentOccupiedSpot != null)
+        {
+            currentOccupiedSpot.SetOccupiedByMonster(false);
+            currentOccupiedSpot = null;
+        }
+
+        currentPhase = ReplicaPhase.F0_InertMannequin;
+        relocationCount = 0;
+        relocationsDebug = 0;
+        isTransitioning = false;
+        hasTriggeredAttackAnimation = false;
+        isHuntingDebug = false;
+        safeZoneTimer = 0f;
+        stareTimer = 0f;
+
+        UpdatePhaseVisuals();
+
+        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+        {
+            navAgent.isStopped = true;
+            navAgent.velocity = Vector3.zero;
+        }
+
+        if (sfxAudioSource != null && audioArrastrePesado != null)
+        {
+            sfxAudioSource.PlayOneShot(audioArrastrePesado, 0.75f);
+        }
+    }
+
+    private void UpdatePlayerInZoneStatus()
+    {
+        MannequinSpot[] spots = FindObjectsByType<MannequinSpot>(FindObjectsSortMode.None);
+        bool inZone = false;
+        if (spots != null && spots.Length > 0)
+        {
+            foreach (var s in spots)
+            {
+                if (s != null && Vector3.Distance(s.transform.position, playerTransform.position) <= 25.0f)
+                {
+                    inZone = true;
+                    break;
+                }
+            }
+        }
+        playerInZoneDebug = inZone;
     }
 
     private void HandleActiveChaseBehavior()
@@ -249,6 +359,22 @@ public class ReplicaAIController : MonoBehaviour
         mPos.y = 0;
         pPos.y = 0;
         float distToPlayer = Vector3.Distance(mPos, pPos);
+
+        bool hasLineOfSight = true;
+        Vector3 sightDir = (playerTransform.position - transform.position).normalized;
+        float sightDist = Vector3.Distance(transform.position, playerTransform.position);
+        
+        // Raycast físico para asegurar que no haya paredes entre el monstruo y el jugador
+        if (Physics.Raycast(transform.position + Vector3.up * 1.2f, sightDir, out RaycastHit sightHit, sightDist, -1, QueryTriggerInteraction.Ignore))
+        {
+            if (sightHit.collider.gameObject != playerTransform.gameObject && 
+                !sightHit.collider.transform.IsChildOf(playerTransform) &&
+                sightHit.collider.gameObject != gameObject &&
+                !sightHit.collider.transform.IsChildOf(transform))
+            {
+                hasLineOfSight = false; // Hay un obstáculo físico (pared) en medio
+            }
+        }
 
         // Movimiento físico real habilitado solo en fase de caza (F3)
         if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
@@ -271,8 +397,8 @@ public class ReplicaAIController : MonoBehaviour
             }
         }
 
-        // Si está en radio de ataque (4.5m), reproducir animación de ataque
-        if (distToPlayer <= startAttackAnimationDistance)
+        // Si está en radio de ataque (4.5m) Y no hay pared, reproducir animación de ataque
+        if (distToPlayer <= startAttackAnimationDistance && hasLineOfSight)
         {
             if (!hasTriggeredAttackAnimation)
             {
@@ -295,8 +421,8 @@ public class ReplicaAIController : MonoBehaviour
             }
         }
 
-        // Si alcanza el radio letal, desatar screamer y matar
-        if (distToPlayer <= attackDistance)
+        // Si alcanza el radio letal Y no hay pared, desatar screamer y matar
+        if (distToPlayer <= attackDistance && hasLineOfSight)
         {
             TriggerJumpscareSequence();
         }
@@ -422,6 +548,14 @@ public class ReplicaAIController : MonoBehaviour
         
         if (spots != null && spots.Length > 0)
         {
+            // Si el jugador está en los Backrooms (lejos de todos los maniquíes), quédate congelado
+            if (!playerInZoneDebug)
+            {
+                relocationCount--; // Deshacer el contador para no avanzar de fase en la nada
+                relocationsDebug = relocationCount;
+                return;
+            }
+
             MannequinSpot bestSpot = null;
             float bestDist = 999f;
 
@@ -446,28 +580,33 @@ public class ReplicaAIController : MonoBehaviour
             {
                 if (currentOccupiedSpot != null)
                 {
-                    currentOccupiedSpot.isOccupied = false;
+                    currentOccupiedSpot.SetOccupiedByMonster(false);
                 }
 
-                Vector3 groundPos = AlignToGround(bestSpot.transform.position);
+                Vector3 groundPos = bestSpot.transform.position;
+                if (NavMesh.SamplePosition(groundPos, out NavMeshHit hit, 2.0f, NavMesh.AllAreas))
+                {
+                    groundPos = hit.position;
+                }
                 WarpToPosition(groundPos);
 
                 currentOccupiedSpot = bestSpot;
-                bestSpot.isOccupied = true;
+                bestSpot.SetOccupiedByMonster(true);
                 return;
             }
+
+            // Si estamos en la zona de maniquíes pero todos están a la vista, fuerza un teleport sigiloso
+            // para que no se quede atascado y siga cazando
+            TeleportStealthilyOnNavMesh();
         }
-
-        TeleportStealthilyOnNavMesh();
     }
-
     private void TeleportStealthilyOnNavMesh()
     {
         if (playerTransform == null || playerCamera == null) return;
 
         if (currentOccupiedSpot != null)
         {
-            currentOccupiedSpot.isOccupied = false;
+            currentOccupiedSpot.SetOccupiedByMonster(false);
             currentOccupiedSpot = null;
         }
 
@@ -486,7 +625,7 @@ public class ReplicaAIController : MonoBehaviour
             {
                 if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 3.0f, NavMesh.AllAreas))
                 {
-                    Vector3 groundPos = AlignToGround(hit.position);
+                    Vector3 groundPos = hit.position;
                     
                     Vector3 vpGround = playerCamera.WorldToViewportPoint(groundPos + Vector3.up * 1.5f);
                     bool groundVisible = vpGround.z > 0 && vpGround.x >= -0.05f && vpGround.x <= 1.05f && vpGround.y >= -0.05f && vpGround.y <= 1.05f;
@@ -503,9 +642,11 @@ public class ReplicaAIController : MonoBehaviour
 
     private void WarpToPosition(Vector3 targetPos)
     {
-        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+        if (navAgent != null)
         {
-            navAgent.Warp(targetPos);
+            navAgent.enabled = false;
+            transform.position = targetPos;
+            navAgent.enabled = true;
         }
         else
         {
@@ -527,6 +668,8 @@ public class ReplicaAIController : MonoBehaviour
     private void HandlePhaseTransitionTriggers()
     {
         float distToPlayer = Vector3.Distance(GetActiveModelPosition(), playerTransform.position);
+        distanceToPlayer = distToPlayer; // Debug
+        relocationsDebug = relocationCount; // Debug
 
         // CLIMAX DE MUERTE REAL (Transición F2 -> F3 a corta distancia delante del jugador)
         if (currentPhase == ReplicaPhase.F2_AdvancedTransformation && distToPlayer <= 9.0f && isBeingObserved)
@@ -589,6 +732,7 @@ public class ReplicaAIController : MonoBehaviour
 
             currentPhase = nextPhase;
             UpdatePhaseVisuals();
+            if (animator != null) animator.speed = 1.0f;
             yield return new WaitForSeconds(0.1f);
 
             foreach (Light l in targetLights) if (l != null) l.enabled = true;
@@ -778,4 +922,25 @@ public class ReplicaAIController : MonoBehaviour
         }
         return transform.position;
     }
+
+    public void ResetToInitialState()
+    {
+        isPlayerDead = false;
+        isStalking = true;
+        currentPhase = ReplicaPhase.F0_InertMannequin;
+        isTransitioning = false;
+        hasTriggeredAttackAnimation = false;
+        relocationCount = 0;
+        
+        UpdatePhaseVisuals();
+        
+        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+        {
+            navAgent.isStopped = true;
+            navAgent.velocity = Vector3.zero;
+        }
+
+        RelocateToBestMannequinSpot();
+    }
 }
+
