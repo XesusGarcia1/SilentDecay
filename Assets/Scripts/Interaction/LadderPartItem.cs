@@ -156,7 +156,7 @@ public class LadderPartItem : MonoBehaviour
             GUI.DrawTexture(new Rect(rect.x - 10, rect.y - 5, rect.width + 20, rect.height + 10), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            message = "[E] Recoger Pieza de Escalera";
+            message = LocalizationManager.Instance.Get("interact_ladder_part");
             textColor = new Color(0.6f, 0.85f, 1f);
         }
 

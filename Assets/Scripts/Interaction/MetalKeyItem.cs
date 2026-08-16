@@ -143,9 +143,9 @@ public class MetalKeyItem : MonoBehaviour
         GUI.color = Color.white;
 
         style.normal.textColor = Color.black;
-        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), "[E] Recoger Llave", style);
+        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), LocalizationManager.Instance.Get("interact_metal_key"), style);
 
         style.normal.textColor = new Color(0.9f, 0.8f, 0.1f);
-        GUI.Label(rect, "[E] Recoger Llave", style);
+        GUI.Label(rect, LocalizationManager.Instance.Get("interact_metal_key"), style);
     }
 }

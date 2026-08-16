@@ -175,7 +175,7 @@ namespace ModularHospital
 
         Rect rect = new Rect(Screen.width / 2 - 260, Screen.height - 120, 520, 50);
 
-        string prompt = hasCard ? "[E]  Recoger Tarjeta del Director" : (isOpen ? "[E]  Cerrar Cajón" : "[E]  Abrir Cajón");
+        string prompt = hasCard ? LocalizationManager.Instance.Get("interact_keycard") : (isOpen ? LocalizationManager.Instance.Get("interact_drawer_close") : LocalizationManager.Instance.Get("interact_drawer_open"));
         Color textColor = hasCard ? new Color(0.3f, 0.75f, 1f) : new Color(0.9f, 0.8f, 0.2f);
 
         GUI.color = new Color(0f, 0.1f, 0.2f, 0.75f);

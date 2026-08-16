@@ -174,10 +174,10 @@ public class FuseItem : MonoBehaviour
         GUI.color = Color.white;
 
         style.normal.textColor = Color.black;
-        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), "[E]  Recoger Fusible de Repuesto", style);
+        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), LocalizationManager.Instance.Get("interact_fuse"), style);
 
         style.normal.textColor = new Color(1f, 0.9f, 0.2f);
-        GUI.Label(rect, "[E]  Recoger Fusible de Repuesto", style);
+        GUI.Label(rect, LocalizationManager.Instance.Get("interact_fuse"), style);
     }
 }
 

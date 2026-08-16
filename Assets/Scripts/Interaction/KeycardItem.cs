@@ -161,10 +161,10 @@ public class KeycardItem : MonoBehaviour
         GUI.color = Color.white;
 
         style.normal.textColor = Color.black;
-        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), "[E]  Recoger Tarjeta del Director", style);
+        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), LocalizationManager.Instance.Get("interact_keycard"), style);
 
         style.normal.textColor = new Color(0.3f, 0.75f, 1f);
-        GUI.Label(rect, "[E]  Recoger Tarjeta del Director", style);
+        GUI.Label(rect, LocalizationManager.Instance.Get("interact_keycard"), style);
     }
 }
 

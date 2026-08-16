@@ -44,6 +44,14 @@ public class MenuScreenLevelSelect : MonoBehaviour
                 lockedLabel   = "EM BREVE";
                 backBtn       = "  VOLTAR";
             }
+            else if (lang == LocalizationManager.Idioma.РУССКИЙ)
+            {
+                title         = "ВЫБЕРИТЕ КАРТУ";
+                hospitalLabel = "БОЛЬНИЦА И ТУННЕЛИ";
+                depotLabel    = "ПРОМЫШЛЕННЫЙ СКЛАД";
+                lockedLabel   = "СКОРО";
+                backBtn       = "  НАЗАД";
+            }
         }
 
         GUILayout.Label(title, s.SectionHeader, GUILayout.Height(30));
@@ -52,7 +60,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
 
         DrawHospitalCard(s, hospitalLabel);
         GUILayout.Space(30);
-        DrawLockedCard(s, GetLockedTitle("BOSQUE", "FOREST", "FLORESTA"), lockedLabel);
+        DrawLockedCard(s, GetLockedTitle("BOSQUE", "FOREST", "FLORESTA", "ЛЕС"), lockedLabel);
         GUILayout.Space(30);
         DrawDepotCard(s, depotLabel);
 
@@ -81,7 +89,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
 
         GUIStyle cardLabel = CardLabelStyle(s);
 
-        string playText = GetLocalizedPlay();
+        string playText = GetLocalized("JUGAR", "PLAY", "JOGAR", "ИГРАТЬ");
 
         GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(380), GUILayout.Height(380));
         GUILayout.Space(10);
@@ -118,10 +126,8 @@ public class MenuScreenLevelSelect : MonoBehaviour
         diffTag.normal.textColor = new Color(1f, 0.45f, 0.1f); // Naranja → Difícil
 
         GUIStyle cardLabel = CardLabelStyle(s);
-        string playText    = GetLocalizedPlay();
-        bool isEN = LocalizationManager.Instance != null &&
-                    LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH;
-        string diffText = isEN ? "⚠ HARD" : "⚠ DIFÍCIL";
+        string playText    = GetLocalized("JUGAR", "PLAY", "JOGAR", "ИГРАТЬ");
+        string diffText    = GetLocalized("⚠ DIFÍCIL", "⚠ HARD", "⚠ DIFÍCIL", "⚠ СЛОЖНО");
 
         GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(380), GUILayout.Height(380));
         GUILayout.Space(10);
@@ -191,24 +197,26 @@ public class MenuScreenLevelSelect : MonoBehaviour
         return st;
     }
 
-    string GetLocalizedPlay()
+    string GetLocalized(string es, string en, string pt, string ru)
     {
-        if (LocalizationManager.Instance == null) return "JUGAR";
+        if (LocalizationManager.Instance == null) return es;
         return LocalizationManager.Instance.GetIdiomaActual() switch
         {
-            LocalizationManager.Idioma.ENGLISH   => "PLAY",
-            LocalizationManager.Idioma.PORTUGUES => "JOGAR",
-            _                                    => "JUGAR"
+            LocalizationManager.Idioma.ENGLISH   => en,
+            LocalizationManager.Idioma.PORTUGUES => pt,
+            LocalizationManager.Idioma.РУССКИЙ   => ru,
+            _                                    => es
         };
     }
 
-    string GetLockedTitle(string es, string en, string pt)
+    string GetLockedTitle(string es, string en, string pt, string ru)
     {
         if (LocalizationManager.Instance == null) return $"{es}\n(BLOQUEADO)";
         return LocalizationManager.Instance.GetIdiomaActual() switch
         {
             LocalizationManager.Idioma.ENGLISH   => $"{en}\n(LOCKED)",
             LocalizationManager.Idioma.PORTUGUES => $"{pt}\n(BLOQUEADO)",
+            LocalizationManager.Idioma.РУССКИЙ   => $"{ru}\n(ЗАБЛОКИРОВАНО)",
             _                                    => $"{es}\n(BLOQUEADO)"
         };
     }

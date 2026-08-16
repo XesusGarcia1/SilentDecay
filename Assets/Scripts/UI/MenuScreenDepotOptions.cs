@@ -28,21 +28,28 @@ public class MenuScreenDepotOptions : MonoBehaviour
                     LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH;
         bool isPT = LocalizationManager.Instance != null &&
                     LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.PORTUGUES;
+        bool isRU = LocalizationManager.Instance != null &&
+                    LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.РУССКИЙ;
 
         string title    = isEN ? "INDUSTRIAL DEPOT — GAME SETTINGS" :
                           isPT ? "DEPÓSITO INDUSTRIAL — AJUSTES"    :
+                          isRU ? "ПРОМЫШЛЕННЫЙ СКЛАД — НАСТРОЙКИ ИГРЫ" :
                                  "DEPÓSITO INDUSTRIAL — AJUSTES DE PARTIDA";
         string diffLabel = isEN ? "Survival Difficulty:"         :
                            isPT ? "Dificuldade de Sobrevivência:" :
+                           isRU ? "Сложность выживания:"          :
                                   "Dificultad de Supervivencia:";
         string charLabel = isEN ? "Select Character:"    :
                            isPT ? "Selecionar Personagem:" :
+                           isRU ? "Выбрать персонажа:"     :
                                   "Seleccionar Personaje:";
         string startBtn  = isEN ? "  [ START GAME ]"        :
-                           isPT ? "  [ INICIAR JOGO ]"       :
+                           isPT ? "  [ INICIAR JOGO ]"      :
+                           isRU ? "  [ НАЧАТЬ ИГРУ ]"       :
                                   "  [ EMPEZAR JUEGO ]";
         string backBtn   = isEN ? "  BACK"          :
                            isPT ? "  VOLTAR"         :
+                           isRU ? "  НАЗАД"          :
                                   "  VOLVER AL MENÚ";
 
         GUILayout.Label(title, s.SectionHeader, GUILayout.Height(30));
@@ -52,9 +59,10 @@ public class MenuScreenDepotOptions : MonoBehaviour
         GUIStyle warningStyle = new GUIStyle(s.SubTitle);
         warningStyle.normal.textColor = new Color(1f, 0.45f, 0.1f);
         warningStyle.fontStyle = FontStyle.Bold;
-        string warnMsg = isEN ? "⚠  This map is harder than the Hospital. Recommended difficulty: HARD."  :
-                         isPT ? "⚠  Este mapa é mais difícil que o Hospital. Dificuldade recomendada: DIFÍCIL." :
-                                "⚠  Este mapa es más difícil que el Hospital. Dificultad recomendada: DIFÍCIL.";
+        string warnMsg = isEN ? "⚠️  This map is harder than the Hospital. Recommended difficulty: HARD."  :
+                         isPT ? "⚠️  Este mapa é mais difícil que o Hospital. Dificuldade recomendada: DIFÍCIL." :
+                         isRU ? "⚠️  Эта карта сложнее, чем Больница. Рекомендуемая сложность: СЛОЖНО." :
+                                "⚠️  Este mapa es más difícil que el Hospital. Dificultad recomendada: DIFÍCIL.";
         GUILayout.Label(warnMsg, warningStyle, GUILayout.Height(26));
         GUILayout.Space(18);
 
@@ -67,9 +75,11 @@ public class MenuScreenDepotOptions : MonoBehaviour
         GUILayout.Label(diffLabel, s.Label);
         GUILayout.Space(5);
         string[] diffs = isEN ? new[] { "EASY", "NORMAL", "HARD" } :
-                         new[] { "FÁCIL", "NORMAL", "DIFÍCIL" };
+                         isPT ? new[] { "FÁCIL", "NORMAL", "DIFÍCIL" } :
+                         isRU ? new[] { "ЛЕГКО", "НОРМАЛЬНО", "СЛОЖНО" } :
+                                new[] { "FÁCIL", "NORMAL", "DIFÍCIL" };
         DrawSelector(s, diffs, ref selectedDifficultyIndex);
-        GUILayout.Label(GetDiffDescription(isEN, isPT), s.SubTitle);
+        GUILayout.Label(GetDiffDescription(isEN, isPT, isRU), s.SubTitle);
         GUILayout.Space(25);
 
         // Personaje
@@ -77,8 +87,8 @@ public class MenuScreenDepotOptions : MonoBehaviour
         GUILayout.Space(5);
         DrawSelector(s, new[] { "ETHAN", "NORA" }, ref selectedCharacterIndex);
         string charDesc = selectedCharacterIndex == 0
-            ? (isEN ? "Male Character (Ethan)" : "Personaje Masculino (Ethan)")
-            : (isEN ? "Female Character (Nora)" : "Personaje Femenino (Nora)");
+            ? (isEN ? "Male Character (Ethan)" : isRU ? "Мужской персонаж (Ethan)" : "Personaje Masculino (Ethan)")
+            : (isEN ? "Female Character (Nora)" : isRU ? "Женский персонаж (Nora)" : "Personaje Femenino (Nora)");
         GUILayout.Label(charDesc, s.SubTitle);
 
         GUILayout.EndVertical();
@@ -130,18 +140,21 @@ public class MenuScreenDepotOptions : MonoBehaviour
         GUILayout.EndHorizontal();
     }
 
-    string GetDiffDescription(bool isEN, bool isPT)
+    string GetDiffDescription(bool isEN, bool isPT, bool isRU)
     {
         return selectedDifficultyIndex switch
         {
             0 => isEN ? "The Replica is slower with reduced detection range. Easier escape routes."
                : isPT ? "A Réplica é mais lenta com menor alcance. Rotas de fuga mais fáceis."
+               : isRU ? "Реплика медленнее с меньшим радиусом обнаружения. Легче сбежать."
                :         "La Réplica es más lenta y con menor rango de detección. Escapes más accesibles.",
             2 => isEN ? "The Replica is fast and relentless. Minimal mistakes allowed. High tension."
                : isPT ? "A Réplica é rápida e implacável. Erros mínimos permitidos. Alta tensão."
+               : isRU ? "Реплика быстра и безжалостна. Допускается минимум ошибок. Высокое напряжение."
                :         "La Réplica es rápida y despiadada. Se permiten mínimos errores. Máxima tensión.",
             _ => isEN ? "Aggressive Replica. Speed and detection calibrated for a standard tense experience."
                : isPT ? "Réplica agressiva. Velocidade e detecção para experiência padrão tensa."
+               : isRU ? "Агрессивная Реплика. Скорость и обнаружение сбалансированы для напряжения."
                :         "Réplica agresiva. Velocidad y detección calibradas para una experiencia de tensión estándar."
         };
     }

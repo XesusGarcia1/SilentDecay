@@ -144,17 +144,17 @@ public class GameEndingManager : MonoBehaviour
         fadeAlpha = 1.0f;
 
         // --- PASO 3: Mensajes finales en pantalla negra (todos con WaitForSecondsRealtime)
-        currentEndingMessage = "Logré salir... La luz del exterior por fin ciega esta pesadilla.";
+        currentEndingMessage = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("end_depot_msg1") : "Logré salir... La luz del exterior por fin ciega esta pesadilla.";
         yield return new WaitForSecondsRealtime(3.2f);
 
-        currentEndingMessage = "Pero sé que en la oscuridad de esa fábrica...";
+        currentEndingMessage = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("end_depot_msg2") : "Pero sé que en la oscuridad de esa fábrica...";
         yield return new WaitForSecondsRealtime(2.5f);
 
-        currentEndingMessage = "La Réplica seguirá esperando.";
+        currentEndingMessage = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("end_depot_msg3") : "La Réplica seguirá esperando.";
         yield return new WaitForSecondsRealtime(3.0f);
 
         currentEndingMessage = "";
-        endingTitle = "¡HAS ESCAPADO DE LA RÉPLICA!";
+        endingTitle = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("end_depot_title") : "¡HAS ESCAPADO DE LA RÉPLICA!";
         showFinalTitle = true;
 
         yield return new WaitForSecondsRealtime(4.0f);
@@ -223,16 +223,18 @@ public class GameEndingManager : MonoBehaviour
                 float w = Screen.width * 0.9f;
                 GUI.Label(new Rect((Screen.width - w) / 2f, Screen.height / 2f - 70f, w, 70f),
                     endingTitle, titleStyle);
+                string subtitle = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("end_depot_subtitle") : "Sobreviviste al Depósito Industrial";
                 GUI.Label(new Rect((Screen.width - w) / 2f, Screen.height / 2f + 10f, w, 40f),
-                    "Sobreviviste al Depósito Industrial", subStyle);
+                    subtitle, subStyle);
 
                 // Indicación al jugador de que el juego está cargando el menú
                 GUIStyle loadStyle = new GUIStyle(GUI.skin.label);
                 loadStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.022f), 13, 18);
                 loadStyle.alignment = TextAnchor.MiddleCenter;
                 loadStyle.normal.textColor = new Color(0.5f, 0.5f, 0.5f, 0.7f);
+                string loadText = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("end_depot_loading") : "Volviendo al Menú Principal...";
                 GUI.Label(new Rect((Screen.width - w) / 2f, Screen.height - 80f, w, 30f),
-                    "Volviendo al Menú Principal...", loadStyle);
+                    loadText, loadStyle);
             }
         }
     }

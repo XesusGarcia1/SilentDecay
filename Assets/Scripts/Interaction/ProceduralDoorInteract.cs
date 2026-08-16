@@ -401,7 +401,7 @@ public class ProceduralDoorInteract : MonoBehaviour
                 hasRequiredKey = MetalKeyItem.collectedKeys.Contains(requiredKeyID);
             }
 
-            string action = isLocked ? (hasRequiredKey ? "Usar Llave" : "Puerta Bloqueada") : (isOpen ? "Cerrar Puerta" : "Abrir Puerta");
+            string action = isLocked ? (hasRequiredKey ? LocalizationManager.Instance.Get("interact_use_key") : LocalizationManager.Instance.Get("interact_door_locked")) : (isOpen ? LocalizationManager.Instance.Get("interact_door_close") : LocalizationManager.Instance.Get("interact_door_open"));
             GUI.Label(promptRect, "[E] " + action, promptStyle);
         }
     }

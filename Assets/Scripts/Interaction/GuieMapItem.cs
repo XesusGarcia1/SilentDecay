@@ -98,7 +98,7 @@ public class GuieMapItem : MonoBehaviour
         GuideMapUI.hasGuideMap = true;
 
         // Monólogo del personaje al encontrar el mapa
-        PlayerMonologueManager.ShowDialogue("Una guía de supervivencia... esto me mostrará cómo encontrar las llaves y salir.", 5.0f);
+        PlayerMonologueManager.ShowDialogue(LocalizationManager.Instance.Get("monologue_found_guide"), 5.0f);
 
         // Abrir la interfaz de la guía inmediatamente
         if (GuideMapUI.Instance != null)
@@ -126,9 +126,9 @@ public class GuieMapItem : MonoBehaviour
         GUI.color = Color.white;
 
         style.normal.textColor = Color.black;
-        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), "[E] Recoger Guía de Supervivencia", style);
+        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), LocalizationManager.Instance.Get("interact_survival_guide"), style);
 
         style.normal.textColor = new Color(0.95f, 0.85f, 0.4f);
-        GUI.Label(rect, "[E] Recoger Guía de Supervivencia", style);
+        GUI.Label(rect, LocalizationManager.Instance.Get("interact_survival_guide"), style);
     }
 }

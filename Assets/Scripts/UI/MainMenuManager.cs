@@ -240,7 +240,7 @@ public class MainMenuManager : MonoBehaviour
         bool isSettingsCalibrating = (currentState == MenuState.Settings && screenSettings != null && screenSettings.IsCalibrating);
         int menuW = (currentState == MenuState.LevelSelect) ? 1280 :
                     (currentState == MenuState.PlayOptions || currentState == MenuState.DepotOptions) ? 1100 :
-                    (isSettingsCalibrating ? 720 : 480);
+                    (isSettingsCalibrating ? 720 : 640);
         int menuH = (currentState == MenuState.LevelSelect) ? 640  : (isSettingsCalibrating ? 620 : 580);
         float menuY = (currentState == MenuState.LevelSelect) ? (1080f / 2f - 240f) : (isSettingsCalibrating ? (1080f / 2f - 230f) : (1080f / 2f - 200f));
         GUILayout.BeginArea(new Rect(1920f / 2f - menuW / 2f, menuY, menuW, menuH));
