@@ -17,6 +17,20 @@ public class MetalKeyItem : MonoBehaviour
     // Compatibilidad hacia atrás (por si acaso)
     public static bool hasMetalKey = false;
     
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        hasMetalKey = false;
+        if (collectedKeys != null)
+        {
+            collectedKeys.Clear();
+        }
+        else
+        {
+            collectedKeys = new System.Collections.Generic.HashSet<string>();
+        }
+    }
+
     void Start()
     {
         // Auto-asignar ID si está vacío

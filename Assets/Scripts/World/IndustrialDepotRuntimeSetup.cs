@@ -10,29 +10,24 @@ using UnityEngine.Rendering.Universal;
 /// </summary>
 public static class IndustrialDepotRuntimeSetup
 {
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    private static void OnSceneLoaded()
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void Init()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private static void OnSceneLoaded(Scene activeScene, LoadSceneMode mode)
     {
         // Solo actuar en el mapa del depósito industrial
-        Scene activeScene = SceneManager.GetActiveScene();
         if (activeScene.name == "IndustrialDepotMap")
         {
             Debug.Log("[IndustrialDepotRuntimeSetup]: Inicializando ambiente dinámico.");
 
             // 1. Configuración de Audio Setup dinámico
-            GameObject courtyard = GameObject.Find("MannequinCourtyardMap");
-            if (courtyard != null)
-            {
-                if (courtyard.GetComponent<IndustrialDepotAudioSetup>() == null)
-                {
-                    courtyard.AddComponent<IndustrialDepotAudioSetup>();
-                    Debug.Log("[IndustrialDepotRuntimeSetup]: Componente IndustrialDepotAudioSetup agregado al patio.");
-                }
-            }
-            else
-            {
-                Debug.LogWarning("[IndustrialDepotRuntimeSetup]: No se encontró el objeto MannequinCourtyardMap.");
-            }
+            GameObject audioSetupObj = new GameObject("IndustrialDepotAudioSetup_Dynamic");
+            audioSetupObj.AddComponent<IndustrialDepotAudioSetup>();
+            Debug.Log("[IndustrialDepotRuntimeSetup]: Componente IndustrialDepotAudioSetup agregado dinámicamente.");
 
             // 2. Configurar la cámara del personaje (Fondo negro limpio)
             Camera playerCam = Camera.main;

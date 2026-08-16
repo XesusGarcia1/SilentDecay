@@ -11,9 +11,15 @@ public class LadderInteract : MonoBehaviour
     public GameObject[] ladderComponents;
     
     private int totalParts = 0;
-    private int installedParts = 0;
+    public static int installedParts = 0;
     private bool isFullyRepaired = false;
     private bool playerInZone = false;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        installedParts = 0;
+    }
 
     void Start()
     {

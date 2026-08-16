@@ -15,6 +15,14 @@ public class IndustrialDepotAudioSetup : MonoBehaviour
 
     private void SetupAmbientAudio()
     {
+        StartCoroutine(DelayedAmbientStart());
+    }
+
+    private System.Collections.IEnumerator DelayedAmbientStart()
+    {
+        // Esperar un poco a que termine la transición de carga del menú
+        yield return new WaitForSecondsRealtime(0.5f);
+
         AudioSource ambient = GetComponent<AudioSource>();
         if (ambient == null) ambient = gameObject.AddComponent<AudioSource>();
 

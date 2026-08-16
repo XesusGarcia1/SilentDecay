@@ -297,27 +297,33 @@ public class ReplicaAIController : MonoBehaviour
 
     public int GetCurrentProgressionLevel()
     {
-        int level = 0;
+        // 1. Leer dificultad seleccionada desde el menú
+        string diff = PlayerPrefs.GetString("SelectedDifficulty", "NORMAL");
 
-        // 1. Conteo de llaves recogidas por el jugador (0 a 3+)
-        if (MetalKeyItem.collectedKeys != null)
+        int baseLevel = diff switch
         {
-            level += MetalKeyItem.collectedKeys.Count;
-        }
+            "FACIL"  => 0,
+            "DIFICIL" => 2,
+            _         => 1,   // NORMAL
+        };
 
-        // 2. Si el jugador encontró la guía de supervivencia
+        // 2. Bonus por llaves recogidas (0 a 3+)
+        int keysHeld = MetalKeyItem.collectedKeys != null ? MetalKeyItem.collectedKeys.Count : 0;
+        int progressBonus = keysHeld >= 3 ? 2 : (keysHeld >= 2 ? 1 : (keysHeld >= 1 ? 0 : -1));
+
+        // 3. Si el jugador encontró la guía de supervivencia
         if (GuideMapUI.hasGuideMap)
         {
-            level += 1;
+            progressBonus += 1;
         }
 
-        // 3. Si el jugador ha recogido piezas de la escalera
+        // 4. Si el jugador ha recogido piezas de la escalera
         if (LadderPartItem.collectedParts != null)
         {
-            level += LadderPartItem.collectedParts.Count;
+            progressBonus += LadderPartItem.collectedParts.Count;
         }
 
-        return Mathf.Clamp(level, 0, 4);
+        return Mathf.Clamp(baseLevel + progressBonus, 0, 4);
     }
 
     private void HandleStareDownMechanic()
@@ -816,11 +822,23 @@ public class ReplicaAIController : MonoBehaviour
 
     private void WarpToPosition(Vector3 targetPos)
     {
+        // Siempre alinear al NavMesh antes de teletransportar para evitar caer bajo el suelo
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit nmHit, 3.0f, NavMesh.AllAreas))
+        {
+            targetPos = nmHit.position;
+        }
+
         if (navAgent != null)
         {
             navAgent.enabled = false;
             transform.position = targetPos;
             navAgent.enabled = true;
+            // Si el agente no aterrizó en el NavMesh, deshabilitar y re-habilitar
+            if (navAgent.enabled && !navAgent.isOnNavMesh)
+            {
+                navAgent.enabled = false;
+                navAgent.enabled = true;
+            }
         }
         else
         {
@@ -836,7 +854,11 @@ public class ReplicaAIController : MonoBehaviour
 
         PlayJointClickSFX();
 
-        relocateCooldown = Random.Range(3.5f, 7.5f);
+        // Cooldown dinámico según nivel de avance: menor en niveles altos = más agresivo
+        int prog = GetCurrentProgressionLevel();
+        float minCd = Mathf.Max(2.5f, 5.0f - (prog * 0.7f));
+        float maxCd = Mathf.Max(4.0f, 7.5f - (prog * 0.9f));
+        relocateCooldown = Random.Range(minCd, maxCd);
     }
 
     private void HandlePhaseTransitionTriggers()
@@ -1117,4 +1139,3 @@ public class ReplicaAIController : MonoBehaviour
         RelocateToBestMannequinSpot();
     }
 }
-
