@@ -11,7 +11,7 @@ public class MainMenuManager : MonoBehaviour
     // ─── Estado compartido (accesible por los subcomponentes) ────────────────
     public static bool startedFromMenu = false;
 
-    public enum MenuState { Main, LevelSelect, PlayOptions, Settings }
+    public enum MenuState { Main, LevelSelect, PlayOptions, DepotOptions, Settings }
     [HideInInspector] public MenuState currentState = MenuState.Main;
 
     // ─── Referencias ─────────────────────────────────────────────────────────
@@ -46,11 +46,12 @@ public class MainMenuManager : MonoBehaviour
     [HideInInspector] public Texture2D sidebarTex;
 
     // ─── Subcomponentes de pantalla ──────────────────────────────────────────
-    private MenuCameraController  cameraController;
-    private MenuScreenMain        screenMain;
-    private MenuScreenLevelSelect screenLevelSelect;
-    private MenuScreenPlayOptions screenPlayOptions;
-    private MenuScreenSettings    screenSettings;
+    private MenuCameraController     cameraController;
+    private MenuScreenMain           screenMain;
+    private MenuScreenLevelSelect    screenLevelSelect;
+    private MenuScreenPlayOptions    screenPlayOptions;
+    private MenuScreenDepotOptions   screenDepotOptions;
+    private MenuScreenSettings       screenSettings;
 
     // ─────────────────────────────────────────────────────────────────────────
     void Start()
@@ -174,6 +175,9 @@ public class MainMenuManager : MonoBehaviour
         screenPlayOptions = gameObject.AddComponent<MenuScreenPlayOptions>();
         screenPlayOptions.Init(this);
 
+        screenDepotOptions = gameObject.AddComponent<MenuScreenDepotOptions>();
+        screenDepotOptions.Init(this);
+
         screenSettings    = gameObject.AddComponent<MenuScreenSettings>();
         screenSettings.Init(this);
     }
@@ -234,7 +238,9 @@ public class MainMenuManager : MonoBehaviour
 
         // Área de contenido
         bool isSettingsCalibrating = (currentState == MenuState.Settings && screenSettings != null && screenSettings.IsCalibrating);
-        int menuW = (currentState == MenuState.LevelSelect) ? 1280 : (currentState == MenuState.PlayOptions ? 1100 : (isSettingsCalibrating ? 720 : 480));
+        int menuW = (currentState == MenuState.LevelSelect) ? 1280 :
+                    (currentState == MenuState.PlayOptions || currentState == MenuState.DepotOptions) ? 1100 :
+                    (isSettingsCalibrating ? 720 : 480);
         int menuH = (currentState == MenuState.LevelSelect) ? 640  : (isSettingsCalibrating ? 620 : 580);
         float menuY = (currentState == MenuState.LevelSelect) ? (1080f / 2f - 240f) : (isSettingsCalibrating ? (1080f / 2f - 230f) : (1080f / 2f - 200f));
         GUILayout.BeginArea(new Rect(1920f / 2f - menuW / 2f, menuY, menuW, menuH));
@@ -242,10 +248,11 @@ public class MainMenuManager : MonoBehaviour
 
         switch (currentState)
         {
-            case MenuState.Main:        screenMain?.Draw(styles);        break;
-            case MenuState.LevelSelect: screenLevelSelect?.Draw(styles); break;
-            case MenuState.PlayOptions: screenPlayOptions?.Draw(styles); break;
-            case MenuState.Settings:    screenSettings?.Draw(styles);    break;
+            case MenuState.Main:         screenMain?.Draw(styles);         break;
+            case MenuState.LevelSelect:  screenLevelSelect?.Draw(styles);  break;
+            case MenuState.PlayOptions:  screenPlayOptions?.Draw(styles);  break;
+            case MenuState.DepotOptions: screenDepotOptions?.Draw(styles); break;
+            case MenuState.Settings:     screenSettings?.Draw(styles);     break;
         }
 
         GUILayout.EndArea();

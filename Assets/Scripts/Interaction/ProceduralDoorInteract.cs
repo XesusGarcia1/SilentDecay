@@ -8,16 +8,38 @@ public class ProceduralDoorInteract : MonoBehaviour
     
     [Header("Rotating Door")]
     public float openAngle = 90f;
+    [Tooltip("Eje sobre el que gira. Si la puerta se abre chueca (como rampa), cámbialo a X (1,0,0) o Z (0,0,1).")]
+    public Vector3 rotationAxis = Vector3.up;
     [Tooltip("Activa esto si la puerta gira desde el centro como puerta giratoria.")]
     public bool autoFixCenterPivot = true; 
+    
+    public enum PivotAxis { X, Y, Z }
+    [Tooltip("Si la bisagra automática se pone en el medio (gira como puerta giratoria), cambia esto a Y o Z.")]
+    public PivotAxis pivotWidthAxis = PivotAxis.X;
+    
     public bool hingeOnRightSide = false;
     
     [Header("Sliding Door")]
     public Vector3 slideOffset = new Vector3(1.5f, 0, 0);
+    
+    [Header("Velocidad de Movimiento")]
+    public float openSpeed = 4f;
+    public float closeSpeed = 4f;
 
-    public float speed = 4f;
+    [Header("Bloqueo de Puertas")]
+    [Tooltip("¿La puerta necesita una llave para abrirse?")]
     public bool isLocked = false;
+    
+    [Tooltip("ID de la llave requerida (ej: Access_keys_mannequin). Si lo dejas vacío, cualquier llave metálica la abrirá.")]
+    public string requiredKeyID = "";
     public float interactDistance = 3.2f;
+
+    [Header("Puerta Pesada (Multi-Stage)")]
+    [Tooltip("¿Requiere múltiples clicks para abrirse por completo? (Ideal para puertas atascadas o pesadas)")]
+    public bool isHeavyDoor = false;
+    [Tooltip("Cantidad de clicks necesarios para abrirla al 100%")]
+    public int totalStages = 3;
+    private int currentStage = 0;
 
     private Transform player;
     public bool playerNear = false;
@@ -28,10 +50,12 @@ public class ProceduralDoorInteract : MonoBehaviour
     private Vector3 targetPos;
     private Transform pivotTransform;
     
+    [Header("Sonidos")]
+    public AudioClip doorOpenSound;
+    public AudioClip doorCloseSound;
+    public AudioClip doorLockedSound;
+
     private AudioSource audioSource;
-    private AudioClip doorOpenSound;
-    private AudioClip doorCloseSound;
-    private AudioClip doorLockedSound;
 
     private float lastToggleTime = 0f;
     public float toggleCooldown = 0.25f;
@@ -47,20 +71,52 @@ public class ProceduralDoorInteract : MonoBehaviour
 
         pivotTransform = transform;
 
-        // Auto-Fix para puertas cuyo modelo 3D tiene el pivote en el centro
+        // Auto-Fix INTELIGENTE para puertas con cualquier rotación de importación
         if (doorType == DoorType.Rotating && autoFixCenterPivot)
         {
             MeshFilter mf = GetComponent<MeshFilter>();
             if (mf != null)
             {
                 Bounds b = mf.mesh.bounds;
-                float edgeX = hingeOnRightSide ? b.max.x : b.min.x;
+                
+                // === AUTO-DETECCIÓN DE EJES ===
+                // Transformar los 3 ejes locales del modelo al espacio del mundo
+                Vector3 worldAxisX = transform.TransformDirection(Vector3.right).normalized;
+                Vector3 worldAxisY = transform.TransformDirection(Vector3.up).normalized;
+                Vector3 worldAxisZ = transform.TransformDirection(Vector3.forward).normalized;
+                
+                // ¿Cuál eje local apunta más hacia ARRIBA en el mundo? Ese es el eje de rotación
+                float dotXUp = Mathf.Abs(Vector3.Dot(worldAxisX, Vector3.up));
+                float dotYUp = Mathf.Abs(Vector3.Dot(worldAxisY, Vector3.up));
+                float dotZUp = Mathf.Abs(Vector3.Dot(worldAxisZ, Vector3.up));
+                
+                if (dotXUp >= dotYUp && dotXUp >= dotZUp)
+                    rotationAxis = Vector3.right;
+                else if (dotYUp >= dotXUp && dotYUp >= dotZUp)
+                    rotationAxis = Vector3.up;
+                else
+                    rotationAxis = Vector3.forward;
+                
+                // ¿Cuál eje local es el ANCHO de la puerta?
+                // El que sea más horizontal en el mundo Y tenga mayor extensión en la malla
+                float horizX = (1f - dotXUp) * b.size.x;
+                float horizY = (1f - dotYUp) * b.size.y;
+                float horizZ = (1f - dotZUp) * b.size.z;
+                
+                Vector3 hingePosLocal = b.center;
+                
+                if (horizX >= horizY && horizX >= horizZ)
+                    hingePosLocal.x = hingeOnRightSide ? b.max.x : b.min.x;
+                else if (horizY >= horizX && horizY >= horizZ)
+                    hingePosLocal.y = hingeOnRightSide ? b.max.y : b.min.y;
+                else
+                    hingePosLocal.z = hingeOnRightSide ? b.max.z : b.min.z;
                 
                 GameObject hinge = new GameObject(gameObject.name + "_AutoHinge");
                 hinge.transform.SetParent(transform.parent);
                 
-                // Poner la bisagra en el borde lateral de la puerta
-                hinge.transform.position = transform.TransformPoint(new Vector3(edgeX, b.center.y, b.center.z));
+                // Poner la bisagra en el borde calculado
+                hinge.transform.position = transform.TransformPoint(hingePosLocal);
                 hinge.transform.rotation = transform.rotation;
                 
                 transform.SetParent(hinge.transform);
@@ -90,9 +146,9 @@ public class ProceduralDoorInteract : MonoBehaviour
 
         if (gameObject.tag.Contains("Metalic") || gameObject.tag.Contains("Metallic"))
         {
-            doorOpenSound = Resources.Load<AudioClip>("Audio/MannequinCourtyardMap/OpenDoorMetalic");
-            doorCloseSound = Resources.Load<AudioClip>("Audio/MannequinCourtyardMap/CloseDoorMetalic");
-            doorLockedSound = Resources.Load<AudioClip>("Audio/MannequinCourtyardMap/metal-gate-door-knocking");
+            if (doorOpenSound == null) doorOpenSound = Resources.Load<AudioClip>("Audio/MannequinCourtyardMap/OpenDoorMetalic");
+            if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("Audio/MannequinCourtyardMap/CloseDoorMetalic");
+            if (doorLockedSound == null) doorLockedSound = Resources.Load<AudioClip>("Audio/MannequinCourtyardMap/metal-gate-door-knocking");
         }
         else
         {
@@ -182,14 +238,27 @@ public class ProceduralDoorInteract : MonoBehaviour
             ToggleDoor();
         }
 
+        float currentSpeed = isOpen ? openSpeed : closeSpeed;
+
         // Interpolar rotación o posición según el tipo de puerta
         if (doorType == DoorType.Rotating)
         {
-            pivotTransform.localRotation = Quaternion.RotateTowards(pivotTransform.localRotation, targetRot, Time.deltaTime * speed * 35f);
+            pivotTransform.localRotation = Quaternion.RotateTowards(pivotTransform.localRotation, targetRot, Time.deltaTime * currentSpeed * 35f);
         }
         else
         {
-            pivotTransform.localPosition = Vector3.MoveTowards(pivotTransform.localPosition, targetPos, Time.deltaTime * speed);
+            Transform parentT = pivotTransform.parent;
+            if (parentT != null)
+            {
+                Vector3 worldCurrent = parentT.TransformPoint(pivotTransform.localPosition);
+                Vector3 worldTarget = parentT.TransformPoint(targetPos);
+                Vector3 newWorldPos = Vector3.MoveTowards(worldCurrent, worldTarget, Time.deltaTime * currentSpeed);
+                pivotTransform.localPosition = parentT.InverseTransformPoint(newWorldPos);
+            }
+            else
+            {
+                pivotTransform.localPosition = Vector3.MoveTowards(pivotTransform.localPosition, targetPos, Time.deltaTime * currentSpeed);
+            }
         }
     }
 
@@ -200,13 +269,23 @@ public class ProceduralDoorInteract : MonoBehaviour
 
         if (isLocked)
         {
-            if (MetalKeyItem.hasMetalKey)
+            bool hasRequiredKey = false;
+
+            if (string.IsNullOrEmpty(requiredKeyID))
+            {
+                // Si no hay ID específico, cualquier llave de metal sirve
+                hasRequiredKey = MetalKeyItem.hasMetalKey || MetalKeyItem.collectedKeys.Count > 0;
+            }
+            else
+            {
+                // Si hay un ID específico, verificar en el inventario de llaves
+                hasRequiredKey = MetalKeyItem.collectedKeys.Contains(requiredKeyID);
+            }
+
+            if (hasRequiredKey)
             {
                 // Desbloquear puerta con la llave
                 isLocked = false;
-                
-                // Opcional: Podríamos consumir la llave aquí si quisiéramos que fuera de un solo uso
-                // MetalKeyItem.hasMetalKey = false; 
                 
                 // Forzar que se reproduzca el sonido de abrir en lugar del sonido bloqueado
                 if (audioSource != null && doorOpenSound != null)
@@ -214,8 +293,6 @@ public class ProceduralDoorInteract : MonoBehaviour
                     audioSource.Stop();
                     audioSource.PlayOneShot(doorOpenSound, 1.0f);
                 }
-                
-                // Proceder a abrir la puerta inmediatamente
             }
             else
             {
@@ -227,9 +304,56 @@ public class ProceduralDoorInteract : MonoBehaviour
             }
         }
 
+        // --- SISTEMA DE PUERTA PESADA (Múltiples tirones) ---
+        if (isHeavyDoor && !isOpen)
+        {
+            currentStage++;
+            if (currentStage < totalStages)
+            {
+                // Calcular qué porcentaje se abre en este click
+                float progress = (float)currentStage / totalStages;
+
+                if (doorType == DoorType.Rotating)
+                {
+                    float partialAngle = openAngle * progress;
+                    targetRot = closedRot * Quaternion.AngleAxis(partialAngle, rotationAxis);
+                }
+                else
+                {
+                    Vector3 worldOffset = pivotTransform.right * slideOffset.x + pivotTransform.up * slideOffset.y + pivotTransform.forward * slideOffset.z;
+                    Vector3 localSlideOffset = pivotTransform.parent != null ? pivotTransform.parent.InverseTransformVector(worldOffset) : worldOffset;
+                    targetPos = closedPos + (localSlideOffset * progress);
+                }
+
+                if (audioSource != null)
+                {
+                    audioSource.Stop();
+                    // Usar un sonido para indicar que se abrió a medias (como si se atorara)
+                    AudioClip strainSound = doorLockedSound != null ? doorLockedSound : doorCloseSound;
+                    if (strainSound != null) audioSource.PlayOneShot(strainSound, 1.0f);
+                }
+                return; // Cortar la ejecución para que no se marque como completamente abierta
+            }
+        }
+
         isOpen = !isOpen;
-        targetRot = isOpen ? closedRot * Quaternion.Euler(0f, openAngle, 0f) : closedRot;
-        targetPos = isOpen ? closedPos + slideOffset : closedPos;
+        if (!isOpen)
+        {
+            currentStage = 0; // Reiniciar contador si se cierra la puerta
+        }
+
+        targetRot = isOpen ? closedRot * Quaternion.AngleAxis(openAngle, rotationAxis) : closedRot;
+        
+        // Calcular el offset exacto en metros del mundo usando los ejes locales de la puerta
+        Vector3 finalWorldOffset = pivotTransform.right * slideOffset.x + 
+                                   pivotTransform.up * slideOffset.y + 
+                                   pivotTransform.forward * slideOffset.z;
+                              
+        Vector3 finalLocalSlideOffset = pivotTransform.parent != null 
+            ? pivotTransform.parent.InverseTransformVector(finalWorldOffset) 
+            : finalWorldOffset;
+            
+        targetPos = isOpen ? closedPos + finalLocalSlideOffset : closedPos;
         
         if (audioSource != null)
         {
@@ -238,6 +362,16 @@ public class ProceduralDoorInteract : MonoBehaviour
             if (clipToPlay != null)
             {
                 audioSource.PlayOneShot(clipToPlay, 1.0f);
+            }
+        }
+
+        // Si la puerta se abrió completamente, verificar si es la puerta final de salida
+        if (isOpen)
+        {
+            if (requiredKeyID == "EXITKEY_01" || gameObject.name.Contains("EmergencyExitDoor"))
+            {
+                Debug.Log("[ProceduralDoorInteract]: Puerta de salida de emergencia abierta. Lanzando cinemática de final de juego.");
+                GameEndingManager.TriggerEnding(pivotTransform != null ? pivotTransform : transform);
             }
         }
     }
@@ -257,7 +391,17 @@ public class ProceduralDoorInteract : MonoBehaviour
             GUI.DrawTexture(new Rect(promptRect.x - 10, promptRect.y - 5, promptRect.width + 20, promptRect.height + 10), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            string action = isLocked ? (MetalKeyItem.hasMetalKey ? "Usar Llave" : "Puerta Bloqueada") : (isOpen ? "Cerrar Puerta" : "Abrir Puerta");
+            bool hasRequiredKey = false;
+            if (string.IsNullOrEmpty(requiredKeyID))
+            {
+                hasRequiredKey = MetalKeyItem.hasMetalKey || MetalKeyItem.collectedKeys.Count > 0;
+            }
+            else
+            {
+                hasRequiredKey = MetalKeyItem.collectedKeys.Contains(requiredKeyID);
+            }
+
+            string action = isLocked ? (hasRequiredKey ? "Usar Llave" : "Puerta Bloqueada") : (isOpen ? "Cerrar Puerta" : "Abrir Puerta");
             GUI.Label(promptRect, "[E] " + action, promptStyle);
         }
     }

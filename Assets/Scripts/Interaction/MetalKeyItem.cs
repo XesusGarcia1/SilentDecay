@@ -5,14 +5,25 @@ public class MetalKeyItem : MonoBehaviour
     [Header("Ajustes")]
     public float interactDistance = 3.2f;
     
+    [Tooltip("El nombre único de esta llave (ej: Access_keys_mannequin). Si lo dejas vacío, usará el nombre del GameObject.")]
+    public string keyID = "";
+    
     private Transform playerTransform;
     private bool playerNear = false;
     
-    // Inventario global simple para la llave maestra
+    // Inventario global para llaves específicas
+    public static System.Collections.Generic.HashSet<string> collectedKeys = new System.Collections.Generic.HashSet<string>();
+    
+    // Compatibilidad hacia atrás (por si acaso)
     public static bool hasMetalKey = false;
     
     void Start()
     {
+        // Auto-asignar ID si está vacío
+        if (string.IsNullOrEmpty(keyID))
+        {
+            keyID = gameObject.name.Replace("(Clone)", "").Trim();
+        }
         FindPlayer();
 
         // Destruir colliders defectuosos
@@ -76,6 +87,10 @@ public class MetalKeyItem : MonoBehaviour
     void CollectKey()
     {
         hasMetalKey = true;
+        if (!string.IsNullOrEmpty(keyID))
+        {
+            collectedKeys.Add(keyID);
+        }
 
         PowerBox pBox = FindObjectOfType<PowerBox>();
         if (pBox != null)

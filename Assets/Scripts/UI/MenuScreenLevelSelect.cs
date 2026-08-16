@@ -1,17 +1,19 @@
 using UnityEngine;
 
 /// <summary>
-/// Pantalla de selección de mapa: tarjeta Hospital activa + tarjetas bloqueadas.
+/// Pantalla de selección de mapa: tarjeta Hospital activa + Depósito Industrial activo + Bosque bloqueado.
 /// </summary>
 public class MenuScreenLevelSelect : MonoBehaviour
 {
     private MainMenuManager ctx;
     private Texture2D texHospitalThumb;
+    private Texture2D texDepotThumb;
 
     public void Init(MainMenuManager manager)
     {
         ctx = manager;
         texHospitalThumb = Resources.Load<Texture2D>("Texturas/UI/game1");
+        texDepotThumb    = Resources.Load<Texture2D>("Texturas/UI/game2");
     }
 
     public void Draw(MenuStyles s)
@@ -19,6 +21,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
         // ─── Textos localizados ───────────────────────────────────────────────
         string title         = "SELECCIONA EL ESCENARIO";
         string hospitalLabel = "HOSPITAL Y TÚNELES";
+        string depotLabel    = "DEPÓSITO INDUSTRIAL";
         string lockedLabel   = "PRÓXIMAMENTE";
         string backBtn       = "  ATRÁS";
 
@@ -29,6 +32,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
             {
                 title         = "SELECT MAP";
                 hospitalLabel = "HOSPITAL & TUNNELS";
+                depotLabel    = "INDUSTRIAL DEPOT";
                 lockedLabel   = "COMING SOON";
                 backBtn       = "  BACK";
             }
@@ -36,6 +40,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
             {
                 title         = "SELECIONE O MAPA";
                 hospitalLabel = "HOSPITAL E TÚNEIS";
+                depotLabel    = "DEPÓSITO INDUSTRIAL";
                 lockedLabel   = "EM BREVE";
                 backBtn       = "  VOLTAR";
             }
@@ -49,7 +54,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
         GUILayout.Space(30);
         DrawLockedCard(s, GetLockedTitle("BOSQUE", "FOREST", "FLORESTA"), lockedLabel);
         GUILayout.Space(30);
-        DrawLockedCard(s, GetLockedTitle("PRISIÓN", "PRISON", "PRISÃO"),  lockedLabel);
+        DrawDepotCard(s, depotLabel);
 
         GUILayout.EndHorizontal();
         GUILayout.Space(25);
@@ -96,6 +101,46 @@ public class MenuScreenLevelSelect : MonoBehaviour
         {
             ctx.PlayClickSound();
             ctx.GoTo(MainMenuManager.MenuState.PlayOptions);
+        }
+        GUILayout.EndVertical();
+    }
+
+    void DrawDepotCard(MenuStyles s, string label)
+    {
+        GUIStyle playBtn = new GUIStyle(s.Button);
+        playBtn.normal.textColor = Color.red;
+        playBtn.hover.textColor  = Color.white;
+
+        GUIStyle diffTag = new GUIStyle(GUI.skin.label);
+        diffTag.fontSize  = 15;
+        diffTag.fontStyle = FontStyle.Bold;
+        diffTag.alignment = TextAnchor.MiddleCenter;
+        diffTag.normal.textColor = new Color(1f, 0.45f, 0.1f); // Naranja → Difícil
+
+        GUIStyle cardLabel = CardLabelStyle(s);
+        string playText    = GetLocalizedPlay();
+        bool isEN = LocalizationManager.Instance != null &&
+                    LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH;
+        string diffText = isEN ? "⚠ HARD" : "⚠ DIFÍCIL";
+
+        GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(380), GUILayout.Height(380));
+        GUILayout.Space(10);
+
+        Rect thumb = GUILayoutUtility.GetRect(356f, 200f);
+        GUI.DrawTexture(thumb,
+            texDepotThumb != null ? texDepotThumb : Texture2D.blackTexture,
+            ScaleMode.StretchToFill);
+
+        GUILayout.Space(12);
+        GUILayout.Label(label, cardLabel, GUILayout.Height(50));
+        GUILayout.Space(6);
+        GUILayout.Label(diffText, diffTag, GUILayout.Height(22));
+        GUILayout.Space(6);
+
+        if (GUILayout.Button(playText, playBtn, GUILayout.Height(40)))
+        {
+            ctx.PlayClickSound();
+            ctx.GoTo(MainMenuManager.MenuState.DepotOptions);
         }
         GUILayout.EndVertical();
     }

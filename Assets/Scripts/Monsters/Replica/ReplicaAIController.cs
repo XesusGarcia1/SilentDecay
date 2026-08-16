@@ -65,6 +65,18 @@ public class ReplicaAIController : MonoBehaviour
     private bool isTransitioning = false;
     private bool hasTriggeredAttackAnimation = false;
     private bool isPlayerDead = false;
+
+    [Header("Mecánica de Ilusiones (Fallo de Ataque)")]
+    public GameObject illusionMannequinPrefab;
+    private float attackAnimationTimer = 0f;
+    private float chaseTimer = 0f;
+    private float noLineOfSightTimer = 0f;
+    private List<GameObject> activeIllusions = new List<GameObject>();
+
+    [Header("Dificultad Dinámica por Avance")]
+    public int currentProgressionLevel = 0;
+    public float currentChaseSpeed = 5.5f;
+
     [Header("Debug Casería (Solo Lectura)")]
     public bool isHuntingDebug = false;
     public bool playerInZoneDebug = false;
@@ -283,15 +295,43 @@ public class ReplicaAIController : MonoBehaviour
         }
     }
 
+    public int GetCurrentProgressionLevel()
+    {
+        int level = 0;
+
+        // 1. Conteo de llaves recogidas por el jugador (0 a 3+)
+        if (MetalKeyItem.collectedKeys != null)
+        {
+            level += MetalKeyItem.collectedKeys.Count;
+        }
+
+        // 2. Si el jugador encontró la guía de supervivencia
+        if (GuideMapUI.hasGuideMap)
+        {
+            level += 1;
+        }
+
+        // 3. Si el jugador ha recogido piezas de la escalera
+        if (LadderPartItem.collectedParts != null)
+        {
+            level += LadderPartItem.collectedParts.Count;
+        }
+
+        return Mathf.Clamp(level, 0, 4);
+    }
+
     private void HandleStareDownMechanic()
     {
-        // Si lo miramos fijamente en F1 o F2 por 4 segundos, se resetea
+        // La tolerancia del concurso de miradas disminuye a medida que el jugador avanza
+        int progLevel = GetCurrentProgressionLevel();
+        float maxStareTime = Mathf.Max(1.2f, 4.0f - (progLevel * 0.7f)); // 4.0s -> 3.3s -> 2.6s -> 1.9s -> 1.2s
+
         if (isBeingObserved && currentPhase != ReplicaPhase.F0_InertMannequin && currentPhase != ReplicaPhase.F3_MonstrousForm)
         {
             stareTimer += Time.deltaTime;
-            if (stareTimer >= 4.0f)
+            if (stareTimer >= maxStareTime)
             {
-                Debug.Log("[Replica] Concurso de miradas ganado. Reseteando a Fase 0.");
+                Debug.Log($"[Replica] Concurso de miradas ganado ({stareTimer:F1}s / {maxStareTime:F1}s). Reseteando a Fase 0.");
                 ResetToF0();
             }
         }
@@ -317,6 +357,8 @@ public class ReplicaAIController : MonoBehaviour
         isHuntingDebug = false;
         safeZoneTimer = 0f;
         stareTimer = 0f;
+        chaseTimer = 0f;
+        noLineOfSightTimer = 0f;
 
         UpdatePhaseVisuals();
 
@@ -352,10 +394,12 @@ public class ReplicaAIController : MonoBehaviour
 
     private void HandleActiveChaseBehavior()
     {
+        chaseTimer += Time.deltaTime;
+
         Vector3 mPos = GetActiveModelPosition();
         Vector3 pPos = playerTransform.position;
         
-        // Calcular distancia en 2D (plano XZ) para ignorar la diferencia de altura de la cámara
+        // Calcular distancia en 2D (plano XZ) para ignorar diferencia de altura
         mPos.y = 0;
         pPos.y = 0;
         float distToPlayer = Vector3.Distance(mPos, pPos);
@@ -376,11 +420,28 @@ public class ReplicaAIController : MonoBehaviour
             }
         }
 
+        if (!hasLineOfSight)
+        {
+            noLineOfSightTimer += Time.deltaTime;
+        }
+        else
+        {
+            noLineOfSightTimer = 0f;
+        }
+
+        // --- VELOCIDAD ESCALABLE SEGÚN EL AVANCE DEL JUGADOR ---
+        int progLevel = GetCurrentProgressionLevel();
+        currentProgressionLevel = progLevel;
+        
+        // Velocidad de carrera en F3: 5.2m/s al inicio, hasta 7.8m/s al tener todas las llaves
+        float chaseSpeed = 5.2f + (progLevel * 0.65f);
+        currentChaseSpeed = chaseSpeed;
+
         // Movimiento físico real habilitado solo en fase de caza (F3)
         if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
         {
             navAgent.isStopped = false;
-            navAgent.speed = 6.5f; 
+            navAgent.speed = chaseSpeed; 
             navAgent.SetDestination(playerTransform.position);
         }
 
@@ -397,12 +458,13 @@ public class ReplicaAIController : MonoBehaviour
             }
         }
 
-        // Si está en radio de ataque (4.5m) Y no hay pared, reproducir animación de ataque
+        // Si está en radio de ataque Y no hay pared, reproducir animación de ataque
         if (distToPlayer <= startAttackAnimationDistance && hasLineOfSight)
         {
             if (!hasTriggeredAttackAnimation)
             {
                 hasTriggeredAttackAnimation = true;
+                attackAnimationTimer = 0f; // Reiniciar contador de ataque
                 if (animator != null)
                 {
                     animator.speed = 1.0f;
@@ -425,6 +487,118 @@ public class ReplicaAIController : MonoBehaviour
         if (distToPlayer <= attackDistance && hasLineOfSight)
         {
             TriggerJumpscareSequence();
+            return;
+        }
+
+        // --- SISTEMA ANTI-ATASCO Y RECUPERACIÓN AUTOMÁTICA AL FALLAR ---
+        // 1. Si lanzó animación de ataque y pasaron 2.0s sin matar al jugador (el jugador esquivó)
+        // 2. Si la persecución total lleva más de 6.0s sin alcanzar al jugador
+        // 3. Si la visión se perdió por más de 2.5s (el jugador dobló en una esquina)
+        // 4. Si el jugador se alejó a más de 11 metros durante la persecución
+        bool attackFailed = (hasTriggeredAttackAnimation && attackAnimationTimer > 2.0f);
+        bool chaseTimedOut = (chaseTimer > 6.0f);
+        bool lostPlayerInChase = (noLineOfSightTimer > 2.5f);
+        bool playerEscapedFar = (distToPlayer > 11.0f);
+
+        if (hasTriggeredAttackAnimation)
+        {
+            attackAnimationTimer += Time.deltaTime;
+        }
+
+        if (attackFailed || chaseTimedOut || lostPlayerInChase || playerEscapedFar)
+        {
+            Debug.Log($"[Replica] Persecución/Ataque fallido. Razón: (FallóAnim:{attackFailed}, TiempoAgotado:{chaseTimedOut}, VisiónPerdida:{lostPlayerInChase}, Escapó:{playerEscapedFar}). Activando ilusiones.");
+            TriggerAttackMissIllusions();
+        }
+    }
+
+    private void TriggerAttackMissIllusions()
+    {
+        // 1. Limpiar timers y estado de ataque
+        chaseTimer = 0f;
+        noLineOfSightTimer = 0f;
+        hasTriggeredAttackAnimation = false;
+        attackAnimationTimer = 0f;
+
+        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+        {
+            navAgent.isStopped = true;
+            navAgent.velocity = Vector3.zero;
+            navAgent.ResetPath();
+        }
+
+        // 2. Limpiar ilusiones viejas si existieran
+        foreach (GameObject ill in activeIllusions) 
+        { 
+            if (ill != null) Destroy(ill); 
+        }
+        activeIllusions.Clear();
+
+        // 3. Crear 4 puntos alrededor del jugador
+        Vector3 playerPos = playerTransform.position;
+        Vector3 playerForward = playerTransform.forward;
+        
+        List<Vector3> spawnPoints = new List<Vector3>();
+        float radius = 4.0f;
+        float[] angles = new float[] { -45f, 0f, 45f, 180f }; 
+        
+        foreach (float angle in angles)
+        {
+            Vector3 offset = Quaternion.Euler(0, angle, 0) * playerForward * radius;
+            Vector3 pos = playerPos + offset;
+            
+            UnityEngine.AI.NavMeshHit hit;
+            if (UnityEngine.AI.NavMesh.SamplePosition(pos, out hit, 4.0f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                spawnPoints.Add(hit.position);
+            }
+        }
+
+        // 4. RESET OBLIGATORIO A F0 (Evita quedarse trabado en F3 atacando al aire)
+        currentPhase = ReplicaPhase.F0_InertMannequin;
+        relocationCount = 0; 
+        safeZoneTimer = 0f;
+        stareTimer = 0f;
+        
+        // Cooldown dinámico según avance: a mayor nivel, se teletransporta más rápido de vuelta (hasta 2.0s)
+        int progLevel = GetCurrentProgressionLevel();
+        float minCd = Mathf.Max(2.0f, 6.0f - (progLevel * 1.2f));
+        float maxCd = Mathf.Max(3.2f, 8.0f - (progLevel * 1.3f));
+        relocateCooldown = Random.Range(minCd, maxCd);
+        lastRelocateTime = Time.time;
+
+        UpdatePhaseVisuals();
+
+        if (spawnPoints.Count > 0)
+        {
+            int realIndex = Random.Range(0, spawnPoints.Count);
+            
+            for (int i = 0; i < spawnPoints.Count; i++)
+            {
+                if (i == realIndex)
+                {
+                    WarpToPosition(spawnPoints[i]);
+                }
+                else
+                {
+                    if (illusionMannequinPrefab != null)
+                    {
+                        Vector3 spawnPos = spawnPoints[i];
+                        GameObject clone = Instantiate(illusionMannequinPrefab, spawnPos, Quaternion.identity);
+                        
+                        Vector3 cloneLookPos = new Vector3(playerPos.x, clone.transform.position.y, playerPos.z);
+                        clone.transform.LookAt(cloneLookPos);
+                        
+                        activeIllusions.Add(clone);
+                        Destroy(clone, 15f);
+                    }
+                }
+            }
+            
+            if (globalAudioSource != null && audioTic1 != null)
+            {
+                globalAudioSource.PlayOneShot(audioTic1, 0.7f);
+            }
         }
     }
 
