@@ -97,16 +97,6 @@ public class GuieMapItem : MonoBehaviour
     {
         GuideMapUI.hasGuideMap = true;
 
-        // Sonido de papel al tomar
-        AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Hospital/Nota_Grab");
-        if (pickupSound != null && Camera.main != null)
-        {
-            AudioSource camAudio = Camera.main.GetComponent<AudioSource>();
-            if (camAudio == null) camAudio = Camera.main.gameObject.AddComponent<AudioSource>();
-            camAudio.ignoreListenerPause = true;
-            camAudio.PlayOneShot(pickupSound, 0.9f);
-        }
-
         // Monólogo del personaje al encontrar el mapa
         PlayerMonologueManager.ShowDialogue("Una guía de supervivencia... esto me mostrará cómo encontrar las llaves y salir.", 5.0f);
 

@@ -20,6 +20,19 @@ public class IndustrialDepotGameLogic : MonoBehaviour
             Debug.Log("[IndustrialDepotGameLogic]: PauseMenuManager instanciado automáticamente.");
         }
 
+        // Instanciar managers globales para el depósito
+        if (FindFirstObjectByType<GlobalPipeDripManager>() == null)
+        {
+            GameObject dripManager = new GameObject("[GlobalPipeDripManager]");
+            dripManager.AddComponent<GlobalPipeDripManager>();
+        }
+
+        if (FindFirstObjectByType<GlobalRedLightEvent>() == null)
+        {
+            GameObject lightEvent = new GameObject("[GlobalRedLightEvent]");
+            lightEvent.AddComponent<GlobalRedLightEvent>();
+        }
+
         SetupPlayerSpawn();
         SetupGuideMapItemAtStart();
 
