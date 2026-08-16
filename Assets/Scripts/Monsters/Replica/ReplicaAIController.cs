@@ -484,6 +484,7 @@ public class ReplicaAIController : MonoBehaviour
                 
                 if (globalAudioSource != null && audioGritoBiomecanico != null)
                 {
+                    globalAudioSource.pitch = 1.0f;
                     globalAudioSource.PlayOneShot(audioGritoBiomecanico, 0.85f);
                 }
             }
@@ -603,6 +604,7 @@ public class ReplicaAIController : MonoBehaviour
             
             if (globalAudioSource != null && audioTic1 != null)
             {
+                globalAudioSource.pitch = 1.0f;
                 globalAudioSource.PlayOneShot(audioTic1, 0.7f);
             }
         }
@@ -924,6 +926,13 @@ public class ReplicaAIController : MonoBehaviour
             if (sfxAudioSource != null && audioCrujidoHuesos != null) sfxAudioSource.PlayOneShot(audioCrujidoHuesos, 1.0f);
             if (sfxAudioSource != null && audioCrujidoCuello != null) sfxAudioSource.PlayOneShot(audioCrujidoCuello, 1.0f);
             
+            // Alerta global de cambio a F3 (pitch muy bajo y terrorífico)
+            if (globalAudioSource != null && audioAliento != null)
+            {
+                globalAudioSource.pitch = 0.5f;
+                globalAudioSource.PlayOneShot(audioAliento, 1.0f);
+            }
+
             yield return new WaitForSeconds(0.4f); 
 
             currentPhase = nextPhase;
@@ -936,6 +945,7 @@ public class ReplicaAIController : MonoBehaviour
 
             if (globalAudioSource != null && audioGritoBiomecanico != null)
             {
+                globalAudioSource.pitch = 1.0f;
                 globalAudioSource.PlayOneShot(audioGritoBiomecanico, 1.0f);
             }
 
@@ -968,6 +978,14 @@ public class ReplicaAIController : MonoBehaviour
         {
             sfxAudioSource.PlayOneShot(audioAliento, 0.5f);
         }
+
+        // Alerta global de cambio de fase (pitch dinámico)
+        if (globalAudioSource != null && audioAliento != null)
+        {
+            globalAudioSource.pitch = (nextPhase == ReplicaPhase.F2_AdvancedTransformation) ? 0.75f : 0.95f;
+            globalAudioSource.PlayOneShot(audioAliento, 0.85f);
+        }
+        
         yield return new WaitForSeconds(1.5f);
 
         if (sfxAudioSource != null && audioCrujidoCuello != null)
@@ -1022,6 +1040,7 @@ public class ReplicaAIController : MonoBehaviour
         if (globalAudioSource != null)
         {
             globalAudioSource.spatialBlend = 0.0f;
+            globalAudioSource.pitch = 1.0f; // Resetear pitch por seguridad en el jumpscare
             if (audioJumpscare != null) globalAudioSource.PlayOneShot(audioJumpscare, 1.0f);
             if (audioGritoBiomecanico != null) globalAudioSource.PlayOneShot(audioGritoBiomecanico, 1.0f);
         }
