@@ -6273,7 +6273,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 143308042}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a964f4cef9c3b6e408a5a9f6d4605f20, type: 3}
   m_Name: 
@@ -47959,6 +47959,10 @@ PrefabInstance:
       propertyPath: m_Controller
       value: 
       objectReference: {fileID: 9100000, guid: 14da8b397ddb3774db3b8687cf598140, type: 2}
+    - target: {fileID: 5866666021909216657, guid: fc5dfd1a12c137843846cb26a1774553, type: 3}
+      propertyPath: m_ApplyRootMotion
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8111781155169087978, guid: fc5dfd1a12c137843846cb26a1774553, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -63476,7 +63480,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1543606459}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6ba30853d792aad459af75dd40696fa2, type: 3}
   m_Name: 

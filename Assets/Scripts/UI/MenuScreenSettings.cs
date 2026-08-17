@@ -47,24 +47,21 @@ public class MenuScreenSettings : MonoBehaviour
             return;
         }
 
-        // ─── Título ───────────────────────────────────────────────────────────
+        // ─── Título ─────────────────────────────────────────────────────────────
         string title = GetLocalized("CONFIGURACIÓN DE HARDWARE", "HARDWARE SETTINGS", "CONFIGURAÇÃO DE HARDWARE", "НАСТРОЙКИ ОБОРУДОВАНИЯ");
-        GUILayout.Label(title, s.SectionHeader, GUILayout.Height(30));
+        GUILayout.Label(title, s.SectionHeader, GUILayout.Height(50));
         GUILayout.Space(10);
 
         // ─── Pestañas ─────────────────────────────────────────────────────────
-        GUIStyle tabStyle = new GUIStyle(s.OptionSelect);
-        tabStyle.fontSize  = 18;
-        tabStyle.fontStyle = FontStyle.Bold;
-        tabStyle.hover.textColor = Color.red;
+        GUIStyle tabStyle = new GUIStyle(s.TabButton);
 
         GUILayout.BeginHorizontal();
 
-        tabStyle.normal.textColor = activeTab == 0 ? Color.red : Color.gray;
+        tabStyle.normal.textColor = activeTab == 0 ? s.BrandRed : Color.gray;
         string tab0 = GetLocalized("AUDIO Y CONTROLES", "AUDIO & CONTROLS", "ÁUDIO E CONTROLES", "АУДИО И УПРАВЛЕНИЕ");
         if (GUILayout.Button(tab0, tabStyle, GUILayout.Height(35))) { ctx.PlayClickSound(); activeTab = 0; }
 
-        tabStyle.normal.textColor = activeTab == 1 ? Color.red : Color.gray;
+        tabStyle.normal.textColor = activeTab == 1 ? s.BrandRed : Color.gray;
         string tab1 = GetLocalized("GRÁFICOS Y RENDIMIENTO", "GRAPHICS & RUNTIME", "GRÁFICOS E VIDEO", "ГРАФИКА И ПРОИЗВОДИТЕЛЬНОСТЬ");
         if (GUILayout.Button(tab1, tabStyle, GUILayout.Height(35))) { ctx.PlayClickSound(); activeTab = 1; }
 
@@ -77,8 +74,8 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.Space(12);
 
         // ─── Guardar y Volver ─────────────────────────────────────────────────
-        string saveBtn = GetLocalized("  GUARDAR Y VOLVER", "  SAVE & BACK", "  SALVAR E VOLTAR", "  СОХРАНИТЬ И НАЗАД");
-        if (GUILayout.Button(saveBtn, s.Button, GUILayout.Height(48)))
+        string saveBtn = GetLocalized("  GUARDAR Y VOLVER", "  SAVE & BACK", "  SALVAR E VOLTAR", "  ПОДТВЕРДИТЬ И СОХРАНИТЬ");
+        if (GUILayout.Button(saveBtn, s.Button, GUILayout.Height(65)))
         {
             ctx.PlayClickSound();
             PlayerPrefs.SetFloat("MouseSensitivity", ctx.mouseSensitivity);
@@ -93,17 +90,10 @@ public class MenuScreenSettings : MonoBehaviour
 
     void DrawAudioTab(MenuStyles s)
     {
-        GUIStyle sliderTrackStyle = new GUIStyle(GUI.skin.horizontalSlider);
-        sliderTrackStyle.fixedHeight = 22f;
-
-        GUIStyle sliderThumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb);
-        sliderThumbStyle.fixedWidth = 32f;
-        sliderThumbStyle.fixedHeight = 32f;
-
         // Volumen
         string volLabel = Loc("menu_volumen", "Volumen General");
         GUILayout.Label($"{volLabel}: {Mathf.RoundToInt(ctx.masterVolume * 100)}%", s.Label);
-        ctx.masterVolume     = GUILayout.HorizontalSlider(ctx.masterVolume, 0f, 1f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
+        ctx.masterVolume     = GUILayout.HorizontalSlider(ctx.masterVolume, 0f, 1f, s.SliderTrack, s.SliderThumb, GUILayout.Height(32f));
         AudioListener.volume = ctx.masterVolume;
         if (ctx.menuAudioSource != null) ctx.menuAudioSource.volume = ctx.masterVolume * 0.6f;
         if (ctx.sfxAudioSource  != null) ctx.sfxAudioSource.volume  = ctx.masterVolume * 0.85f;
@@ -112,14 +102,14 @@ public class MenuScreenSettings : MonoBehaviour
         // Sensibilidad
         string mSensLabel = GetLocalized("Sensibilidad del Mouse", "Mouse Sensitivity", "Sensibilidade do Mouse", "Чувствительность мыши");
         GUILayout.Label($"{mSensLabel}: {ctx.mouseSensitivity:F1}", s.Label);
-        ctx.mouseSensitivity = GUILayout.HorizontalSlider(ctx.mouseSensitivity, 0.5f, 6.0f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
+        ctx.mouseSensitivity = GUILayout.HorizontalSlider(ctx.mouseSensitivity, 0.5f, 6.0f, s.SliderTrack, s.SliderThumb, GUILayout.Height(32f));
         GUILayout.Space(8);
 
         // Tamaño de Interfaz / HUD
         float currentHudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
         string hudLabel = GetLocalized("Tamaño de Interfaz / HUD", "UI / HUD Scale", "Tamanho de HUD / UI", "Размер интерфейса / HUD");
         GUILayout.Label($"{hudLabel}: {currentHudScale:F2}x", s.Label);
-        float newHudScale = GUILayout.HorizontalSlider(currentHudScale, 0.85f, 1.75f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
+        float newHudScale = GUILayout.HorizontalSlider(currentHudScale, 0.85f, 1.75f, s.SliderTrack, s.SliderThumb, GUILayout.Height(32f));
         if (Mathf.Abs(newHudScale - currentHudScale) > 0.01f)
         {
             PlayerPrefs.SetFloat("HUDScale", newHudScale);
@@ -138,7 +128,7 @@ public class MenuScreenSettings : MonoBehaviour
         string fsLabel = GetLocalized("Pantalla Completa", "Full Screen", "Tela Cheia", "Полноэкранный режим");
         GUILayout.BeginHorizontal();
         GUILayout.Label(fsLabel, s.Label, GUILayout.Width(200));
-        ctx.isFullscreen = GUILayout.Toggle(ctx.isFullscreen, "");
+        ctx.isFullscreen = GUILayout.Toggle(ctx.isFullscreen, "", s.Toggle);
         if (Screen.fullScreen != ctx.isFullscreen) Screen.fullScreen = ctx.isFullscreen;
         GUILayout.EndHorizontal();
     }
@@ -160,8 +150,7 @@ public class MenuScreenSettings : MonoBehaviour
 
         GUILayout.BeginHorizontal();
 
-        GUIStyle cycleBtn = new GUIStyle(s.Button);
-        cycleBtn.fontSize = 22;
+        GUIStyle cycleBtn = new GUIStyle(s.SmallButton);
         cycleBtn.fixedHeight = 0;
         cycleBtn.fixedWidth = 0;
         
@@ -174,7 +163,7 @@ public class MenuScreenSettings : MonoBehaviour
         }
 
         GUIStyle labelStyle = new GUIStyle(s.OptionSelect);
-        labelStyle.normal.textColor = Color.red;
+        labelStyle.normal.textColor = s.BrandRed;
         labelStyle.alignment = TextAnchor.MiddleCenter;
         GUILayout.Label(langName, labelStyle, GUILayout.Width(200), GUILayout.Height(40));
 
@@ -201,7 +190,7 @@ public class MenuScreenSettings : MonoBehaviour
         for (int i = 0; i < qualNames.Length; i++)
         {
             var st = new GUIStyle(s.OptionSelect);
-            st.normal.textColor = (selectedQualityIndex == i) ? Color.red : Color.gray;
+            st.normal.textColor = (selectedQualityIndex == i) ? s.BrandRed : Color.gray;
             if (GUILayout.Button(qualNames[i], st, GUILayout.Height(40)))
             {
                 ctx.PlayClickSound();
@@ -234,7 +223,7 @@ public class MenuScreenSettings : MonoBehaviour
         
         GUIStyle calibBtnStyle = new GUIStyle(s.Button);
         calibBtnStyle.normal.textColor = Color.white;
-        calibBtnStyle.hover.textColor = Color.red;
+        calibBtnStyle.hover.textColor = s.BrandRed;
 
         if (GUILayout.Button($"🔧 {calibTitle} (Actual: {curGamma:F1}x)", calibBtnStyle, GUILayout.Height(50)))
         {
@@ -252,8 +241,7 @@ public class MenuScreenSettings : MonoBehaviour
             GUILayout.Label($"{Screen.width}x{Screen.height}", s.Label);
             return;
         }
-        GUIStyle cycleBtn = new GUIStyle(GUI.skin.button);
-        cycleBtn.fontSize = 20; cycleBtn.fontStyle = FontStyle.Bold;
+        GUIStyle cycleBtn = new GUIStyle(s.SmallButton);
 
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("<", cycleBtn, GUILayout.Width(50), GUILayout.Height(40)))
@@ -340,19 +328,11 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.BeginVertical(GUILayout.Width(400));
         GUILayout.Space(25);
 
-        string labelVal = GetLocalized("Brillo del Juego", "Game Brightness", "Brilho do Jogo", "Яркость игры");
-        GUILayout.Label($"{labelVal}: {tempGamma:F2}x", s.Label);
-        GUILayout.Space(5);
-
-        GUIStyle sliderTrackStyle = new GUIStyle(GUI.skin.horizontalSlider);
-        sliderTrackStyle.fixedHeight = 26f;
-
-        GUIStyle sliderThumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb);
-        sliderThumbStyle.fixedWidth = 36f;
-        sliderThumbStyle.fixedHeight = 36f;
+        GUILayout.Label(GetLocalized("Nivel Actual: ", "Current Level: ", "Nível Atual: ", "Текущий уровень: ") + tempGamma.ToString("F2"), s.Label);
+        GUILayout.Space(10);
 
         // Slider Horizontal Principal
-        float newGamma = GUILayout.HorizontalSlider(tempGamma, 0.5f, 2.0f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(36f), GUILayout.Width(380));
+        float newGamma = GUILayout.HorizontalSlider(tempGamma, 0.5f, 2.0f, s.SliderTrack, s.SliderThumb, GUILayout.Height(36f), GUILayout.Width(380));
         if (Mathf.Abs(newGamma - tempGamma) > 0.005f)
         {
             tempGamma = newGamma;
@@ -429,11 +409,11 @@ public class MenuScreenSettings : MonoBehaviour
 
         GUILayout.Space(35);
 
-        // 3. Botones inferiores de Guardar y Cancelar (Ancho total 700)
-        GUILayout.BeginHorizontal(GUILayout.Width(700));
+        // 3. Botones inferiores de Guardar y Cancelar (Ancho total 800)
+        GUILayout.BeginHorizontal(GUILayout.Width(800));
 
-        string btnConfirm = GetLocalized("  CONFIRMAR Y GUARDAR", "  CONFIRM & SAVE", "  CONFIRMAR E SALVAR", "  ПОДТВЕРДИТЬ И СОХРАНИТЬ");
-        if (GUILayout.Button(btnConfirm, s.Button, GUILayout.Width(340), GUILayout.Height(55)))
+        string btnConfirm = GetLocalized("CONFIRMAR Y GUARDAR", "CONFIRM & SAVE", "CONFIRMAR E SALVAR", "ПОДТВЕРДИТЬ И СОХРАНИТЬ");
+        if (GUILayout.Button(btnConfirm, s.Button, GUILayout.Width(380), GUILayout.Height(65)))
         {
             ctx.PlayClickSound();
             PlayerPrefs.SetFloat("GammaLevel", tempGamma);
@@ -445,7 +425,7 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.Space(20);
 
         string btnCancel = GetLocalized("  CANCELAR", "  CANCEL", "  CANCELAR", "  ОТМЕНА");
-        if (GUILayout.Button(btnCancel, s.Button, GUILayout.Width(340), GUILayout.Height(55)))
+        if (GUILayout.Button(btnCancel, s.Button, GUILayout.Width(340), GUILayout.Height(65)))
         {
             ctx.PlayClickSound();
             float originalGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);

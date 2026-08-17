@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PauseMenuManager : MonoBehaviour
 {
@@ -10,7 +11,36 @@ public class PauseMenuManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null) Instance = this;
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // Al cargar cualquier escena que NO sea el menú ni la carga, aseguramos estado limpio
+        bool isMenuOrLoader = scene.name == "MainMenu" || scene.name == "LoadingScene";
+        if (!isMenuOrLoader)
+        {
+            currentState = PauseState.None;
+            isCalibratingGamma = false;
+            Time.timeScale = 1f;
+            MobileInput.SetCursorState(true);
+            playerObj = null; // Forzar re-búsqueda del jugador en el nuevo mapa
+        }
     }
 
     private float mouseSensitivity = 2.0f;
@@ -20,6 +50,11 @@ public class PauseMenuManager : MonoBehaviour
     // Ajustes de gráficos y pestañas en el menú de pausa
     private int activeSettingsTab = 0; // 0 = Audio y Sensibilidad, 1 = Gráficos y Rendimiento
     private int selectedQualityIndex = 2; // 0 = Bajo, 1 = Medio, 2 = Alto
+
+    [Header("Estilos de Botones")]
+    public Texture2D btnNormalTexture;
+    public Texture2D btnHoverTexture;
+    private MenuStyles cachedStyles;
     
     // --- VARIABLES DE CALIBRACIÓN DE BRILLO ---
     private bool isCalibratingGamma = false;
@@ -100,6 +135,13 @@ public class PauseMenuManager : MonoBehaviour
 
     void Update()
     {
+        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (sceneName == "MainMenu" || sceneName == "LoadingScene")
+            return;
+
+        if (GameEndingManager.isEndingTriggered)
+            return;
+
         // Asegurar referencia del jugador si no se encontró al arrancar
         if (playerObj == null)
         {
@@ -179,6 +221,13 @@ public class PauseMenuManager : MonoBehaviour
 
     void OnGUI()
     {
+        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (sceneName == "MainMenu" || sceneName == "LoadingScene")
+            return;
+
+        if (GameEndingManager.isEndingTriggered)
+            return;
+
         GUI.depth = -100; // Garantizar que el menú de pausa se dibuje SIEMPRE por encima de cualquier otro elemento GUI
 
         // 1. DIBUJAR BOTÓN DE CONFIGURACIÓN (TUERCA) EN LA ESQUINA SUPERIOR DERECHA (Para móviles y ratón libre)
@@ -225,73 +274,66 @@ public class PauseMenuManager : MonoBehaviour
         // Pintar fondo oscuro semi-transparente sobre toda la pantalla
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), pauseBgTex);
 
-        // Estilos
-        GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
-        titleStyle.fontSize = 50;
-        titleStyle.fontStyle = FontStyle.Bold;
-        titleStyle.normal.textColor = new Color(0.85f, 0.05f, 0.05f); // Rojo sangre
-        titleStyle.alignment = TextAnchor.MiddleCenter;
+        if (btnNormalTexture == null)
+            btnNormalTexture = Resources.Load<Texture2D>("Texturas/UI/Btn_Normal");
+        
+        if (btnHoverTexture == null)
+            btnHoverTexture = Resources.Load<Texture2D>("Texturas/UI/Btn_Hover");
 
-        GUIStyle subtitleStyle = new GUIStyle(GUI.skin.label);
-        subtitleStyle.fontSize = 16;
-        subtitleStyle.fontStyle = FontStyle.Italic;
-        subtitleStyle.normal.textColor = new Color(0.55f, 0.55f, 0.55f);
-        subtitleStyle.alignment = TextAnchor.MiddleCenter;
-
-        GUIStyle sectionHeaderStyle = new GUIStyle(GUI.skin.label);
-        sectionHeaderStyle.fontSize = 24;
-        sectionHeaderStyle.fontStyle = FontStyle.Bold;
-        sectionHeaderStyle.normal.textColor = Color.white;
-        sectionHeaderStyle.alignment = TextAnchor.MiddleCenter;
-
-        GUIStyle labelStyle = new GUIStyle(GUI.skin.label);
-        labelStyle.fontSize = 18;
-        labelStyle.normal.textColor = Color.white;
-        labelStyle.alignment = TextAnchor.MiddleCenter;
-
-        GUIStyle buttonStyle = new GUIStyle(GUI.skin.button);
-        buttonStyle.fontSize = 22;
-        buttonStyle.fontStyle = FontStyle.Bold;
-        buttonStyle.alignment = TextAnchor.MiddleCenter;
-        buttonStyle.normal.textColor = new Color(0.9f, 0.9f, 0.9f);
-        buttonStyle.hover.textColor = Color.red;
-        buttonStyle.active.textColor = Color.red;
+        if (cachedStyles == null)
+        {
+            cachedStyles = new MenuStyles(btnNormalTexture, btnHoverTexture);
+        }
+        var s = cachedStyles;
 
         // --- RENDER DE LA PANTALLA DE CALIBRACIÓN DE BRILLO EN PARTIDA ---
         if (isCalibratingGamma)
         {
-            int calibW = 700;
+            int calibW = 820;
             int calibH = 580;
             GUILayout.BeginArea(new Rect(Screen.width / 2 - calibW / 2, Screen.height / 2 - calibH / 2, calibW, calibH));
-            DrawGammaCalibrationArea(labelStyle, buttonStyle, sectionHeaderStyle);
+            DrawGammaCalibrationArea(s.Label, s.Button, s.SectionHeader, s);
             GUILayout.EndArea();
             return;
         }
 
         // Título del menú de pausa
         GUILayout.BeginArea(new Rect(0, 80, Screen.width, 150));
+        
+        GUIStyle titleStyle = new GUIStyle(s.Title);
+        titleStyle.fontSize = 50;
+        
         GUILayout.Label(LocalizationManager.Instance.Get("pause_title"), titleStyle, GUILayout.Height(55));
-        GUILayout.Label(LocalizationManager.Instance.Get("pause_subtitle"), subtitleStyle, GUILayout.Height(20));
+        GUILayout.Label(LocalizationManager.Instance.Get("pause_subtitle"), s.SubTitle, GUILayout.Height(20));
         GUILayout.EndArea();
 
         // Contenedor central de botones
-        int menuWidth = 450;
-        int menuHeight = 450;
-        GUILayout.BeginArea(new Rect(Screen.width / 2 - menuWidth / 2, Screen.height / 2 - 80, menuWidth, menuHeight));
+        // El título ocupa y=80 a y=230 (height=150). El contenido siempre arranca debajo.
+        float titleAreaBottom = 245f; // 80 (top) + 150 (height) + 15 margen extra
+        float availableH = Screen.height - titleAreaBottom - 20f;
+
+        int menuWidth  = (currentState == PauseState.Settings) ? 580 : 450;
+        int menuHeight = (currentState == PauseState.Settings)
+            ? (int)Mathf.Min(700f, availableH)
+            : 450;
+        float menuY = (currentState == PauseState.Settings)
+            ? titleAreaBottom
+            : Screen.height / 2f - 80f;
+        GUILayout.BeginArea(new Rect(Screen.width / 2 - menuWidth / 2, menuY, menuWidth, menuHeight));
 
         if (currentState == PauseState.Paused)
         {
             GUILayout.Space(20);
             
             // BOTÓN REANUDAR
-            if (GUILayout.Button(LocalizationManager.Instance.Get("pause_resume"), buttonStyle, GUILayout.Height(60)))
+            if (GUILayout.Button(LocalizationManager.Instance.Get("pause_resume"), s.Button, GUILayout.Height(60)))
             {
                 ResumeGame();
             }
             GUILayout.Space(25);
 
             // BOTÓN OPCIONES
-            if (GUILayout.Button(LocalizationManager.Instance.Get("pause_options"), buttonStyle, GUILayout.Height(60)))
+            if (GUILayout.Button(LocalizationManager.Instance.Get("pause_options"), s.Button, GUILayout.Height(60)))
             {
                 PlayClickSound();
                 currentState = PauseState.Settings;
@@ -299,8 +341,9 @@ public class PauseMenuManager : MonoBehaviour
             GUILayout.Space(25);
 
             // BOTÓN SALIR AL MENÚ
-            buttonStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
-            if (GUILayout.Button(LocalizationManager.Instance.Get("pause_quit"), buttonStyle, GUILayout.Height(60)))
+            var quitBtnStyle = new GUIStyle(s.Button);
+            quitBtnStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
+            if (GUILayout.Button(LocalizationManager.Instance.Get("pause_quit"), quitBtnStyle, GUILayout.Height(60)))
             {
                 PlayClickSound();
                 Time.timeScale = 1f; // Reestablecer escala de tiempo antes de cambiar de escena
@@ -309,20 +352,16 @@ public class PauseMenuManager : MonoBehaviour
         }
         else if (currentState == PauseState.Settings)
         {
-            GUILayout.Label(LocalizationManager.Instance.Get("pause_settings_title"), sectionHeaderStyle, GUILayout.Height(30));
+            GUILayout.Label(LocalizationManager.Instance.Get("pause_settings_title"), s.SectionHeader, GUILayout.Height(50));
             GUILayout.Space(15);
 
             // Estilos para pestañas
-            GUIStyle tabButtonStyle = new GUIStyle(GUI.skin.button);
-            tabButtonStyle.fontSize = 15;
-            tabButtonStyle.fontStyle = FontStyle.Bold;
-            tabButtonStyle.normal.textColor = Color.gray;
-            tabButtonStyle.hover.textColor = Color.red;
+            GUIStyle tabButtonStyle = new GUIStyle(s.TabButton);
 
             GUILayout.BeginHorizontal();
             
             // Pestaña Audio & Sensibilidad
-            tabButtonStyle.normal.textColor = activeSettingsTab == 0 ? Color.red : Color.gray;
+            tabButtonStyle.normal.textColor = activeSettingsTab == 0 ? s.BrandRed : Color.gray;
             if (GUILayout.Button(LocalizationManager.Instance.Get("pause_tab_audio"), tabButtonStyle, GUILayout.Height(35)))
             {
                 PlayClickSound();
@@ -330,7 +369,7 @@ public class PauseMenuManager : MonoBehaviour
             }
 
             // Pestaña Gráficos y Rendimiento
-            tabButtonStyle.normal.textColor = activeSettingsTab == 1 ? Color.red : Color.gray;
+            tabButtonStyle.normal.textColor = activeSettingsTab == 1 ? s.BrandRed : Color.gray;
             if (GUILayout.Button(LocalizationManager.Instance.Get("pause_tab_graphics"), tabButtonStyle, GUILayout.Height(35)))
             {
                 PlayClickSound();
@@ -342,23 +381,15 @@ public class PauseMenuManager : MonoBehaviour
 
             if (activeSettingsTab == 0)
             {
-                // Estilos para barras deslizantes gruesas y cómodas al tacto en móvil
-                GUIStyle sliderTrackStyle = new GUIStyle(GUI.skin.horizontalSlider);
-                sliderTrackStyle.fixedHeight = 22f;
-
-                GUIStyle sliderThumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb);
-                sliderThumbStyle.fixedWidth = 32f;
-                sliderThumbStyle.fixedHeight = 32f;
-
                 // 1. Control de volumen
-                GUILayout.Label(LocalizationManager.Instance.GetFormat("pause_volume", Mathf.RoundToInt(masterVolume * 100)), labelStyle);
-                masterVolume = GUILayout.HorizontalSlider(masterVolume, 0f, 1f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
+                GUILayout.Label(LocalizationManager.Instance.GetFormat("pause_volume", Mathf.RoundToInt(masterVolume * 100)), s.Label);
+                masterVolume = GUILayout.HorizontalSlider(masterVolume, 0f, 1f, s.SliderTrack, s.SliderThumb, GUILayout.Height(32f));
                 AudioListener.volume = masterVolume;
                 GUILayout.Space(8);
 
                 // 2. Control de sensibilidad
-                GUILayout.Label(LocalizationManager.Instance.GetFormat("pause_sensitivity", mouseSensitivity), labelStyle);
-                mouseSensitivity = GUILayout.HorizontalSlider(mouseSensitivity, 0.5f, 6.0f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
+                GUILayout.Label(LocalizationManager.Instance.GetFormat("pause_sensitivity", mouseSensitivity), s.Label);
+                mouseSensitivity = GUILayout.HorizontalSlider(mouseSensitivity, 0.5f, 6.0f, s.SliderTrack, s.SliderThumb, GUILayout.Height(32f));
                 if (playerObj != null)
                 {
                     var controller = playerObj.GetComponentInChildren<StarterAssets.FirstPersonController>();
@@ -371,8 +402,8 @@ public class PauseMenuManager : MonoBehaviour
 
                 // 3. Control de Escala de Interfaz / HUD (Móvil y PC)
                 float currentHudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
-                GUILayout.Label(LocalizationManager.Instance.GetFormat("pause_hud", currentHudScale), labelStyle);
-                float newHudScale = GUILayout.HorizontalSlider(currentHudScale, 0.85f, 1.75f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
+                GUILayout.Label(LocalizationManager.Instance.GetFormat("pause_hud", currentHudScale), s.Label);
+                float newHudScale = GUILayout.HorizontalSlider(currentHudScale, 0.85f, 1.75f, s.SliderTrack, s.SliderThumb, GUILayout.Height(32f));
                 if (Mathf.Abs(newHudScale - currentHudScale) > 0.01f)
                 {
                     PlayerPrefs.SetFloat("HUDScale", newHudScale);
@@ -382,8 +413,8 @@ public class PauseMenuManager : MonoBehaviour
 
                 // Pantalla completa
                 GUILayout.BeginHorizontal();
-                GUILayout.Label(LocalizationManager.Instance.Get("pause_fullscreen"), labelStyle, GUILayout.Width(200));
-                isFullscreen = GUILayout.Toggle(isFullscreen, "");
+                GUILayout.Label(LocalizationManager.Instance.Get("pause_fullscreen"), s.Label, GUILayout.Width(200));
+                isFullscreen = GUILayout.Toggle(isFullscreen, "", s.Toggle);
                 if (Screen.fullScreen != isFullscreen)
                 {
                     Screen.fullScreen = isFullscreen;
@@ -393,19 +424,17 @@ public class PauseMenuManager : MonoBehaviour
             else
             {
                 // CALIDAD DE GRÁFICOS
-                GUILayout.Label(LocalizationManager.Instance.Get("pause_graphics_quality"), labelStyle);
+                GUILayout.Label(LocalizationManager.Instance.Get("pause_graphics_quality"), s.Label);
                 GUILayout.Space(5);
                 GUILayout.BeginHorizontal();
                 
-                GUIStyle optionSelectStyle = new GUIStyle(GUI.skin.button);
-                optionSelectStyle.fontSize = 15;
-                optionSelectStyle.fontStyle = FontStyle.Bold;
+                GUIStyle optionSelectStyle = new GUIStyle(s.OptionSelect);
 
                 string[] qualityLevels = { "BAJO", "MEDIO", "ALTO" };
                 for (int i = 0; i < qualityLevels.Length; i++)
                 {
                     bool isSelected = selectedQualityIndex == i;
-                    optionSelectStyle.normal.textColor = isSelected ? Color.red : Color.gray;
+                    optionSelectStyle.normal.textColor = isSelected ? s.BrandRed : Color.gray;
                     if (GUILayout.Button(qualityLevels[i], optionSelectStyle, GUILayout.Height(35)))
                     {
                         PlayClickSound();
@@ -417,11 +446,11 @@ public class PauseMenuManager : MonoBehaviour
                 GUILayout.Space(25);
 
                 // RESOLUCIÓN (PC vs Móvil)
-                GUILayout.Label(LocalizationManager.Instance.Get("pause_resolution"), labelStyle);
+                GUILayout.Label(LocalizationManager.Instance.Get("pause_resolution"), s.Label);
                 GUILayout.Space(5);
 
                 #if UNITY_ANDROID || UNITY_IOS
-                GUIStyle centeredLabelStyle = new GUIStyle(labelStyle);
+                GUIStyle centeredLabelStyle = new GUIStyle(s.Label);
                 centeredLabelStyle.normal.textColor = Color.gray;
                 GUILayout.Label(LocalizationManager.Instance.GetFormat("pause_native_res", Screen.currentResolution.width, Screen.currentResolution.height), centeredLabelStyle, GUILayout.Height(35));
                 #else
@@ -429,9 +458,7 @@ public class PauseMenuManager : MonoBehaviour
                 {
                     GUILayout.BeginHorizontal();
                     
-                    GUIStyle cycleButtonStyle = new GUIStyle(GUI.skin.button);
-                    cycleButtonStyle.fontSize = 18;
-                    cycleButtonStyle.fontStyle = FontStyle.Bold;
+                    GUIStyle cycleButtonStyle = new GUIStyle(s.SmallButton);
 
                     if (GUILayout.Button("<", cycleButtonStyle, GUILayout.Width(45), GUILayout.Height(35)))
                     {
@@ -441,7 +468,7 @@ public class PauseMenuManager : MonoBehaviour
                         Screen.SetResolution(targetRes.width, targetRes.height, isFullscreen);
                     }
 
-                    GUIStyle resLabelStyle = new GUIStyle(labelStyle);
+                    GUIStyle resLabelStyle = new GUIStyle(s.Label);
                     resLabelStyle.alignment = TextAnchor.MiddleCenter;
                     GUILayout.Label($"{pcResolutions[selectedResIndex].width} x {pcResolutions[selectedResIndex].height}", resLabelStyle, GUILayout.Height(35));
 
@@ -457,7 +484,7 @@ public class PauseMenuManager : MonoBehaviour
                 }
                 else
                 {
-                    GUILayout.Label($"{Screen.width}x{Screen.height}", labelStyle);
+                    GUILayout.Label($"{Screen.width}x{Screen.height}", s.Label);
                 }
                 #endif
 
@@ -465,7 +492,11 @@ public class PauseMenuManager : MonoBehaviour
 
                 // Botón para calibración dedicada
                 float savedGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
-                if (GUILayout.Button(LocalizationManager.Instance.GetFormat("pause_adjust_gamma", savedGamma), buttonStyle, GUILayout.Height(45)))
+                string gammaLabel = LocalizationManager.Instance != null &&
+                    LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH
+                    ? $"ADJUST BRIGHTNESS  ({savedGamma:F1}x)"
+                    : $"AJUSTAR BRILLO  ({savedGamma:F1}x)";
+                if (GUILayout.Button(gammaLabel, s.Button, GUILayout.Height(45)))
                 {
                     PlayClickSound();
                     tempGamma = savedGamma;
@@ -476,7 +507,7 @@ public class PauseMenuManager : MonoBehaviour
             GUILayout.Space(30);
 
             // Guardar y Volver
-            if (GUILayout.Button(LocalizationManager.Instance.Get("pause_save_back"), buttonStyle, GUILayout.Height(50)))
+            if (GUILayout.Button(LocalizationManager.Instance.Get("pause_save_back"), s.Button, GUILayout.Height(65)))
             {
                 PlayClickSound();
                 PlayerPrefs.SetFloat("MouseSensitivity", mouseSensitivity);
@@ -491,7 +522,7 @@ public class PauseMenuManager : MonoBehaviour
     }
 
     // ─── PANTALLA GIGANTE DE CALIBRACIÓN DE BRILLO IN-GAME ────────────────────
-    private void DrawGammaCalibrationArea(GUIStyle labelStyle, GUIStyle buttonStyle, GUIStyle headerStyle)
+    private void DrawGammaCalibrationArea(GUIStyle labelStyle, GUIStyle buttonStyle, GUIStyle headerStyle, MenuStyles s)
     {
         // 1. Título e Instrucciones
         GUILayout.Label(LocalizationManager.Instance.Get("pause_gamma_title"), headerStyle, GUILayout.Height(30));
@@ -514,18 +545,11 @@ public class PauseMenuManager : MonoBehaviour
         GUILayout.BeginVertical(GUILayout.Width(380));
         GUILayout.Space(25);
 
-        GUILayout.Label(LocalizationManager.Instance.GetFormat("pause_gamma_level", tempGamma), labelStyle);
+        GUILayout.Label(LocalizationManager.Instance.GetFormat("pause_gamma_level", tempGamma), s.Label);
         GUILayout.Space(5);
 
-        GUIStyle sliderTrackStyle = new GUIStyle(GUI.skin.horizontalSlider);
-        sliderTrackStyle.fixedHeight = 26f;
-
-        GUIStyle sliderThumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb);
-        sliderThumbStyle.fixedWidth = 36f;
-        sliderThumbStyle.fixedHeight = 36f;
-
         // Slider de Brillo
-        float newGamma = GUILayout.HorizontalSlider(tempGamma, 0.5f, 2.0f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(36f), GUILayout.Width(360));
+        float newGamma = GUILayout.HorizontalSlider(tempGamma, 0.5f, 2.0f, s.SliderTrack, s.SliderThumb, GUILayout.Height(36f), GUILayout.Width(360));
         if (Mathf.Abs(newGamma - tempGamma) > 0.005f)
         {
             tempGamma = newGamma;
@@ -535,14 +559,14 @@ public class PauseMenuManager : MonoBehaviour
 
         // Botones finos [-] y [+]
         GUILayout.BeginHorizontal(GUILayout.Width(360));
-        if (GUILayout.Button(" - 0.1 ", GUILayout.Width(90), GUILayout.Height(40)))
+        if (GUILayout.Button(" - 0.1 ", s.SmallButton, GUILayout.Width(90), GUILayout.Height(40)))
         {
             PlayClickSound();
             tempGamma = Mathf.Clamp(tempGamma - 0.1f, 0.5f, 2.0f);
             GammaManager.AplicarGamma(tempGamma);
         }
         GUILayout.FlexibleSpace();
-        if (GUILayout.Button(" + 0.1 ", GUILayout.Width(90), GUILayout.Height(40)))
+        if (GUILayout.Button(" + 0.1 ", s.SmallButton, GUILayout.Width(90), GUILayout.Height(40)))
         {
             PlayClickSound();
             tempGamma = Mathf.Clamp(tempGamma + 0.1f, 0.5f, 2.0f);
@@ -600,9 +624,9 @@ public class PauseMenuManager : MonoBehaviour
         GUILayout.Space(30);
 
         // 3. Botones inferiores: Guardar y Cancelar
-        GUILayout.BeginHorizontal(GUILayout.Width(680));
+        GUILayout.BeginHorizontal(GUILayout.Width(800));
 
-        if (GUILayout.Button(LocalizationManager.Instance.Get("pause_gamma_confirm"), buttonStyle, GUILayout.Width(330), GUILayout.Height(55)))
+        if (GUILayout.Button(LocalizationManager.Instance.Get("pause_gamma_confirm"), buttonStyle, GUILayout.Width(380), GUILayout.Height(65)))
         {
             PlayClickSound();
             PlayerPrefs.SetFloat("GammaLevel", tempGamma);
@@ -613,7 +637,7 @@ public class PauseMenuManager : MonoBehaviour
 
         GUILayout.Space(20);
 
-        if (GUILayout.Button(LocalizationManager.Instance.Get("pause_gamma_cancel"), buttonStyle, GUILayout.Width(330), GUILayout.Height(55)))
+        if (GUILayout.Button(LocalizationManager.Instance.Get("pause_gamma_cancel"), buttonStyle, GUILayout.Width(380), GUILayout.Height(65)))
         {
             PlayClickSound();
             // Revertir al valor original antes de abrir el menú de calibración

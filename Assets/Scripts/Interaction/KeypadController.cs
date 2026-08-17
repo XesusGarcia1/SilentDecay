@@ -64,7 +64,7 @@ public class KeypadController : MonoBehaviour
 
     void Update()
     {
-        if (isUnlocked) return;
+        if (isUnlocked || Time.timeScale == 0f) return;
 
         if (player != null)
         {
@@ -132,8 +132,15 @@ public class KeypadController : MonoBehaviour
                 float guiMouseX = mousePos.x;
                 float guiMouseY = Screen.height - mousePos.y;
 
-                // Definir el área del cuadro del teclado real (320x440 en el centro) para evitar cierres erróneos al pulsar teclas
-                Rect boxRect = new Rect(Screen.width / 2f - 160f, Screen.height / 2f - 220f, 320f, 440f);
+                float scale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+                #if UNITY_ANDROID || UNITY_IOS
+                scale *= 1.8f;
+                #endif
+                float w = 340f * scale;
+                float h = 460f * scale;
+
+                // Definir el área del cuadro del teclado real escalado para evitar cierres erróneos al pulsar teclas
+                Rect boxRect = new Rect(Screen.width / 2f - w / 2f, Screen.height / 2f - h / 2f, w, h);
                 if (!boxRect.Contains(new Vector2(guiMouseX, guiMouseY)))
                 {
                     CloseKeypad();
@@ -265,7 +272,7 @@ public class KeypadController : MonoBehaviour
 
     void OnGUI()
     {
-        if (isUnlocked) return;
+        if (isUnlocked || Time.timeScale == 0f) return;
 
         // 1. Mostrar prompt flotante de interacción si está cerca
         if (playerNear && !isOpened)
@@ -288,6 +295,15 @@ public class KeypadController : MonoBehaviour
         if (isOpened)
         {
             EnsureTexturesCreated();
+
+            float scale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+            #if UNITY_ANDROID || UNITY_IOS
+            scale *= 1.8f;
+            #endif
+
+            Vector2 center = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            Matrix4x4 oldMat = GUI.matrix;
+            GUI.matrix = Matrix4x4.TRS(center, Quaternion.identity, new Vector3(scale, scale, 1f)) * Matrix4x4.TRS(-center, Quaternion.identity, Vector3.one);
 
             Rect boxRect = new Rect(Screen.width / 2 - 170, Screen.height / 2 - 230, 340, 460);
 
@@ -381,10 +397,12 @@ public class KeypadController : MonoBehaviour
             cStyle.alignment = TextAnchor.MiddleCenter;
             cStyle.normal.textColor = new Color(0.80f, 0.82f, 0.85f);
 
-            if (GUI.Button(closeRect, "CERRAR", cStyle))
+            if (GUI.Button(closeRect, "CANCELAR", cStyle))
             {
                 CloseKeypad();
             }
+
+            GUI.matrix = oldMat;
         }
     }
 

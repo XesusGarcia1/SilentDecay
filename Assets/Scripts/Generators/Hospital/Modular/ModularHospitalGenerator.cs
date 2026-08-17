@@ -83,12 +83,7 @@ namespace ModularHospital
                 return;
             }
 
-            // Asegurar que PauseMenuManager esté siempre presente en la escena para pausar con ESC
-            if (FindObjectOfType<PauseMenuManager>() == null)
-            {
-                GameObject pMenuObj = new GameObject("[PauseMenuManager]");
-                pMenuObj.AddComponent<PauseMenuManager>();
-            }
+            // Nota: PauseMenuManager ahora viaja desde el MainMenu como Singleton persistente
 
             // Asegurar que ElevatorController esté siempre presente en la escena para la Libreta de Notas [TAB]
             if (FindObjectOfType<ElevatorController>() == null)

@@ -194,14 +194,14 @@ public class GameEndingManager : MonoBehaviour
             if (!string.IsNullOrEmpty(currentEndingMessage))
             {
                 GUIStyle msgStyle = new GUIStyle(GUI.skin.label);
-                msgStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.038f), 18, 32);
+                msgStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.045f), 24, 70);
                 msgStyle.fontStyle = FontStyle.Italic;
                 msgStyle.alignment = TextAnchor.MiddleCenter;
                 msgStyle.wordWrap = true;
                 msgStyle.normal.textColor = new Color(0.92f, 0.92f, 0.92f, 0.95f);
 
-                float w = Screen.width * 0.78f;
-                float h = 100f;
+                float w = Screen.width * 0.85f;
+                float h = 150f;
                 GUI.Label(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h),
                     currentEndingMessage, msgStyle);
             }
@@ -209,31 +209,31 @@ public class GameEndingManager : MonoBehaviour
             if (showFinalTitle)
             {
                 GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
-                titleStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.06f), 28, 50);
+                titleStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.08f), 36, 110);
                 titleStyle.fontStyle = FontStyle.Bold;
                 titleStyle.alignment = TextAnchor.MiddleCenter;
                 titleStyle.normal.textColor = new Color(0.95f, 0.82f, 0.25f);
 
                 GUIStyle subStyle = new GUIStyle(GUI.skin.label);
-                subStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.03f), 16, 24);
+                subStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.04f), 22, 50);
                 subStyle.fontStyle = FontStyle.Italic;
                 subStyle.alignment = TextAnchor.MiddleCenter;
                 subStyle.normal.textColor = new Color(0.75f, 0.75f, 0.75f);
 
-                float w = Screen.width * 0.9f;
-                GUI.Label(new Rect((Screen.width - w) / 2f, Screen.height / 2f - 70f, w, 70f),
+                float w = Screen.width * 0.95f;
+                GUI.Label(new Rect((Screen.width - w) / 2f, Screen.height / 2f - 90f, w, 90f),
                     endingTitle, titleStyle);
                 string subtitle = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("end_depot_subtitle") : "Sobreviviste al Depósito Industrial";
-                GUI.Label(new Rect((Screen.width - w) / 2f, Screen.height / 2f + 10f, w, 40f),
+                GUI.Label(new Rect((Screen.width - w) / 2f, Screen.height / 2f + 10f, w, 50f),
                     subtitle, subStyle);
 
                 // Indicación al jugador de que el juego está cargando el menú
                 GUIStyle loadStyle = new GUIStyle(GUI.skin.label);
-                loadStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.022f), 13, 18);
+                loadStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.025f), 16, 28);
                 loadStyle.alignment = TextAnchor.MiddleCenter;
                 loadStyle.normal.textColor = new Color(0.5f, 0.5f, 0.5f, 0.7f);
                 string loadText = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("end_depot_loading") : "Volviendo al Menú Principal...";
-                GUI.Label(new Rect((Screen.width - w) / 2f, Screen.height - 80f, w, 30f),
+                GUI.Label(new Rect((Screen.width - w) / 2f, Screen.height - 100f, w, 40f),
                     loadText, loadStyle);
             }
         }

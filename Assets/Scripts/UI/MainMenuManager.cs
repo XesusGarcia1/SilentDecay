@@ -19,10 +19,17 @@ public class MainMenuManager : MonoBehaviour
 
     [Header("Título Personalizado")]
     public string gameTitle = "SILENT DECAY";
+    public Texture2D titleLogo; // NUEVA VARIABLE PARA EL LOGO
+    [Range(20f, 500f)]
+    public float logoHeight = 80f; // Controla el tamaño del logo desde el Inspector
 
     [Header("Configuración de Niveles")]
     [Tooltip("Si está desactivado, el botón para ir a los Túneles estará oculto o deshabilitado en el menú de partida")]
     public bool enableTunnelsLevel = true;
+
+    [Header("Estilos de Botones")]
+    public Texture2D btnNormalTexture;
+    public Texture2D btnHoverTexture;
 
     [Header("Redes Sociales")]
     public string instagramURL = "https://www.instagram.com/lxesusgarcial";
@@ -226,23 +233,42 @@ public class MainMenuManager : MonoBehaviour
         // Estilos compartidos cacheados (crucial para no crear texturas dinámicas cada frame)
         if (cachedStyles == null)
         {
-            cachedStyles = new MenuStyles();
+            cachedStyles = new MenuStyles(btnNormalTexture, btnHoverTexture);
         }
         var styles = cachedStyles;
 
         // Título
-        GUILayout.BeginArea(new Rect(0, 60, 1920f, 150));
-        GUILayout.Label(gameTitle, styles.Title, GUILayout.Height(65));
+        float areaHeight = (titleLogo != null) ? Mathf.Max(150f, logoHeight + 50f) : 150f;
+        GUILayout.BeginArea(new Rect(0, 60, 1920f, areaHeight));
+        
+        if (titleLogo != null)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            float height = logoHeight;
+            float width = height * ((float)titleLogo.width / titleLogo.height);
+            GUILayout.Label(titleLogo, GUILayout.Width(width), GUILayout.Height(height));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+        }
+        else
+        {
+            GUILayout.Label(gameTitle, styles.Title, GUILayout.Height(65));
+        }
+        
         GUILayout.Label("• REC  00:00:01  |  VHS  |  OCT.24 1997", styles.SubTitle, GUILayout.Height(22));
         GUILayout.EndArea();
 
-        // Área de contenido
+        // El contenido siempre arranca debajo del logo+VHS, sin importar el estado
         bool isSettingsCalibrating = (currentState == MenuState.Settings && screenSettings != null && screenSettings.IsCalibrating);
+        float logoAreaBottom = 60f + Mathf.Max(150f, logoHeight + 50f) + 10f;
+        float availableH = 1080f - logoAreaBottom - 20f; // Espacio restante hasta el borde inferior
+
         int menuW = (currentState == MenuState.LevelSelect) ? 1280 :
                     (currentState == MenuState.PlayOptions || currentState == MenuState.DepotOptions) ? 1100 :
-                    (isSettingsCalibrating ? 720 : 640);
-        int menuH = (currentState == MenuState.LevelSelect) ? 640  : (isSettingsCalibrating ? 620 : 580);
-        float menuY = (currentState == MenuState.LevelSelect) ? (1080f / 2f - 240f) : (isSettingsCalibrating ? (1080f / 2f - 230f) : (1080f / 2f - 200f));
+                    (isSettingsCalibrating ? 820 : 640);
+        int menuH = isSettingsCalibrating ? 620 : (int)Mathf.Min(700f, availableH);
+        float menuY = logoAreaBottom;
         GUILayout.BeginArea(new Rect(1920f / 2f - menuW / 2f, menuY, menuW, menuH));
         GUILayout.Space(10);
 

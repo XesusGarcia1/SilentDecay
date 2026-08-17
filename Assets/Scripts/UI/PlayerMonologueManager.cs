@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using UnityEngine.SceneManagement;
 
 public class PlayerMonologueManager : MonoBehaviour
 {
@@ -17,10 +18,26 @@ public class PlayerMonologueManager : MonoBehaviour
         {
             instance = this;
             DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += OnSceneLoaded;
         }
         else
         {
             Destroy(gameObject);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // Limpiar diálogos activos al volver al menú o entrar a la pantalla de carga
+        if (scene.name == "MainMenu" || scene.name == "LoadingScene")
+        {
+            activeText = "";
+            displayTimer = 0f;
         }
     }
 
@@ -70,18 +87,20 @@ public class PlayerMonologueManager : MonoBehaviour
         if (subtitleStyle == null)
         {
             subtitleStyle = new GUIStyle();
-            subtitleStyle.fontSize = 20;
             subtitleStyle.fontStyle = FontStyle.Italic;
             subtitleStyle.alignment = TextAnchor.MiddleCenter;
             subtitleStyle.normal.textColor = new Color(0.95f, 0.95f, 0.95f, 1f); // Blanco crudo desgastado
             subtitleStyle.wordWrap = true;
         }
 
-        // Posicionamiento de la barra de subtítulo (ubicada arriba del prompt de interacción para evitar empalmes)
-        float width = Mathf.Min(800f, Screen.width - 60f);
-        float height = 70f;
+        // Auto escalar en base a resolución para asegurar legibilidad en PC y Móvil
+        subtitleStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(Screen.height * 0.045f), 24, 60);
+
+        // Posicionamiento de la barra de subtítulo
+        float width = Mathf.Min(1200f, Screen.width * 0.9f);
+        float height = subtitleStyle.fontSize * 3.5f;
         float x = Screen.width / 2f - width / 2f;
-        float y = Screen.height - 210f; // Posicionado limpiamente por encima de las alertas de interacción (Y = Screen.height - 120f)
+        float y = Screen.height - 210f; // Posicionado limpiamente por encima de las alertas de interacción
 
         Rect barRect = new Rect(x, y, width, height);
 
