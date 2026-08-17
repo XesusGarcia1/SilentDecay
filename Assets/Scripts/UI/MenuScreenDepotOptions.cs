@@ -92,7 +92,7 @@ public class MenuScreenDepotOptions : MonoBehaviour
         GUILayout.FlexibleSpace();
 
         var redBtn = new GUIStyle(s.Button);
-        redBtn.normal.textColor = Color.red;
+        redBtn.normal.textColor = s.BrandRed;
         redBtn.hover.textColor  = Color.white;
 
         if (GUILayout.Button(startBtn, redBtn, GUILayout.Height(60)))
@@ -122,7 +122,7 @@ public class MenuScreenDepotOptions : MonoBehaviour
         for (int i = 0; i < labels.Length; i++)
         {
             var st = new GUIStyle(s.OptionSelect);
-            st.normal.textColor = (index == i) ? Color.red : Color.gray;
+            st.normal.textColor = (index == i) ? s.BrandRed : Color.gray;
             if (GUILayout.Button(labels[i], st, GUILayout.Height(40)))
             {
                 ctx.PlayClickSound();

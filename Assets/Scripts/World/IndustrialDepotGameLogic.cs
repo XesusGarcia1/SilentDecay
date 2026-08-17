@@ -12,13 +12,7 @@ public class IndustrialDepotGameLogic : MonoBehaviour
 
     private void Start()
     {
-        // 1. Asegurar que el menú de pausa (PauseMenuManager) esté presente
-        if (FindFirstObjectByType<PauseMenuManager>() == null)
-        {
-            GameObject pMenu = new GameObject("[PauseMenuManager]");
-            pMenu.AddComponent<PauseMenuManager>();
-            Debug.Log("[IndustrialDepotGameLogic]: PauseMenuManager instanciado automáticamente.");
-        }
+        // Nota: PauseMenuManager viaja desde el MainMenu como Singleton persistente
 
         // Instanciar managers globales para el depósito
         if (FindFirstObjectByType<GlobalPipeDripManager>() == null)

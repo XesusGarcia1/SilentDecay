@@ -364,13 +364,7 @@ public partial class TunnelsGenerator : MonoBehaviour
 	{
 		if (instance != this) return;
 
-		// Auto-añadir el PauseMenuManager si no existe
-		PauseMenuManager pauseManager = gameObject.GetComponent<PauseMenuManager>();
-		if (pauseManager == null)
-		{
-			gameObject.AddComponent<PauseMenuManager>();
-			UnityEngine.Debug.Log("[TunnelsGenerator] Componente PauseMenuManager auto-añadido con éxito.");
-		}
+		// Nota: PauseMenuManager viaja desde el MainMenu como Singleton persistente
 
 		// Forzar orientación horizontal (Landscape) en móviles y permitir rotación cómoda de 180 grados
 		Screen.orientation = ScreenOrientation.AutoRotation;

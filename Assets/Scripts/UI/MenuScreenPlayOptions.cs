@@ -159,7 +159,7 @@ public class MenuScreenPlayOptions : MonoBehaviour
         for (int i = 0; i < labels.Length; i++)
         {
             var st = new GUIStyle(s.OptionSelect);
-            st.normal.textColor = (index == i) ? Color.red : Color.gray;
+            st.normal.textColor = (index == i) ? s.BrandRed : Color.gray;
             if (GUILayout.Button(labels[i], st, GUILayout.Height(40)))
             {
                 ctx.PlayClickSound();
@@ -235,7 +235,7 @@ public class MenuScreenPlayOptions : MonoBehaviour
     static GUIStyle RedButton(MenuStyles s)
     {
         var st = new GUIStyle(s.Button);
-        st.normal.textColor = Color.red;
+        st.normal.textColor = s.BrandRed;
         st.hover.textColor  = Color.white;
         return st;
     }
