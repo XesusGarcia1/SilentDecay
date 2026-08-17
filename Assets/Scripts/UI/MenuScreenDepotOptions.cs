@@ -55,15 +55,7 @@ public class MenuScreenDepotOptions : MonoBehaviour
         GUILayout.Label(title, s.SectionHeader, GUILayout.Height(30));
         GUILayout.Space(10);
 
-        // Aviso de dificultad del mapa
-        GUIStyle warningStyle = new GUIStyle(s.SubTitle);
-        warningStyle.normal.textColor = new Color(1f, 0.45f, 0.1f);
-        warningStyle.fontStyle = FontStyle.Bold;
-        string warnMsg = isEN ? "⚠️  This map is harder than the Hospital. Recommended difficulty: HARD."  :
-                         isPT ? "⚠️  Este mapa é mais difícil que o Hospital. Dificuldade recomendada: DIFÍCIL." :
-                         isRU ? "⚠️  Эта карта сложнее, чем Больница. Рекомендуемая сложность: СЛОЖНО." :
-                                "⚠️  Este mapa es más difícil que el Hospital. Dificultad recomendada: DIFÍCIL.";
-        GUILayout.Label(warnMsg, warningStyle, GUILayout.Height(26));
+        // Aviso de dificultad del mapa eliminado
         GUILayout.Space(18);
 
         GUILayout.BeginHorizontal();

@@ -139,9 +139,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
 
         GUILayout.Space(12);
         GUILayout.Label(label, cardLabel, GUILayout.Height(50));
-        GUILayout.Space(6);
-        GUILayout.Label(diffText, diffTag, GUILayout.Height(22));
-        GUILayout.Space(6);
+        GUILayout.Space(16);
 
         if (GUILayout.Button(playText, playBtn, GUILayout.Height(40)))
         {

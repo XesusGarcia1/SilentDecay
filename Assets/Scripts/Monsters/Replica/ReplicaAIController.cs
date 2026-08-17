@@ -87,6 +87,7 @@ public class ReplicaAIController : MonoBehaviour
     public float safeZoneTimer = 0f;
     public float stareTimer = 0f;
     private float zoneCheckTimer = 0f;
+    private float fakeAudioTimer = 0f;
 
     private struct LightState
     {
@@ -267,6 +268,56 @@ public class ReplicaAIController : MonoBehaviour
         HandleRandomBreathingSFX();
         HandleAnimatorTwitch();
         HandlePhaseTransitionTriggers();
+        
+        HandleLightManipulation();
+        HandleAudioDeception();
+    }
+
+    private void HandleLightManipulation()
+    {
+        if (currentPhase == ReplicaPhase.F2_AdvancedTransformation || currentPhase == ReplicaPhase.F3_MonstrousForm)
+        {
+            float distToPlayer = Vector3.Distance(GetActiveModelPosition(), playerTransform.position);
+            if (distToPlayer <= 15.0f && isBeingObserved)
+            {
+                FlashlightController fc = FindObjectOfType<FlashlightController>();
+                if (fc != null && fc.useBattery && fc.currentBattery > 0)
+                {
+                    fc.currentBattery -= 2.5f * Time.deltaTime;
+                    fc.currentBattery = Mathf.Max(0, fc.currentBattery);
+                }
+            }
+        }
+    }
+
+    private void HandleAudioDeception()
+    {
+        if (GetCurrentProgressionLevel() < 1 || isBeingObserved) return;
+        
+        fakeAudioTimer += Time.deltaTime;
+        if (fakeAudioTimer > Random.Range(20f, 40f))
+        {
+            fakeAudioTimer = 0f;
+            Vector3 fakePos = playerTransform.position - playerTransform.forward * 5f;
+            if (audioAliento != null)
+            {
+                AudioSource.PlayClipAtPoint(audioAliento, fakePos, 0.8f);
+            }
+            else if (audioCrujidoHuesos != null)
+            {
+                AudioSource.PlayClipAtPoint(audioCrujidoHuesos, fakePos, 0.8f);
+            }
+        }
+    }
+
+    private void SpawnTrapIllusion()
+    {
+        Vector3 trapPos = playerTransform.position - playerTransform.forward * 3.5f;
+        trapPos = AlignToGround(trapPos);
+        
+        GameObject trap = Instantiate(illusionMannequinPrefab, trapPos, Quaternion.LookRotation((playerTransform.position - trapPos).normalized));
+        activeIllusions.Add(trap);
+        Destroy(trap, 10f); // Se auto destruye en 10 segundos
     }
 
     private void HandleSafeZoneMechanic()
@@ -337,8 +388,23 @@ public class ReplicaAIController : MonoBehaviour
             stareTimer += Time.deltaTime;
             if (stareTimer >= maxStareTime)
             {
-                Debug.Log($"[Replica] Concurso de miradas ganado ({stareTimer:F1}s / {maxStareTime:F1}s). Reseteando a Fase 0.");
-                ResetToF0();
+                int progLvl = GetCurrentProgressionLevel();
+                if (progLvl >= 2 && Random.value <= 0.3f)
+                {
+                    Debug.Log($"[Replica] FALSO CONCURSO. El monstruo avanza a Fase 3.");
+                    if (sfxAudioSource != null && audioCrujidoCuello != null)
+                    {
+                        sfxAudioSource.PlayOneShot(audioCrujidoCuello);
+                    }
+                    currentPhase = ReplicaPhase.F3_MonstrousForm;
+                    stareTimer = 0f;
+                    UpdatePhaseVisuals();
+                }
+                else
+                {
+                    Debug.Log($"[Replica] Concurso de miradas ganado ({stareTimer:F1}s / {maxStareTime:F1}s). Reseteando a Fase 0.");
+                    ResetToF0();
+                }
             }
         }
         else
@@ -441,6 +507,14 @@ public class ReplicaAIController : MonoBehaviour
         
         // Velocidad de carrera en F3: 5.2m/s al inicio, hasta 7.8m/s al tener todas las llaves
         float chaseSpeed = 5.2f + (progLevel * 0.65f);
+
+        // NUEVA MECÁNICA: EMBESTIDA (LUNGE)
+        // Si ya inició la animación de ataque, recibe un boost de velocidad del 40% para que no puedas correr y escapar
+        if (hasTriggeredAttackAnimation)
+        {
+            chaseSpeed *= 1.40f;
+        }
+
         currentChaseSpeed = chaseSpeed;
 
         // Movimiento físico real habilitado solo en fase de caza (F3)
@@ -459,8 +533,8 @@ public class ReplicaAIController : MonoBehaviour
                 animator.speed = 1.2f; 
                 if (animator.HasState(0, Animator.StringToHash("Run")))
                     animator.Play("Run");
-                else if (animator.HasState(0, Animator.StringToHash("Corre")))
-                    animator.Play("Corre");
+                else if (animator.HasState(0, Animator.StringToHash("Correr")))
+                    animator.Play("Correr");
             }
         }
 
@@ -473,7 +547,7 @@ public class ReplicaAIController : MonoBehaviour
                 attackAnimationTimer = 0f; // Reiniciar contador de ataque
                 if (animator != null)
                 {
-                    animator.speed = 1.0f;
+                    animator.speed = 1.35f; // Animación de ataque más rápida
                     if (animator.HasState(0, Animator.StringToHash("Attack")))
                         animator.Play("Attack");
                     else if (animator.HasState(0, Animator.StringToHash("Atacar")))
@@ -491,7 +565,9 @@ public class ReplicaAIController : MonoBehaviour
         }
 
         // Si alcanza el radio letal Y no hay pared, desatar screamer y matar
-        if (distToPlayer <= attackDistance && hasLineOfSight)
+        // En niveles altos (Difícil), el brazo "llega más lejos" (se aumenta 0.4m el radio letal)
+        float currentKillDist = attackDistance + (progLevel >= 2 ? 0.4f : 0f);
+        if (distToPlayer <= currentKillDist && hasLineOfSight)
         {
             TriggerJumpscareSequence();
             return;
@@ -499,11 +575,12 @@ public class ReplicaAIController : MonoBehaviour
 
         // --- SISTEMA ANTI-ATASCO Y RECUPERACIÓN AUTOMÁTICA AL FALLAR ---
         // 1. Si lanzó animación de ataque y pasaron 2.0s sin matar al jugador (el jugador esquivó)
-        // 2. Si la persecución total lleva más de 6.0s sin alcanzar al jugador
+        // 2. Si la persecución total lleva más de 6.0s (o 10.0s en Difícil) sin alcanzar al jugador
         // 3. Si la visión se perdió por más de 2.5s (el jugador dobló en una esquina)
         // 4. Si el jugador se alejó a más de 11 metros durante la persecución
         bool attackFailed = (hasTriggeredAttackAnimation && attackAnimationTimer > 2.0f);
-        bool chaseTimedOut = (chaseTimer > 6.0f);
+        float maxChaseTime = (progLevel >= 2) ? 10.0f : 6.0f;
+        bool chaseTimedOut = (chaseTimer > maxChaseTime);
         bool lostPlayerInChase = (noLineOfSightTimer > 2.5f);
         bool playerEscapedFar = (distToPlayer > 11.0f);
 

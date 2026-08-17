@@ -108,7 +108,8 @@ public class BatteryItem : MonoBehaviour
             AudioSource.PlayClipAtPoint(pickupSound, transform.position, 1.0f);
         }
 
-        Destroy(gameObject);
+        // En lugar de destruirla, la ocultamos para que el BatteriesForTheMap pueda regenerarla.
+        gameObject.SetActive(false);
     }
 
     void OnGUI()
