@@ -1,20 +1,37 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 
 public class KeySpawnManager : MonoBehaviour
 {
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void AutoRunKeyManager()
     {
         // Solo inyectar si estamos en el juego
         if (Application.isPlaying)
         {
             GameObject manager = new GameObject("[KeySpawnManager]");
+            DontDestroyOnLoad(manager);
             manager.AddComponent<KeySpawnManager>();
         }
     }
 
-    void Start()
+    void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        RunKeySpawnLogic();
+    }
+
+    void RunKeySpawnLogic()
     {
         // Encontrar todas las llaves en la escena
         MetalKeyItem[] allKeys = FindObjectsByType<MetalKeyItem>(FindObjectsSortMode.None);

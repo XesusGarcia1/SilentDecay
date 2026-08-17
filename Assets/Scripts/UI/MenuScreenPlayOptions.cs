@@ -53,6 +53,15 @@ public class MenuScreenPlayOptions : MonoBehaviour
                 tunnelBtn = "  [ IR PARA OS TÚNEIS (NÍVEL 2) ]";
                 backBtn   = "  VOLTAR AO MENU";
             }
+            else if (lang == LocalizationManager.Idioma.РУССКИЙ)
+            {
+                title     = "ПАРАМЕТРЫ ИГРЫ";
+                sizeLabel = "Размер больницы:";
+                diffLabel = "Сложность выживания:";
+                startBtn  = "  [ НАЧАТЬ ИГРУ ]";
+                tunnelBtn = "  [ В ТОННЕЛИ (УРОВЕНЬ 2) ]";
+                backBtn   = "  НАЗАД В МЕНЮ";
+            }
         }
 
         GUILayout.Label(title, s.SectionHeader, GUILayout.Height(30));
@@ -82,13 +91,12 @@ public class MenuScreenPlayOptions : MonoBehaviour
         // Selección de personaje
         string charLabel = "Seleccionar Personaje:";
         string[] charNames = { "ETHAN", "NORA" };
-        if (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH)
+        if (LocalizationManager.Instance != null)
         {
-            charLabel = "Select Character:";
-        }
-        else if (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.PORTUGUES)
-        {
-            charLabel = "Selecionar Personagem:";
+            var lang = LocalizationManager.Instance.GetIdiomaActual();
+            if (lang == LocalizationManager.Idioma.ENGLISH) charLabel = "Select Character:";
+            else if (lang == LocalizationManager.Idioma.PORTUGUES) charLabel = "Selecionar Personagem:";
+            else if (lang == LocalizationManager.Idioma.РУССКИЙ) charLabel = "Выбор персонажа:";
         }
 
         GUILayout.Label(charLabel, s.Label);
@@ -96,8 +104,8 @@ public class MenuScreenPlayOptions : MonoBehaviour
         DrawSelector(s, charNames, ref selectedCharacterIndex);
 
         string charDesc = selectedCharacterIndex == 0 ? 
-            (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH ? "Male Character (Ethan)" : "Personaje Masculino (Ethan)") : 
-            (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH ? "Female Character (Nora)" : "Personaje Femenino (Nora)");
+            (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH ? "Male Character (Ethan)" : (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.РУССКИЙ ? "Мужской персонаж (Ethan)" : "Personaje Masculino (Ethan)")) : 
+            (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH ? "Female Character (Nora)" : (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.РУССКИЙ ? "Женский персонаж (Nora)" : "Personaje Femenino (Nora)"));
 
         GUILayout.Label(charDesc, s.SubTitle);
 
@@ -168,6 +176,7 @@ public class MenuScreenPlayOptions : MonoBehaviour
         {
             LocalizationManager.Idioma.ENGLISH   => new[] { "SMALL",   "MEDIUM", "LARGE" },
             LocalizationManager.Idioma.PORTUGUES => new[] { "PEQUENO", "MÉDIO",  "GRANDE" },
+            LocalizationManager.Idioma.РУССКИЙ   => new[] { "МАЛЕНЬКИЙ", "СРЕДНИЙ", "БОЛЬШОЙ" },
             _                                    => new[] { "CHICO",   "MEDIANO","GRANDE" }
         };
     }
@@ -179,6 +188,7 @@ public class MenuScreenPlayOptions : MonoBehaviour
         {
             LocalizationManager.Idioma.ENGLISH   => new[] { "EASY", "NORMAL", "HARD" },
             LocalizationManager.Idioma.PORTUGUES => new[] { "FÁCIL","NORMAL", "DIFÍCIL" },
+            LocalizationManager.Idioma.РУССКИЙ   => new[] { "ЛЕГКО", "НОРМАЛЬНО", "СЛОЖНО" },
             _                                    => new[] { "FÁCIL","NORMAL", "DIFÍCIL" }
         };
     }

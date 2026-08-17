@@ -31,6 +31,10 @@ public static class LevelIntroData
         {
             return LocalizationManager.Instance.Get(character == "Female" ? "intro_tunnels_nora" : "intro_tunnels_ethan");
         }
+        else if (lower.Contains("industrial") || lower.Contains("depot"))
+        {
+            return LocalizationManager.Instance.Get(character == "Female" ? "intro_depot_nora" : "intro_depot_ethan");
+        }
         return null;
     }
 
@@ -52,6 +56,11 @@ public static class LevelIntroData
             string key = (character == "Female") ? "monologue_tunnels_nora" : "monologue_tunnels_ethan";
             PlayerMonologueManager.ShowDialogue(LocalizationManager.Instance.Get(key), 6.0f);
         }
+        else if (mapType.ToLower() == "industrial" || mapType.ToLower() == "depot")
+        {
+            string key = (character == "Female") ? "monologue_depot_nora" : "monologue_depot_ethan";
+            PlayerMonologueManager.ShowDialogue(LocalizationManager.Instance.Get(key), 6.0f);
+        }
     }
 
     private static string GetHospitalIntroTextFallback(string character)
@@ -63,3 +72,4 @@ public static class LevelIntroData
                "====================================================";
     }
 }
+

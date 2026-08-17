@@ -48,7 +48,7 @@ public class MenuScreenSettings : MonoBehaviour
         }
 
         // ─── Título ───────────────────────────────────────────────────────────
-        string title = GetLocalized("CONFIGURACIÓN DE HARDWARE", "HARDWARE SETTINGS", "CONFIGURAÇÃO DE HARDWARE");
+        string title = GetLocalized("CONFIGURACIÓN DE HARDWARE", "HARDWARE SETTINGS", "CONFIGURAÇÃO DE HARDWARE", "НАСТРОЙКИ ОБОРУДОВАНИЯ");
         GUILayout.Label(title, s.SectionHeader, GUILayout.Height(30));
         GUILayout.Space(10);
 
@@ -61,11 +61,11 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.BeginHorizontal();
 
         tabStyle.normal.textColor = activeTab == 0 ? Color.red : Color.gray;
-        string tab0 = GetLocalized("AUDIO Y CONTROLES", "AUDIO & CONTROLS", "ÁUDIO E CONTROLES");
+        string tab0 = GetLocalized("AUDIO Y CONTROLES", "AUDIO & CONTROLS", "ÁUDIO E CONTROLES", "АУДИО И УПРАВЛЕНИЕ");
         if (GUILayout.Button(tab0, tabStyle, GUILayout.Height(35))) { ctx.PlayClickSound(); activeTab = 0; }
 
         tabStyle.normal.textColor = activeTab == 1 ? Color.red : Color.gray;
-        string tab1 = GetLocalized("GRÁFICOS Y RENDIMIENTO", "GRAPHICS & RUNTIME", "GRÁFICOS E VIDEO");
+        string tab1 = GetLocalized("GRÁFICOS Y RENDIMIENTO", "GRAPHICS & RUNTIME", "GRÁFICOS E VIDEO", "ГРАФИКА И ПРОИЗВОДИТЕЛЬНОСТЬ");
         if (GUILayout.Button(tab1, tabStyle, GUILayout.Height(35))) { ctx.PlayClickSound(); activeTab = 1; }
 
         GUILayout.EndHorizontal();
@@ -77,7 +77,7 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.Space(12);
 
         // ─── Guardar y Volver ─────────────────────────────────────────────────
-        string saveBtn = GetLocalized("  GUARDAR Y VOLVER", "  SAVE & BACK", "  SALVAR E VOLTAR");
+        string saveBtn = GetLocalized("  GUARDAR Y VOLVER", "  SAVE & BACK", "  SALVAR E VOLTAR", "  СОХРАНИТЬ И НАЗАД");
         if (GUILayout.Button(saveBtn, s.Button, GUILayout.Height(48)))
         {
             ctx.PlayClickSound();
@@ -110,14 +110,14 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.Space(8);
 
         // Sensibilidad
-        string sensLabel = Loc("menu_sensibilidad", "Sensibilidad de Cámara");
-        GUILayout.Label($"{sensLabel}: {ctx.mouseSensitivity:F1}", s.Label);
+        string mSensLabel = GetLocalized("Sensibilidad del Mouse", "Mouse Sensitivity", "Sensibilidade do Mouse", "Чувствительность мыши");
+        GUILayout.Label($"{mSensLabel}: {ctx.mouseSensitivity:F1}", s.Label);
         ctx.mouseSensitivity = GUILayout.HorizontalSlider(ctx.mouseSensitivity, 0.5f, 6.0f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
         GUILayout.Space(8);
 
         // Tamaño de Interfaz / HUD
         float currentHudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
-        string hudLabel = GetLocalized("Tamaño de Interfaz / HUD", "UI / HUD Scale", "Tamanho de HUD / UI");
+        string hudLabel = GetLocalized("Tamaño de Interfaz / HUD", "UI / HUD Scale", "Tamanho de HUD / UI", "Размер интерфейса / HUD");
         GUILayout.Label($"{hudLabel}: {currentHudScale:F2}x", s.Label);
         float newHudScale = GUILayout.HorizontalSlider(currentHudScale, 0.85f, 1.75f, sliderTrackStyle, sliderThumbStyle, GUILayout.Height(32f));
         if (Mathf.Abs(newHudScale - currentHudScale) > 0.01f)
@@ -135,7 +135,7 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.Space(8);
 
         // Pantalla completa
-        string fsLabel = GetLocalized("Pantalla Completa", "Full Screen", "Tela Cheia");
+        string fsLabel = GetLocalized("Pantalla Completa", "Full Screen", "Tela Cheia", "Полноэкранный режим");
         GUILayout.BeginHorizontal();
         GUILayout.Label(fsLabel, s.Label, GUILayout.Width(200));
         ctx.isFullscreen = GUILayout.Toggle(ctx.isFullscreen, "");
@@ -147,25 +147,47 @@ public class MenuScreenSettings : MonoBehaviour
     {
         if (LocalizationManager.Instance == null) return;
         var cur = LocalizationManager.Instance.GetIdiomaActual();
+        int curIndex = (int)cur;
+
+        string langName = cur switch
+        {
+            LocalizationManager.Idioma.ESPAÑOL => "ESPAÑOL",
+            LocalizationManager.Idioma.ENGLISH => "ENGLISH",
+            LocalizationManager.Idioma.PORTUGUES => "PORTUGUÊS",
+            LocalizationManager.Idioma.РУССКИЙ => "РУССКИЙ",
+            _ => "ESPAÑOL"
+        };
 
         GUILayout.BeginHorizontal();
-        DrawLangBtn(s, "ESPAÑOL",  LocalizationManager.Idioma.ESPAÑOL,  cur);
-        DrawLangBtn(s, "ENGLISH",  LocalizationManager.Idioma.ENGLISH,  cur);
-        DrawLangBtn(s, "PORTUGUÊS",LocalizationManager.Idioma.PORTUGUES, cur);
-        GUILayout.EndHorizontal();
-    }
 
-    void DrawLangBtn(MenuStyles s, string label, LocalizationManager.Idioma idioma, LocalizationManager.Idioma cur)
-    {
-        var st = new GUIStyle(s.OptionSelect);
-        st.normal.textColor = (cur == idioma) ? Color.red : Color.gray;
-        if (GUILayout.Button(label, st, GUILayout.Height(35)))
+        GUIStyle cycleBtn = new GUIStyle(s.Button);
+        cycleBtn.fontSize = 22;
+        cycleBtn.fixedHeight = 0;
+        cycleBtn.fixedWidth = 0;
+        
+        if (GUILayout.Button("<", cycleBtn, GUILayout.Width(50), GUILayout.Height(40)))
         {
             ctx.PlayClickSound();
-            LocalizationManager.Instance.CambiarIdioma(idioma);
+            curIndex--;
+            if (curIndex < 0) curIndex = 3;
+            LocalizationManager.Instance.CambiarIdioma((LocalizationManager.Idioma)curIndex);
         }
-    }
 
+        GUIStyle labelStyle = new GUIStyle(s.OptionSelect);
+        labelStyle.normal.textColor = Color.red;
+        labelStyle.alignment = TextAnchor.MiddleCenter;
+        GUILayout.Label(langName, labelStyle, GUILayout.Width(200), GUILayout.Height(40));
+
+        if (GUILayout.Button(">", cycleBtn, GUILayout.Width(50), GUILayout.Height(40)))
+        {
+            ctx.PlayClickSound();
+            curIndex++;
+            if (curIndex > 3) curIndex = 0;
+            LocalizationManager.Instance.CambiarIdioma((LocalizationManager.Idioma)curIndex);
+        }
+
+        GUILayout.EndHorizontal();
+    }
     // ─── Tab 1: Gráficos ──────────────────────────────────────────────────────
 
     void DrawGraphicsTab(MenuStyles s)
@@ -191,14 +213,14 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.Space(35);
 
         // Resolución
-        string resLabel = GetLocalized("Resolución de Pantalla:", "Screen Resolution:", "Resolução de Tela:");
+        string resLabel = GetLocalized("Resolución de Pantalla:", "Screen Resolution:", "Resolução de Tela:", "Разрешение экрана:");
         GUILayout.Label(resLabel, s.Label);
         GUILayout.Space(5);
 
 #if UNITY_ANDROID || UNITY_IOS
         var grayed = new GUIStyle(s.Label);
         grayed.normal.textColor = Color.gray;
-        string nativeText = GetLocalized("Nativa del Dispositivo", "Device Native", "Nativa do Dispositivo");
+        string nativeText = GetLocalized("Nativa del Dispositivo", "Device Native", "Nativa do Dispositivo", "Родное разрешение устройства");
         GUILayout.Label($"{Screen.currentResolution.width}x{Screen.currentResolution.height} ({nativeText})", grayed, GUILayout.Height(40));
 #else
         DrawResolutionSelector(s);
@@ -208,7 +230,7 @@ public class MenuScreenSettings : MonoBehaviour
 
         // ─── Brillo / Gamma (Calibración dedicada) ───────────────────────────
         float curGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
-        string calibTitle = GetLocalized("AJUSTAR BRILLO / GAMMA...", "ADJUST BRIGHTNESS / GAMMA...", "AJUSTAR BRILHO / GAMMA...");
+        string calibTitle = GetLocalized("AJUSTAR BRILLO / GAMMA...", "ADJUST BRIGHTNESS / GAMMA...", "AJUSTAR BRILHO / GAMMA...", "НАСТРОЙКА ЯРКОСТИ / ГАММЫ...");
         
         GUIStyle calibBtnStyle = new GUIStyle(s.Button);
         calibBtnStyle.normal.textColor = Color.white;
@@ -266,17 +288,19 @@ public class MenuScreenSettings : MonoBehaviour
         {
             LocalizationManager.Idioma.ENGLISH   => new[] { "LOW",   "MEDIUM", "HIGH" },
             LocalizationManager.Idioma.PORTUGUES => new[] { "BAIXO", "MÉDIO",  "ALTO" },
+            LocalizationManager.Idioma.РУССКИЙ   => new[] { "НИЗКОЕ", "СРЕДНЕЕ", "ВЫСОКОЕ" },
             _                                    => new[] { "BAJO",  "MEDIO",  "ALTO" }
         };
     }
 
-    string GetLocalized(string es, string en, string pt)
+    string GetLocalized(string es, string en, string pt, string ru)
     {
         if (LocalizationManager.Instance == null) return es;
         return LocalizationManager.Instance.GetIdiomaActual() switch
         {
             LocalizationManager.Idioma.ENGLISH   => en,
             LocalizationManager.Idioma.PORTUGUES => pt,
+            LocalizationManager.Idioma.РУССКИЙ   => ru,
             _                                    => es
         };
     }
@@ -288,14 +312,15 @@ public class MenuScreenSettings : MonoBehaviour
     private void DrawGammaCalibrationScreen(MenuStyles s)
     {
         // 1. Título e Instrucciones
-        string title = GetLocalized("CALIBRACIÓN DE BRILLO / GAMMA", "BRIGHTNESS / GAMMA CALIBRATION", "CALIBRAÇÃO DE BRILHO / GAMMA");
+        string title = GetLocalized("CALIBRACIÓN DE BRILLO / GAMMA", "BRIGHTNESS / GAMMA CALIBRATION", "CALIBRAÇÃO DE BRILHO / GAMMA", "КАЛИБРОВКА ЯРКОСТИ / ГАММЫ");
         GUILayout.Label(title, s.SectionHeader, GUILayout.Height(30));
         GUILayout.Space(15);
 
         string instructions = GetLocalized(
             "Ajusta el brillo hasta que el icono del engranaje de la derecha sea apenas visible sobre el fondo oscuro.",
             "Adjust the slider until the gear icon on the right is barely visible against the dark background.",
-            "Ajuste o controle até que o ícone da engrenagem à direita seja quase invisível sobre o fundo escuro."
+            "Ajuste o controle até que o ícone da engrenagem à direita seja quase invisível sobre o fundo escuro.",
+            "Настройте яркость, пока иконка шестеренки справа не станет едва заметна на темном фоне."
         );
 
         GUIStyle instStyle = new GUIStyle(s.Label);
@@ -315,7 +340,7 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.BeginVertical(GUILayout.Width(400));
         GUILayout.Space(25);
 
-        string labelVal = GetLocalized("Brillo del Juego", "Game Brightness", "Brilho do Jogo");
+        string labelVal = GetLocalized("Brillo del Juego", "Game Brightness", "Brilho do Jogo", "Яркость игры");
         GUILayout.Label($"{labelVal}: {tempGamma:F2}x", s.Label);
         GUILayout.Space(5);
 
@@ -407,7 +432,7 @@ public class MenuScreenSettings : MonoBehaviour
         // 3. Botones inferiores de Guardar y Cancelar (Ancho total 700)
         GUILayout.BeginHorizontal(GUILayout.Width(700));
 
-        string btnConfirm = GetLocalized("  CONFIRMAR Y GUARDAR", "  CONFIRM & SAVE", "  CONFIRMAR E SALVAR");
+        string btnConfirm = GetLocalized("  CONFIRMAR Y GUARDAR", "  CONFIRM & SAVE", "  CONFIRMAR E SALVAR", "  ПОДТВЕРДИТЬ И СОХРАНИТЬ");
         if (GUILayout.Button(btnConfirm, s.Button, GUILayout.Width(340), GUILayout.Height(55)))
         {
             ctx.PlayClickSound();
@@ -419,7 +444,7 @@ public class MenuScreenSettings : MonoBehaviour
 
         GUILayout.Space(20);
 
-        string btnCancel = GetLocalized("  CANCELAR", "  CANCEL", "  CANCELAR");
+        string btnCancel = GetLocalized("  CANCELAR", "  CANCEL", "  CANCELAR", "  ОТМЕНА");
         if (GUILayout.Button(btnCancel, s.Button, GUILayout.Width(340), GUILayout.Height(55)))
         {
             ctx.PlayClickSound();

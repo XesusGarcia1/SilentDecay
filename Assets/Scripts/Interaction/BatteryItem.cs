@@ -108,7 +108,8 @@ public class BatteryItem : MonoBehaviour
             AudioSource.PlayClipAtPoint(pickupSound, transform.position, 1.0f);
         }
 
-        Destroy(gameObject);
+        // En lugar de destruirla, la ocultamos para que el BatteriesForTheMap pueda regenerarla.
+        gameObject.SetActive(false);
     }
 
     void OnGUI()
@@ -128,10 +129,10 @@ public class BatteryItem : MonoBehaviour
         GUI.color = Color.white;
 
         style.normal.textColor = Color.black;
-        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), "[E]  Recoger Pila de Repuesto", style);
+        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), LocalizationManager.Instance.Get("interact_battery"), style);
 
         style.normal.textColor = new Color(0.1f, 0.85f, 0.1f);
-        GUI.Label(rect, "[E]  Recoger Pila de Repuesto", style);
+        GUI.Label(rect, LocalizationManager.Instance.Get("interact_battery"), style);
     }
 }
 

@@ -65,6 +65,18 @@ public class ReplicaAIController : MonoBehaviour
     private bool isTransitioning = false;
     private bool hasTriggeredAttackAnimation = false;
     private bool isPlayerDead = false;
+
+    [Header("Mecánica de Ilusiones (Fallo de Ataque)")]
+    public GameObject illusionMannequinPrefab;
+    private float attackAnimationTimer = 0f;
+    private float chaseTimer = 0f;
+    private float noLineOfSightTimer = 0f;
+    private List<GameObject> activeIllusions = new List<GameObject>();
+
+    [Header("Dificultad Dinámica por Avance")]
+    public int currentProgressionLevel = 0;
+    public float currentChaseSpeed = 5.5f;
+
     [Header("Debug Casería (Solo Lectura)")]
     public bool isHuntingDebug = false;
     public bool playerInZoneDebug = false;
@@ -75,6 +87,7 @@ public class ReplicaAIController : MonoBehaviour
     public float safeZoneTimer = 0f;
     public float stareTimer = 0f;
     private float zoneCheckTimer = 0f;
+    private float fakeAudioTimer = 0f;
 
     private struct LightState
     {
@@ -255,6 +268,56 @@ public class ReplicaAIController : MonoBehaviour
         HandleRandomBreathingSFX();
         HandleAnimatorTwitch();
         HandlePhaseTransitionTriggers();
+        
+        HandleLightManipulation();
+        HandleAudioDeception();
+    }
+
+    private void HandleLightManipulation()
+    {
+        if (currentPhase == ReplicaPhase.F2_AdvancedTransformation || currentPhase == ReplicaPhase.F3_MonstrousForm)
+        {
+            float distToPlayer = Vector3.Distance(GetActiveModelPosition(), playerTransform.position);
+            if (distToPlayer <= 15.0f && isBeingObserved)
+            {
+                FlashlightController fc = FindObjectOfType<FlashlightController>();
+                if (fc != null && fc.useBattery && fc.currentBattery > 0)
+                {
+                    fc.currentBattery -= 2.5f * Time.deltaTime;
+                    fc.currentBattery = Mathf.Max(0, fc.currentBattery);
+                }
+            }
+        }
+    }
+
+    private void HandleAudioDeception()
+    {
+        if (GetCurrentProgressionLevel() < 1 || isBeingObserved) return;
+        
+        fakeAudioTimer += Time.deltaTime;
+        if (fakeAudioTimer > Random.Range(20f, 40f))
+        {
+            fakeAudioTimer = 0f;
+            Vector3 fakePos = playerTransform.position - playerTransform.forward * 5f;
+            if (audioAliento != null)
+            {
+                AudioSource.PlayClipAtPoint(audioAliento, fakePos, 0.8f);
+            }
+            else if (audioCrujidoHuesos != null)
+            {
+                AudioSource.PlayClipAtPoint(audioCrujidoHuesos, fakePos, 0.8f);
+            }
+        }
+    }
+
+    private void SpawnTrapIllusion()
+    {
+        Vector3 trapPos = playerTransform.position - playerTransform.forward * 3.5f;
+        trapPos = AlignToGround(trapPos);
+        
+        GameObject trap = Instantiate(illusionMannequinPrefab, trapPos, Quaternion.LookRotation((playerTransform.position - trapPos).normalized));
+        activeIllusions.Add(trap);
+        Destroy(trap, 10f); // Se auto destruye en 10 segundos
     }
 
     private void HandleSafeZoneMechanic()
@@ -283,16 +346,65 @@ public class ReplicaAIController : MonoBehaviour
         }
     }
 
+    public int GetCurrentProgressionLevel()
+    {
+        // 1. Leer dificultad seleccionada desde el menú
+        string diff = PlayerPrefs.GetString("SelectedDifficulty", "NORMAL");
+
+        int baseLevel = diff switch
+        {
+            "FACIL"  => 0,
+            "DIFICIL" => 2,
+            _         => 1,   // NORMAL
+        };
+
+        // 2. Bonus por llaves recogidas (0 a 3+)
+        int keysHeld = MetalKeyItem.collectedKeys != null ? MetalKeyItem.collectedKeys.Count : 0;
+        int progressBonus = keysHeld >= 3 ? 2 : (keysHeld >= 2 ? 1 : (keysHeld >= 1 ? 0 : -1));
+
+        // 3. Si el jugador encontró la guía de supervivencia
+        if (GuideMapUI.hasGuideMap)
+        {
+            progressBonus += 1;
+        }
+
+        // 4. Si el jugador ha recogido piezas de la escalera
+        if (LadderPartItem.collectedParts != null)
+        {
+            progressBonus += LadderPartItem.collectedParts.Count;
+        }
+
+        return Mathf.Clamp(baseLevel + progressBonus, 0, 4);
+    }
+
     private void HandleStareDownMechanic()
     {
-        // Si lo miramos fijamente en F1 o F2 por 4 segundos, se resetea
+        // La tolerancia del concurso de miradas disminuye a medida que el jugador avanza
+        int progLevel = GetCurrentProgressionLevel();
+        float maxStareTime = Mathf.Max(1.2f, 4.0f - (progLevel * 0.7f)); // 4.0s -> 3.3s -> 2.6s -> 1.9s -> 1.2s
+
         if (isBeingObserved && currentPhase != ReplicaPhase.F0_InertMannequin && currentPhase != ReplicaPhase.F3_MonstrousForm)
         {
             stareTimer += Time.deltaTime;
-            if (stareTimer >= 4.0f)
+            if (stareTimer >= maxStareTime)
             {
-                Debug.Log("[Replica] Concurso de miradas ganado. Reseteando a Fase 0.");
-                ResetToF0();
+                int progLvl = GetCurrentProgressionLevel();
+                if (progLvl >= 2 && Random.value <= 0.3f)
+                {
+                    Debug.Log($"[Replica] FALSO CONCURSO. El monstruo avanza a Fase 3.");
+                    if (sfxAudioSource != null && audioCrujidoCuello != null)
+                    {
+                        sfxAudioSource.PlayOneShot(audioCrujidoCuello);
+                    }
+                    currentPhase = ReplicaPhase.F3_MonstrousForm;
+                    stareTimer = 0f;
+                    UpdatePhaseVisuals();
+                }
+                else
+                {
+                    Debug.Log($"[Replica] Concurso de miradas ganado ({stareTimer:F1}s / {maxStareTime:F1}s). Reseteando a Fase 0.");
+                    ResetToF0();
+                }
             }
         }
         else
@@ -317,6 +429,8 @@ public class ReplicaAIController : MonoBehaviour
         isHuntingDebug = false;
         safeZoneTimer = 0f;
         stareTimer = 0f;
+        chaseTimer = 0f;
+        noLineOfSightTimer = 0f;
 
         UpdatePhaseVisuals();
 
@@ -352,10 +466,12 @@ public class ReplicaAIController : MonoBehaviour
 
     private void HandleActiveChaseBehavior()
     {
+        chaseTimer += Time.deltaTime;
+
         Vector3 mPos = GetActiveModelPosition();
         Vector3 pPos = playerTransform.position;
         
-        // Calcular distancia en 2D (plano XZ) para ignorar la diferencia de altura de la cámara
+        // Calcular distancia en 2D (plano XZ) para ignorar diferencia de altura
         mPos.y = 0;
         pPos.y = 0;
         float distToPlayer = Vector3.Distance(mPos, pPos);
@@ -376,11 +492,36 @@ public class ReplicaAIController : MonoBehaviour
             }
         }
 
+        if (!hasLineOfSight)
+        {
+            noLineOfSightTimer += Time.deltaTime;
+        }
+        else
+        {
+            noLineOfSightTimer = 0f;
+        }
+
+        // --- VELOCIDAD ESCALABLE SEGÚN EL AVANCE DEL JUGADOR ---
+        int progLevel = GetCurrentProgressionLevel();
+        currentProgressionLevel = progLevel;
+        
+        // Velocidad de carrera en F3: 5.2m/s al inicio, hasta 7.8m/s al tener todas las llaves
+        float chaseSpeed = 5.2f + (progLevel * 0.65f);
+
+        // NUEVA MECÁNICA: EMBESTIDA (LUNGE)
+        // Si ya inició la animación de ataque, recibe un boost de velocidad del 40% para que no puedas correr y escapar
+        if (hasTriggeredAttackAnimation)
+        {
+            chaseSpeed *= 1.40f;
+        }
+
+        currentChaseSpeed = chaseSpeed;
+
         // Movimiento físico real habilitado solo en fase de caza (F3)
         if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
         {
             navAgent.isStopped = false;
-            navAgent.speed = 6.5f; 
+            navAgent.speed = chaseSpeed; 
             navAgent.SetDestination(playerTransform.position);
         }
 
@@ -392,20 +533,21 @@ public class ReplicaAIController : MonoBehaviour
                 animator.speed = 1.2f; 
                 if (animator.HasState(0, Animator.StringToHash("Run")))
                     animator.Play("Run");
-                else if (animator.HasState(0, Animator.StringToHash("Corre")))
-                    animator.Play("Corre");
+                else if (animator.HasState(0, Animator.StringToHash("Correr")))
+                    animator.Play("Correr");
             }
         }
 
-        // Si está en radio de ataque (4.5m) Y no hay pared, reproducir animación de ataque
+        // Si está en radio de ataque Y no hay pared, reproducir animación de ataque
         if (distToPlayer <= startAttackAnimationDistance && hasLineOfSight)
         {
             if (!hasTriggeredAttackAnimation)
             {
                 hasTriggeredAttackAnimation = true;
+                attackAnimationTimer = 0f; // Reiniciar contador de ataque
                 if (animator != null)
                 {
-                    animator.speed = 1.0f;
+                    animator.speed = 1.35f; // Animación de ataque más rápida
                     if (animator.HasState(0, Animator.StringToHash("Attack")))
                         animator.Play("Attack");
                     else if (animator.HasState(0, Animator.StringToHash("Atacar")))
@@ -416,15 +558,132 @@ public class ReplicaAIController : MonoBehaviour
                 
                 if (globalAudioSource != null && audioGritoBiomecanico != null)
                 {
+                    globalAudioSource.pitch = 1.0f;
                     globalAudioSource.PlayOneShot(audioGritoBiomecanico, 0.85f);
                 }
             }
         }
 
         // Si alcanza el radio letal Y no hay pared, desatar screamer y matar
-        if (distToPlayer <= attackDistance && hasLineOfSight)
+        // En niveles altos (Difícil), el brazo "llega más lejos" (se aumenta 0.4m el radio letal)
+        float currentKillDist = attackDistance + (progLevel >= 2 ? 0.4f : 0f);
+        if (distToPlayer <= currentKillDist && hasLineOfSight)
         {
             TriggerJumpscareSequence();
+            return;
+        }
+
+        // --- SISTEMA ANTI-ATASCO Y RECUPERACIÓN AUTOMÁTICA AL FALLAR ---
+        // 1. Si lanzó animación de ataque y pasaron 2.0s sin matar al jugador (el jugador esquivó)
+        // 2. Si la persecución total lleva más de 6.0s (o 10.0s en Difícil) sin alcanzar al jugador
+        // 3. Si la visión se perdió por más de 2.5s (el jugador dobló en una esquina)
+        // 4. Si el jugador se alejó a más de 11 metros durante la persecución
+        bool attackFailed = (hasTriggeredAttackAnimation && attackAnimationTimer > 2.0f);
+        float maxChaseTime = (progLevel >= 2) ? 10.0f : 6.0f;
+        bool chaseTimedOut = (chaseTimer > maxChaseTime);
+        bool lostPlayerInChase = (noLineOfSightTimer > 2.5f);
+        bool playerEscapedFar = (distToPlayer > 11.0f);
+
+        if (hasTriggeredAttackAnimation)
+        {
+            attackAnimationTimer += Time.deltaTime;
+        }
+
+        if (attackFailed || chaseTimedOut || lostPlayerInChase || playerEscapedFar)
+        {
+            Debug.Log($"[Replica] Persecución/Ataque fallido. Razón: (FallóAnim:{attackFailed}, TiempoAgotado:{chaseTimedOut}, VisiónPerdida:{lostPlayerInChase}, Escapó:{playerEscapedFar}). Activando ilusiones.");
+            TriggerAttackMissIllusions();
+        }
+    }
+
+    private void TriggerAttackMissIllusions()
+    {
+        // 1. Limpiar timers y estado de ataque
+        chaseTimer = 0f;
+        noLineOfSightTimer = 0f;
+        hasTriggeredAttackAnimation = false;
+        attackAnimationTimer = 0f;
+
+        if (navAgent != null && navAgent.enabled && navAgent.isOnNavMesh)
+        {
+            navAgent.isStopped = true;
+            navAgent.velocity = Vector3.zero;
+            navAgent.ResetPath();
+        }
+
+        // 2. Limpiar ilusiones viejas si existieran
+        foreach (GameObject ill in activeIllusions) 
+        { 
+            if (ill != null) Destroy(ill); 
+        }
+        activeIllusions.Clear();
+
+        // 3. Crear 4 puntos alrededor del jugador
+        Vector3 playerPos = playerTransform.position;
+        Vector3 playerForward = playerTransform.forward;
+        
+        List<Vector3> spawnPoints = new List<Vector3>();
+        float radius = 4.0f;
+        float[] angles = new float[] { -45f, 0f, 45f, 180f }; 
+        
+        foreach (float angle in angles)
+        {
+            Vector3 offset = Quaternion.Euler(0, angle, 0) * playerForward * radius;
+            Vector3 pos = playerPos + offset;
+            
+            UnityEngine.AI.NavMeshHit hit;
+            if (UnityEngine.AI.NavMesh.SamplePosition(pos, out hit, 4.0f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                spawnPoints.Add(hit.position);
+            }
+        }
+
+        // 4. RESET OBLIGATORIO A F0 (Evita quedarse trabado en F3 atacando al aire)
+        currentPhase = ReplicaPhase.F0_InertMannequin;
+        relocationCount = 0; 
+        safeZoneTimer = 0f;
+        stareTimer = 0f;
+        
+        // Cooldown dinámico según avance: a mayor nivel, se teletransporta más rápido de vuelta (hasta 2.0s)
+        int progLevel = GetCurrentProgressionLevel();
+        float minCd = Mathf.Max(2.0f, 6.0f - (progLevel * 1.2f));
+        float maxCd = Mathf.Max(3.2f, 8.0f - (progLevel * 1.3f));
+        relocateCooldown = Random.Range(minCd, maxCd);
+        lastRelocateTime = Time.time;
+
+        UpdatePhaseVisuals();
+
+        if (spawnPoints.Count > 0)
+        {
+            int realIndex = Random.Range(0, spawnPoints.Count);
+            
+            for (int i = 0; i < spawnPoints.Count; i++)
+            {
+                if (i == realIndex)
+                {
+                    WarpToPosition(spawnPoints[i]);
+                }
+                else
+                {
+                    if (illusionMannequinPrefab != null)
+                    {
+                        Vector3 spawnPos = spawnPoints[i];
+                        GameObject clone = Instantiate(illusionMannequinPrefab, spawnPos, Quaternion.identity);
+                        
+                        Vector3 cloneLookPos = new Vector3(playerPos.x, clone.transform.position.y, playerPos.z);
+                        clone.transform.LookAt(cloneLookPos);
+                        
+                        activeIllusions.Add(clone);
+                        Destroy(clone, 15f);
+                    }
+                }
+            }
+            
+            if (globalAudioSource != null && audioTic1 != null)
+            {
+                globalAudioSource.pitch = 1.0f;
+                globalAudioSource.PlayOneShot(audioTic1, 0.7f);
+            }
         }
     }
 
@@ -642,11 +901,23 @@ public class ReplicaAIController : MonoBehaviour
 
     private void WarpToPosition(Vector3 targetPos)
     {
+        // Siempre alinear al NavMesh antes de teletransportar para evitar caer bajo el suelo
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit nmHit, 3.0f, NavMesh.AllAreas))
+        {
+            targetPos = nmHit.position;
+        }
+
         if (navAgent != null)
         {
             navAgent.enabled = false;
             transform.position = targetPos;
             navAgent.enabled = true;
+            // Si el agente no aterrizó en el NavMesh, deshabilitar y re-habilitar
+            if (navAgent.enabled && !navAgent.isOnNavMesh)
+            {
+                navAgent.enabled = false;
+                navAgent.enabled = true;
+            }
         }
         else
         {
@@ -662,7 +933,11 @@ public class ReplicaAIController : MonoBehaviour
 
         PlayJointClickSFX();
 
-        relocateCooldown = Random.Range(3.5f, 7.5f);
+        // Cooldown dinámico según nivel de avance: menor en niveles altos = más agresivo
+        int prog = GetCurrentProgressionLevel();
+        float minCd = Mathf.Max(2.5f, 5.0f - (prog * 0.7f));
+        float maxCd = Mathf.Max(4.0f, 7.5f - (prog * 0.9f));
+        relocateCooldown = Random.Range(minCd, maxCd);
     }
 
     private void HandlePhaseTransitionTriggers()
@@ -728,6 +1003,13 @@ public class ReplicaAIController : MonoBehaviour
             if (sfxAudioSource != null && audioCrujidoHuesos != null) sfxAudioSource.PlayOneShot(audioCrujidoHuesos, 1.0f);
             if (sfxAudioSource != null && audioCrujidoCuello != null) sfxAudioSource.PlayOneShot(audioCrujidoCuello, 1.0f);
             
+            // Alerta global de cambio a F3 (pitch muy bajo y terrorífico)
+            if (globalAudioSource != null && audioAliento != null)
+            {
+                globalAudioSource.pitch = 0.5f;
+                globalAudioSource.PlayOneShot(audioAliento, 1.0f);
+            }
+
             yield return new WaitForSeconds(0.4f); 
 
             currentPhase = nextPhase;
@@ -740,6 +1022,7 @@ public class ReplicaAIController : MonoBehaviour
 
             if (globalAudioSource != null && audioGritoBiomecanico != null)
             {
+                globalAudioSource.pitch = 1.0f;
                 globalAudioSource.PlayOneShot(audioGritoBiomecanico, 1.0f);
             }
 
@@ -772,6 +1055,14 @@ public class ReplicaAIController : MonoBehaviour
         {
             sfxAudioSource.PlayOneShot(audioAliento, 0.5f);
         }
+
+        // Alerta global de cambio de fase (pitch dinámico)
+        if (globalAudioSource != null && audioAliento != null)
+        {
+            globalAudioSource.pitch = (nextPhase == ReplicaPhase.F2_AdvancedTransformation) ? 0.75f : 0.95f;
+            globalAudioSource.PlayOneShot(audioAliento, 0.85f);
+        }
+        
         yield return new WaitForSeconds(1.5f);
 
         if (sfxAudioSource != null && audioCrujidoCuello != null)
@@ -826,6 +1117,7 @@ public class ReplicaAIController : MonoBehaviour
         if (globalAudioSource != null)
         {
             globalAudioSource.spatialBlend = 0.0f;
+            globalAudioSource.pitch = 1.0f; // Resetear pitch por seguridad en el jumpscare
             if (audioJumpscare != null) globalAudioSource.PlayOneShot(audioJumpscare, 1.0f);
             if (audioGritoBiomecanico != null) globalAudioSource.PlayOneShot(audioGritoBiomecanico, 1.0f);
         }
@@ -943,4 +1235,3 @@ public class ReplicaAIController : MonoBehaviour
         RelocateToBestMannequinSpot();
     }
 }
-

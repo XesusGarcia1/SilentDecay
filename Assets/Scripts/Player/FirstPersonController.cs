@@ -22,6 +22,17 @@ namespace StarterAssets
         public float Gravity = -15.0f;
 
         [Space(10)]
+        [Header("Climbing")]
+        public bool isClimbing = false;
+        public float climbSpeed = 3.0f;
+
+        [Header("Carga Pesada")]
+        [Tooltip("Se activa automáticamente cuando el jugador carga un objeto pesado (ej: pieza de escalera)")]
+        public bool isCarryingHeavy = false;
+        [Tooltip("Multiplicador de velocidad al cargar algo pesado (0.7 = 70% de la velocidad normal)")]
+        public float heavySpeedMultiplier = 0.7f;
+
+        [Space(10)]
         public float JumpTimeout = 0.1f;
         public float FallTimeout = 0.15f;
 
@@ -225,9 +236,16 @@ namespace StarterAssets
 
         private void Update()
         {
-            JumpAndGravity();
-            GroundedCheck();
-            Move();
+            if (isClimbing)
+            {
+                HandleClimbing();
+            }
+            else
+            {
+                JumpAndGravity();
+                GroundedCheck();
+                Move();
+            }
 
             // Lógica de Audio de Respiración
             if (_breathAudioSource != null)
@@ -239,6 +257,36 @@ namespace StarterAssets
                 if (exhaustionLevel < 0.2f) exhaustionLevel = 0f;
                 
                 _breathAudioSource.volume = Mathf.Lerp(_breathAudioSource.volume, exhaustionLevel, Time.deltaTime * 2f);
+            }
+        }
+
+        private void HandleClimbing()
+        {
+            // Detener la acumulación de gravedad
+            _verticalVelocity = 0f;
+            _fallTimeoutDelta = FallTimeout;
+            Grounded = true; // Para evitar animaciones de caída
+
+            // Movimiento libre en 3D basado en a dónde mira la cámara (Estilo Half-Life)
+            // Esto permite que el jugador mire hacia la plataforma y presione W para salir de la escalera.
+            Transform camTransform = Camera.main != null ? Camera.main.transform : transform;
+            Vector3 moveDir = (camTransform.forward * _input.move.y + camTransform.right * _input.move.x).normalized;
+
+            _controller.Move(moveDir * (climbSpeed * Time.deltaTime));
+
+            // Reiniciar stamina al escalar
+            _currentStamina = maxStamina;
+            _isExhausted = false;
+
+            // Sonido de escalada (pasos)
+            if (moveDir.magnitude > 0.1f && Time.time >= _nextStepTime)
+            {
+                AudioClip climbSound = Resources.Load<AudioClip>("Audio/MannequinCourtyardMap/EscaleraMetálica");
+                if (climbSound != null)
+                {
+                    _audioSource.PlayOneShot(climbSound);
+                }
+                _nextStepTime = Time.time + stepInterval;
             }
         }
 
@@ -333,6 +381,12 @@ namespace StarterAssets
 
             // Velocidad objetivo normal
             float targetSpeed = _input.sprint ? SprintSpeed : MoveSpeed;
+
+            // Reducir velocidad si carga algo pesado
+            if (isCarryingHeavy)
+            {
+                targetSpeed *= heavySpeedMultiplier;
+            }
             
             // Si está corriendo pero con poca energía (menos del 30%), pierde velocidad gradualmente
             if (_input.sprint && isMoving && _currentStamina < maxStamina * 0.3f)

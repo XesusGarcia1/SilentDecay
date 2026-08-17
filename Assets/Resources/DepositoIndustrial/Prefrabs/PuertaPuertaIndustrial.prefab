@@ -75,6 +75,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 876f1c822c75eb04db69a509a9fb0f50, type: 3}
       insertIndex: -1
       addedObject: {fileID: -1417906932990741782}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 876f1c822c75eb04db69a509a9fb0f50, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4049392293411604445}
   m_SourcePrefab: {fileID: 100100000, guid: 876f1c822c75eb04db69a509a9fb0f50, type: 3}
 --- !u!1 &1836545773776752109 stripped
 GameObject:
@@ -102,3 +105,30 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.018995449, y: 0.01543519, z: 0.00229351}
   m_Center: {x: 0.000008625444, y: -0.0000073849224, z: -0.00000925496}
+--- !u!114 &4049392293411604445
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1836545773776752109}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2bdded9a2f3edea47ab5ae11d57c192b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  doorType: 1
+  openAngle: 90
+  autoFixCenterPivot: 1
+  hingeOnRightSide: 0
+  slideOffset: {x: 2.5, y: 0, z: 0}
+  openSpeed: 0.4
+  closeSpeed: 0.5
+  isLocked: 1
+  requiredKeyID: 
+  interactDistance: 3.2
+  playerNear: 0
+  doorOpenSound: {fileID: 8300000, guid: 50b541bda0854ea4aa925a57ab471464, type: 3}
+  doorCloseSound: {fileID: 8300000, guid: d3b588041a89bdc418d737721e153b6e, type: 3}
+  doorLockedSound: {fileID: 8300000, guid: 5d394d5b131ef8c41b502fd121d6361c, type: 3}
+  toggleCooldown: 0.25

@@ -126,8 +126,13 @@ MonoBehaviour:
   autoFixCenterPivot: 1
   hingeOnRightSide: 0
   slideOffset: {x: 1.5, y: 0, z: 0}
-  speed: 4
+  openSpeed: 4
+  closeSpeed: 4
   isLocked: 0
+  requiredKeyID: 
   interactDistance: 3.2
   playerNear: 0
+  doorOpenSound: {fileID: 0}
+  doorCloseSound: {fileID: 0}
+  doorLockedSound: {fileID: 0}
   toggleCooldown: 0.25

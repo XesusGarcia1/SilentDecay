@@ -5,14 +5,39 @@ public class MetalKeyItem : MonoBehaviour
     [Header("Ajustes")]
     public float interactDistance = 3.2f;
     
+    [Tooltip("El nombre único de esta llave (ej: Access_keys_mannequin). Si lo dejas vacío, usará el nombre del GameObject.")]
+    public string keyID = "";
+    
     private Transform playerTransform;
     private bool playerNear = false;
     
-    // Inventario global simple para la llave maestra
+    // Inventario global para llaves específicas
+    public static System.Collections.Generic.HashSet<string> collectedKeys = new System.Collections.Generic.HashSet<string>();
+    
+    // Compatibilidad hacia atrás (por si acaso)
     public static bool hasMetalKey = false;
     
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        hasMetalKey = false;
+        if (collectedKeys != null)
+        {
+            collectedKeys.Clear();
+        }
+        else
+        {
+            collectedKeys = new System.Collections.Generic.HashSet<string>();
+        }
+    }
+
     void Start()
     {
+        // Auto-asignar ID si está vacío
+        if (string.IsNullOrEmpty(keyID))
+        {
+            keyID = gameObject.name.Replace("(Clone)", "").Trim();
+        }
         FindPlayer();
 
         // Destruir colliders defectuosos
@@ -76,6 +101,10 @@ public class MetalKeyItem : MonoBehaviour
     void CollectKey()
     {
         hasMetalKey = true;
+        if (!string.IsNullOrEmpty(keyID))
+        {
+            collectedKeys.Add(keyID);
+        }
 
         PowerBox pBox = FindObjectOfType<PowerBox>();
         if (pBox != null)
@@ -114,9 +143,9 @@ public class MetalKeyItem : MonoBehaviour
         GUI.color = Color.white;
 
         style.normal.textColor = Color.black;
-        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), "[E] Recoger Llave", style);
+        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), LocalizationManager.Instance.Get("interact_metal_key"), style);
 
         style.normal.textColor = new Color(0.9f, 0.8f, 0.1f);
-        GUI.Label(rect, "[E] Recoger Llave", style);
+        GUI.Label(rect, LocalizationManager.Instance.Get("interact_metal_key"), style);
     }
 }
