@@ -9,16 +9,32 @@ namespace SilentDecay.UI
     /// </summary>
     public class BatteryAdUIController : MonoBehaviour
     {
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void AutoInitialize()
+        {
+            if (FindObjectOfType<BatteryAdUIController>() == null)
+            {
+                GameObject go = new GameObject("[BatteryAdUIController]");
+                go.AddComponent<BatteryAdUIController>();
+                DontDestroyOnLoad(go);
+            }
+        }
+
         [Header("Referencias de UI")]
         [Tooltip("Botón flotante o en el HUD para ver anuncio y recargar la linterna")]
         public Button rechargeAdButton;
 
-        [Tooltip("Porcentaje de batería (0.0 a 1.0) por debajo del cual aparece el botón de anuncio (ej: 0.20 = 20%)")]
+        [Tooltip("Porcentaje de batería (0.0 a 1.0) por debajo del cual aparece el botón de anuncio (ej: 0.35 = 35%)")]
         [Range(0.05f, 0.50f)]
-        public float batteryThresholdToShow = 0.20f;
+        public float batteryThresholdToShow = 0.35f;
 
         [Header("Referencias de Jugador")]
         public FlashlightController flashlightController;
+
+        private void Awake()
+        {
+            DontDestroyOnLoad(gameObject);
+        }
 
         private void Start()
         {

@@ -94,7 +94,7 @@ namespace SilentDecay.Core
 
         private string GetReviveAdUnitId()
         {
-            if (useTestAdsInEditor || Application.isEditor || string.IsNullOrEmpty(rewardedReviveAdUnitId))
+            if ((useTestAdsInEditor && Application.isEditor) || string.IsNullOrEmpty(rewardedReviveAdUnitId))
             {
                 return TEST_REWARDED_ID;
             }
@@ -170,7 +170,7 @@ namespace SilentDecay.Core
 
         private string GetBatteryAdUnitId()
         {
-            if (useTestAdsInEditor || Application.isEditor || string.IsNullOrEmpty(rewardedBatteryAdUnitId))
+            if ((useTestAdsInEditor && Application.isEditor) || string.IsNullOrEmpty(rewardedBatteryAdUnitId))
             {
                 return TEST_REWARDED_ID;
             }
@@ -246,7 +246,7 @@ namespace SilentDecay.Core
 
         private string GetInterstitialAdUnitId()
         {
-            if (useTestAdsInEditor || Application.isEditor || string.IsNullOrEmpty(interstitialAdUnitId))
+            if ((useTestAdsInEditor && Application.isEditor) || string.IsNullOrEmpty(interstitialAdUnitId))
             {
                 return TEST_INTERSTITIAL_ID;
             }
