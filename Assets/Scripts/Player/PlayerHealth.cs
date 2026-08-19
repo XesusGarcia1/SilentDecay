@@ -813,20 +813,20 @@ public class PlayerHealth : MonoBehaviour
                 var phenomenonCtrl = monsterObj.GetComponent<PhenomenonAIController>();
                 if (phenomenonCtrl != null)
                 {
-                    phenomenonCtrl.TriggerRespawnGracePeriod(90f);
+                    phenomenonCtrl.TriggerRespawnGracePeriod(10f);
                 }
 
                 var bookHeadCtrl2 = monsterObj.GetComponent<EnemyAIController>();
                 if (bookHeadCtrl2 != null)
                 {
                     bookHeadCtrl2.detectionRange = 0f;
-                    bookHeadCtrl2.StartCoroutine(ActivateBookHeadGraceDelay(bookHeadCtrl2, 90f));
+                    bookHeadCtrl2.StartCoroutine(ActivateBookHeadGraceDelay(bookHeadCtrl2, 10f));
                 }
 
                 var crawlerCtrl = monsterObj.GetComponent<CrawlerAI>();
                 if (crawlerCtrl != null)
                 {
-                    crawlerCtrl.TriggerRespawnGracePeriod(90f);
+                    crawlerCtrl.TriggerRespawnGracePeriod(10f);
                 }
 
                 var replicaCtrl = monsterObj.GetComponent<ReplicaAIController>();
@@ -932,8 +932,10 @@ public class PlayerHealth : MonoBehaviour
     public void ReviveFromAd()
     {
         health = 100f;
+        currentRegenLimit = 100f;
         isDead = false;
         isRespawning = false;
+        respawnCoroutineStarted = false;
         deathTimer = 0f;
         blackFadeAlpha = 0f;
         AudioListener.volume = 1f;
@@ -943,6 +945,49 @@ public class PlayerHealth : MonoBehaviour
         {
             playerSanity.sanity = 100f;
         }
+
+        // Restablecer al menos 1 vida en GameManager para evitar Game Over instantáneo
+        if (GameManager.Instance != null)
+        {
+            if (GameManager.Instance.vidasActuales <= 0)
+            {
+                GameManager.Instance.vidasActuales = 1;
+            }
+        }
+
+        // Reactivar el CharacterController para permitir movimiento
+        CharacterController cc = GetComponent<CharacterController>();
+        if (cc == null) cc = GetComponentInParent<CharacterController>();
+        if (cc != null) cc.enabled = true;
+
+        // Reactivar Rigidbody si existía
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb == null) rb = GetComponentInParent<Rigidbody>();
+        if (rb != null) rb.isKinematic = false;
+
+        // Reactivar controlador de movimiento en 1ª persona
+        FirstPersonController fpController = GetComponent<FirstPersonController>();
+        if (fpController == null) fpController = GetComponentInParent<FirstPersonController>();
+        if (fpController != null) fpController.enabled = true;
+
+        // Reactivar mapa de controles e inputs del jugador
+        StarterAssetsInputs fpInput = GetComponent<StarterAssetsInputs>();
+        if (fpInput == null) fpInput = GetComponentInParent<StarterAssetsInputs>();
+        if (fpInput != null) fpInput.enabled = true;
+
+        // Reactivar Cinemachine Brain si la cámara estaba congelada
+        if (Camera.main != null)
+        {
+            Cinemachine.CinemachineBrain brain = Camera.main.GetComponent<Cinemachine.CinemachineBrain>();
+            if (brain != null) brain.enabled = true;
+        }
+
+        // Reactivar los Canvas deshabilitados durante la secuencia de muerte (HUD, Camcorder, etc.)
+        foreach (Canvas c in disabledCanvases)
+        {
+            if (c != null) c.gameObject.SetActive(true);
+        }
+        disabledCanvases.Clear();
 
         // Relocalizar enemigos lejanos para evitar campeo en el punto de respawn
         var bookheads = FindObjectsOfType<EnemyAIController>();
@@ -957,10 +1002,11 @@ public class PlayerHealth : MonoBehaviour
             cr.ForceRelocateFarAway(transform.position);
         }
 
+        // Bloquear cursor nuevamente para retomar control de la cámara en 1ª persona
         MobileInput.SetCursorState(true);
         isInvulnerable = true;
         StartCoroutine(DisableInvulnerabilityDelayed(3.0f));
 
-        Debug.Log("[PlayerHealth] Jugador REVIVIDO exitosamente mediante Anuncio Recompensado.");
+        Debug.Log("[PlayerHealth] Jugador REVIVIDO exitosamente mediante Anuncio Recompensado con todos los controles reactivados.");
     }
 }
