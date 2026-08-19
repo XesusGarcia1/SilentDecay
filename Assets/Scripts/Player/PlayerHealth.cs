@@ -607,13 +607,32 @@ public class PlayerHealth : MonoBehaviour
                     float btnH = 52f;
                     float btnX = Screen.width / 2f - btnW / 2f;
 
-                    // Solo mostrar REINTENTAR (empezar desde cero) si el jugador AÚN tiene vidas
-                    // Nota: llegamos aquí porque GameManager.RestarVida() devolvió false (0 vidas restantes).
-                    // El botón REINTENTAR reinicia la partida completa desde el menú de opciones.
-                    // Una vez aquí, el jugador perdió todas sus vidas → solo ofrecer IR AL MENÚ.
-                    //
-                    // Sin embargo, se deja la opción de reintentar la partida COMPLETA desde cero:
-                    Rect retryRect = new Rect(btnX, Screen.height / 2f + 20f, btnW, btnH);
+                    // --- BOTÓN 1: REVIVIR CON ANUNCIO (Si AdMob está activo y listo) ---
+                    if (SilentDecay.Core.AdManager.Instance != null && SilentDecay.Core.AdManager.Instance.enableAds)
+                    {
+                        Rect adReviveRect = new Rect(btnX, Screen.height / 2f + 10f, btnW, btnH);
+                        bool isAdReady = SilentDecay.Core.AdManager.Instance.IsReviveAdReady();
+
+                        GUIStyle adButtonStyle = new GUIStyle(buttonStyle);
+                        adButtonStyle.normal.textColor = isAdReady ? new Color(1f, 0.85f, 0.2f) : Color.gray; // Dorado si listo
+
+                        string reviveAdText = isAdReady ? "📺 REVIVIR (ANUNCIO)" : "📺 CARGANDO ANUNCIO...";
+                        
+                        if (GUI.Button(adReviveRect, reviveAdText, adButtonStyle) && isAdReady)
+                        {
+                            SilentDecay.Core.AdManager.Instance.ShowRewardedRevive(() =>
+                            {
+                                ReviveFromAd();
+                            });
+                        }
+                    }
+
+                    // Botón 2: REINTENTAR (reiniciar desde el inicio)
+                    float retryY = (SilentDecay.Core.AdManager.Instance != null && SilentDecay.Core.AdManager.Instance.enableAds) 
+                        ? Screen.height / 2f + 70f 
+                        : Screen.height / 2f + 20f;
+                    
+                    Rect retryRect = new Rect(btnX, retryY, btnW, btnH);
                     string retryBtnText = LocalizationManager.Instance != null
                         ? LocalizationManager.Instance.Get("hud_reintentar_inicio")
                         : "JUGAR DE NUEVO";
@@ -621,7 +640,6 @@ public class PlayerHealth : MonoBehaviour
                     {
                         Time.timeScale = 1f;
                         AudioListener.volume = 1f;
-                        // Reiniciar vidas ANTES de pasar por LoadingScene, para que no arranque con 0
                         if (GameManager.Instance != null)
                             GameManager.Instance.InicializarVidasParaMapa(GameManager.Instance.maxVidas);
                         string targetScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
@@ -629,8 +647,12 @@ public class PlayerHealth : MonoBehaviour
                         SceneLoader.LoadScene(targetScene);
                     }
 
-                    // Botón 2: IR AL MENÚ — regresa al menú principal
-                    Rect menuRect = new Rect(btnX, Screen.height / 2f + 86f, btnW, btnH);
+                    // Botón 3: IR AL MENÚ (Regresa al menú principal con Anuncio Intersticial)
+                    float menuY = (SilentDecay.Core.AdManager.Instance != null && SilentDecay.Core.AdManager.Instance.enableAds) 
+                        ? Screen.height / 2f + 130f 
+                        : Screen.height / 2f + 86f;
+
+                    Rect menuRect = new Rect(btnX, menuY, btnW, btnH);
                     string menuBtnText = LocalizationManager.Instance != null
                         ? LocalizationManager.Instance.Get("hud_ir_menu")
                         : "IR AL MENÚ";
@@ -638,8 +660,18 @@ public class PlayerHealth : MonoBehaviour
                     {
                         Time.timeScale = 1f;
                         AudioListener.volume = 1f;
-                        UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
 
+                        if (SilentDecay.Core.AdManager.Instance != null)
+                        {
+                            SilentDecay.Core.AdManager.Instance.ShowInterstitialTransition(() =>
+                            {
+                                UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+                            });
+                        }
+                        else
+                        {
+                            UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+                        }
                     }
                 }
             }
@@ -891,5 +923,44 @@ public class PlayerHealth : MonoBehaviour
         yield return new WaitForSeconds(delay);
         controller.detectionRange = 7.5f;
         Debug.Log("[PlayerHealth] Período de gracia del BookHead finalizado. Detección activada.");
+    }
+
+    /// <summary>
+    /// Revivir al jugador a través del sistema de recompensa de anuncios (AdMob).
+    /// Restaura la salud al 100%, desactiva estados de muerte y relocaliza monstruos lejanos.
+    /// </summary>
+    public void ReviveFromAd()
+    {
+        health = 100f;
+        isDead = false;
+        isRespawning = false;
+        deathTimer = 0f;
+        blackFadeAlpha = 0f;
+        AudioListener.volume = 1f;
+        Time.timeScale = 1f;
+
+        if (playerSanity != null)
+        {
+            playerSanity.sanity = 100f;
+        }
+
+        // Relocalizar enemigos lejanos para evitar campeo en el punto de respawn
+        var bookheads = FindObjectsOfType<EnemyAIController>();
+        foreach (var bh in bookheads)
+        {
+            bh.ForceRelocateFarAway(transform.position);
+        }
+
+        var crawlers = FindObjectsOfType<CrawlerAI>();
+        foreach (var cr in crawlers)
+        {
+            cr.ForceRelocateFarAway(transform.position);
+        }
+
+        MobileInput.SetCursorState(true);
+        isInvulnerable = true;
+        StartCoroutine(DisableInvulnerabilityDelayed(3.0f));
+
+        Debug.Log("[PlayerHealth] Jugador REVIVIDO exitosamente mediante Anuncio Recompensado.");
     }
 }

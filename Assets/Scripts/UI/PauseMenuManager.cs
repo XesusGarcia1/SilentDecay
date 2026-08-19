@@ -347,7 +347,18 @@ public class PauseMenuManager : MonoBehaviour
             {
                 PlayClickSound();
                 Time.timeScale = 1f; // Reestablecer escala de tiempo antes de cambiar de escena
-                UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+                
+                if (SilentDecay.Core.AdManager.Instance != null)
+                {
+                    SilentDecay.Core.AdManager.Instance.ShowInterstitialTransition(() =>
+                    {
+                        UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+                    });
+                }
+                else
+                {
+                    UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+                }
             }
         }
         else if (currentState == PauseState.Settings)
