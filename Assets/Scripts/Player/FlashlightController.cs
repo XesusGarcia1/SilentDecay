@@ -333,5 +333,18 @@ public class FlashlightController : MonoBehaviour
         // Crear la linterna de nuevo
         CreateDynamicFlashlight();
     }
+
+    /// <summary>
+    /// Recargar la batería de la linterna al 100% mediante el anuncio recompensado (AdMob).
+    /// </summary>
+    public void RechargeBatteryFull()
+    {
+        currentBattery = maxBattery;
+        if (flashlightLight != null && !flashlightLight.enabled)
+        {
+            flashlightLight.enabled = true;
+        }
+        Debug.Log("[FlashlightController] Batería recargada al 100% por Anuncio Recompensado.");
+    }
 }
 
