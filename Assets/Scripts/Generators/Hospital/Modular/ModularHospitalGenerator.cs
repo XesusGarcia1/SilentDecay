@@ -75,6 +75,7 @@ namespace ModularHospital
 
         private void Start()
         {
+            if (!enabled) return;
             AutoAssignReferences();
 
             if (isMenuMode)

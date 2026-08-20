@@ -86,19 +86,37 @@ public class SubGenerator : MonoBehaviour
         {
             playerNear = false;
             Camera cam = Camera.main;
+            if (cam == null) cam = player.GetComponentInChildren<Camera>();
+            if (cam == null) cam = FindAnyObjectByType<Camera>();
+
             if (cam != null)
             {
+                // Calcular distancia al colisionador del generador (o al pivote si no tiene colisionador) para evitar problemas con pivotes desplazados
+                BoxCollider bCol = GetComponent<BoxCollider>();
                 float dist = Vector3.Distance(transform.position, cam.transform.position);
-                if (dist <= 3.0f)
+                if (bCol != null)
                 {
-                    Ray ray = new Ray(cam.transform.position, cam.transform.forward);
-                    RaycastHit hit;
-                    if (Physics.Raycast(ray, out hit, 3.2f))
+                    dist = Vector3.Distance(bCol.bounds.center, cam.transform.position);
+                }
+
+                // Usamos un rango de interacción de 3.8m adaptado a jugadores grandes
+                float maxRange = 3.8f;
+                if (dist <= maxRange)
+                {
+                    if (InteractionFocusManager.IsFocused(gameObject, maxRange))
                     {
-                        string n = hit.transform.name.ToLower();
-                        if (hit.transform == transform || hit.transform.IsChildOf(transform) || transform.IsChildOf(hit.transform) || n.Contains("gen"))
+                        playerNear = true;
+                    }
+                    else
+                    {
+                        // Probar también con los hijos (si los hay)
+                        foreach (Transform child in transform)
                         {
-                            playerNear = true;
+                            if (InteractionFocusManager.IsFocused(child.gameObject, maxRange))
+                            {
+                                playerNear = true;
+                                break;
+                            }
                         }
                     }
                 }

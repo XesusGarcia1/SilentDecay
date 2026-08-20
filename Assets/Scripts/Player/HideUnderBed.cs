@@ -50,6 +50,14 @@ public class HideUnderBed : MonoBehaviour
         if (mainCamera == null)
         {
             mainCamera = Camera.main;
+            if (mainCamera == null && player != null)
+            {
+                mainCamera = player.GetComponentInChildren<Camera>();
+            }
+            if (mainCamera == null)
+            {
+                mainCamera = FindAnyObjectByType<Camera>();
+            }
         }
 
         if (mainCamera != null && cinemachineBrain == null)
@@ -83,17 +91,13 @@ public class HideUnderBed : MonoBehaviour
             float mouseX = 0f;
             float mouseY = 0f;
 
-            #if UNITY_ANDROID || UNITY_IOS
             if (playerInputs != null)
             {
-                // Leer del trackpad de pantalla táctil del móvil (corregido para no estar invertido y mejor sensibilidad)
-                mouseX = playerInputs.look.x * 0.45f;
-                mouseY = -playerInputs.look.y * 0.45f; // Invertido para que deslizar arriba mire arriba
+                // Usar la entrada de mirada unificada del nuevo Input System (funciona para mouse en PC y táctil en móviles)
+                // Multiplicamos por 0.8f para velocidad adecuada y añadimos el signo menos en Y para corregir la inversión
+                mouseX = playerInputs.look.x * 0.8f;
+                mouseY = -playerInputs.look.y * 0.8f;
             }
-            #else
-            mouseX = Input.GetAxis("Mouse X") * 2f;
-            mouseY = Input.GetAxis("Mouse Y") * 2f;
-            #endif
 
             rotationX -= mouseY;
             rotationX = Mathf.Clamp(rotationX, -60f, 60f);
@@ -127,34 +131,31 @@ public class HideUnderBed : MonoBehaviour
                 // Distancia entre el jugador y el centro/cuerpo de la cama
                 float dist = Vector3.Distance(bedCenter, player.transform.position);
                 
-                // Rango justo de 2.8 metros para interactuar estando dentro de la habitación
-                if (dist > 2.8f) continue;
+                // Dynamic distance threshold based on player lossyScale
+                float scaleFactor = Mathf.Max(1.0f, player.transform.lossyScale.y);
+                float maxBedDist = 4.8f * scaleFactor;
+                
+                // Rango justo para interactuar estando dentro de la habitación
+                if (dist > maxBedDist) continue;
 
-                // Dirección hacia la cama
-                Vector3 dirToBed = (bedCenter - mainCamera.transform.position).normalized;
-                float lookScore = Vector3.Dot(mainCamera.transform.forward, dirToBed);
+                // Usar InteractionFocusManager para ver si el jugador está mirando directamente a la cama (su colisionador)
+                bool isFocused = InteractionFocusManager.IsFocused(bed.gameObject, maxBedDist);
 
-                // Ángulo de mirada directo hacia la cama
-                if (lookScore > 0.4f && dist < bestDist)
+                // Si no detectó por el padre, probar con los hijos (si los hay)
+                if (!isFocused)
                 {
-                    // VERIFICACIÓN ESTRICTA DE LÍNEA DE VISIÓN: Raycast desde los ojos hacia la cama
-                    // Si el raycast choca con un muro o puerta cerrada antes de llegar a la cama, ignorar
-                    RaycastHit wallCheck;
-                    if (Physics.Raycast(mainCamera.transform.position, dirToBed, out wallCheck, dist + 0.5f))
+                    foreach (Transform child in bed.transform)
                     {
-                        GameObject hitObj = wallCheck.collider.gameObject;
-                        bool hitBed = (hitObj == bed.gameObject) || hitObj.transform.IsChildOf(bed.transform);
-                        if (!hitBed)
+                        if (InteractionFocusManager.IsFocused(child.gameObject, maxBedDist))
                         {
-                            // Si chocó contra un muro, pared o puerta, NO mostrar el prompt
-                            string hitName = hitObj.name.ToLower();
-                            if (hitName.Contains("wall") || hitName.Contains("pared") || hitName.Contains("door") || hitName.Contains("puerta") || hitName.Contains("frame"))
-                            {
-                                continue;
-                            }
+                            isFocused = true;
+                            break;
                         }
                     }
+                }
 
+                if (isFocused && dist < bestDist)
+                {
                     bestDist = dist;
                     closestBed = bed;
                 }
@@ -180,6 +181,10 @@ public class HideUnderBed : MonoBehaviour
                     nearBed = true;
                     targetBed = closestBed;
                 }
+            }
+            if (beds.Length > 0 || closestBed != null)
+            {
+                Debug.Log($"[BedDebug] bedsCount={beds.Length}, closest={closestBed?.name ?? "null"}, nearBed={nearBed}, target={targetBed?.name ?? "null"}");
             }
         }
     }
@@ -268,7 +273,9 @@ public class HideUnderBed : MonoBehaviour
                         scriptName.Contains("Camcorder") || 
                         scriptName.Contains("PlayerHealth") || 
                         scriptName.Contains("PlayerSanity") ||
-                        scriptName.Contains("AudioSource"))
+                        scriptName.Contains("AudioSource") ||
+                        scriptName.Contains("Inputs") ||
+                        scriptName.Contains("PlayerInput"))
                     {
                         continue;
                     }

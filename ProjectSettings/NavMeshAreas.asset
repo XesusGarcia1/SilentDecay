@@ -69,13 +69,13 @@ NavMeshProjectSettings:
     cost: 1
   - name: 
     cost: 1
-  m_LastAgentTypeID: 287145453
+  m_LastAgentTypeID: 658490984
   m_Settings:
   - serializedVersion: 3
     agentTypeID: 0
     agentRadius: 0.5
     agentHeight: 2
-    agentSlope: 40.2
+    agentSlope: 50.7
     agentClimb: 0.75
     ledgeDropHeight: 0
     maxJumpAcrossDistance: 0

@@ -124,6 +124,7 @@ public class PlayerSanity : MonoBehaviour
         if (sanity <= 35f)
         {
             Camera mainCam = Camera.main;
+            if (mainCam == null) mainCam = FindAnyObjectByType<Camera>();
             if (mainCam != null)
             {
                 // Intensidad del mareo escala segun el nivel de miedo/locura (0 a 1)
@@ -213,6 +214,7 @@ public class PlayerSanity : MonoBehaviour
         if (monsterTransform == null || !monsterTransform.gameObject.activeInHierarchy) return false;
 
         Camera mainCam = Camera.main;
+        if (mainCam == null) mainCam = FindAnyObjectByType<Camera>();
         if (mainCam == null) return false;
 
         // Convertir posición del monstruo al plano visual de la pantalla

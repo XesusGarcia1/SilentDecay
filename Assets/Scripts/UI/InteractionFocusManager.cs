@@ -25,17 +25,20 @@ public class InteractionFocusManager : MonoBehaviour
         CurrentDist = 999f;
 
         Camera cam = Camera.main;
+        if (cam == null) cam = FindAnyObjectByType<Camera>();
         if (cam == null) return;
 
         Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         RaycastHit hit;
+        int layerMask = ~LayerMask.GetMask("Player");
 
-        if (Physics.Raycast(ray, out hit, 4.5f, -1, QueryTriggerInteraction.Collide))
+        if (Physics.Raycast(ray, out hit, 4.5f, layerMask, QueryTriggerInteraction.Collide))
         {
             if (hit.collider != null)
             {
                 CurrentFocus = hit.collider.gameObject;
                 CurrentDist = hit.distance;
+                Debug.Log($"[FocusDebug] Raycast hit: {CurrentFocus.name} (Tag={CurrentFocus.tag}, Layer={LayerMask.LayerToName(CurrentFocus.layer)}, Dist={CurrentDist:F2})");
             }
         }
     }
@@ -45,6 +48,7 @@ public class InteractionFocusManager : MonoBehaviour
         if (ElevatorController.isNotepadOpen) return false;
 
         Camera cam = Camera.main;
+        if (cam == null) cam = FindAnyObjectByType<Camera>();
         if (cam == null || obj == null) return false;
 
         // Auto-crear gestor dinámico en la escena si no existe
@@ -54,15 +58,16 @@ public class InteractionFocusManager : MonoBehaviour
             instance = managerObj.AddComponent<InteractionFocusManager>();
         }
 
-        // 1. Verificar la distancia física desde la cámara hasta el objeto
+        // 1. Verificar una distancia física aproximada muy generosa para descartar objetos lejanos rápidamente
         float distToPlayer = Vector3.Distance(cam.transform.position, obj.transform.position);
-        if (distToPlayer > maxDist) return false;
+        if (distToPlayer > maxDist * 3.0f) return false;
 
         // 2. Raycast frontal desde la mirilla del jugador (centro de la pantalla)
         Ray centerRay = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         RaycastHit hit;
+        int layerMask = ~LayerMask.GetMask("Player");
 
-        if (Physics.Raycast(centerRay, out hit, maxDist, -1, QueryTriggerInteraction.Collide))
+        if (Physics.Raycast(centerRay, out hit, maxDist, layerMask, QueryTriggerInteraction.Collide))
         {
             if (hit.collider != null)
             {
@@ -113,7 +118,7 @@ public class InteractionFocusManager : MonoBehaviour
 
                     RaycastHit wallHit;
                     // Probar si choca con cualquier collider con colisión física (excluyendo triggers)
-                    if (Physics.Raycast(camPos, dir, out wallHit, distToTarget - 0.05f, -1, QueryTriggerInteraction.Ignore))
+                    if (Physics.Raycast(camPos, dir, out wallHit, distToTarget - 0.05f, layerMask, QueryTriggerInteraction.Ignore))
                     {
                         if (wallHit.collider != null)
                         {

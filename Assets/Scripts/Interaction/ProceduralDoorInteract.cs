@@ -75,15 +75,16 @@ public class ProceduralDoorInteract : MonoBehaviour
         if (doorType == DoorType.Rotating && autoFixCenterPivot)
         {
             MeshFilter mf = GetComponent<MeshFilter>();
+            if (mf == null) mf = GetComponentInChildren<MeshFilter>();
             if (mf != null)
             {
                 Bounds b = mf.mesh.bounds;
                 
                 // === AUTO-DETECCIÓN DE EJES ===
-                // Transformar los 3 ejes locales del modelo al espacio del mundo
-                Vector3 worldAxisX = transform.TransformDirection(Vector3.right).normalized;
-                Vector3 worldAxisY = transform.TransformDirection(Vector3.up).normalized;
-                Vector3 worldAxisZ = transform.TransformDirection(Vector3.forward).normalized;
+                // Transformar los 3 ejes locales del modelo al espacio del mundo usando el transform del mesh
+                Vector3 worldAxisX = mf.transform.TransformDirection(Vector3.right).normalized;
+                Vector3 worldAxisY = mf.transform.TransformDirection(Vector3.up).normalized;
+                Vector3 worldAxisZ = mf.transform.TransformDirection(Vector3.forward).normalized;
                 
                 // ¿Cuál eje local apunta más hacia ARRIBA en el mundo? Ese es el eje de rotación
                 float dotXUp = Mathf.Abs(Vector3.Dot(worldAxisX, Vector3.up));
@@ -98,7 +99,6 @@ public class ProceduralDoorInteract : MonoBehaviour
                     rotationAxis = Vector3.forward;
                 
                 // ¿Cuál eje local es el ANCHO de la puerta?
-                // El que sea más horizontal en el mundo Y tenga mayor extensión en la malla
                 float horizX = (1f - dotXUp) * b.size.x;
                 float horizY = (1f - dotYUp) * b.size.y;
                 float horizZ = (1f - dotZUp) * b.size.z;
@@ -115,8 +115,8 @@ public class ProceduralDoorInteract : MonoBehaviour
                 GameObject hinge = new GameObject(gameObject.name + "_AutoHinge");
                 hinge.transform.SetParent(transform.parent);
                 
-                // Poner la bisagra en el borde calculado
-                hinge.transform.position = transform.TransformPoint(hingePosLocal);
+                // Poner la bisagra en el borde calculado de la malla
+                hinge.transform.position = mf.transform.TransformPoint(hingePosLocal);
                 hinge.transform.rotation = transform.rotation;
                 
                 transform.SetParent(hinge.transform);
@@ -154,12 +154,12 @@ public class ProceduralDoorInteract : MonoBehaviour
         {
             if (doorOpenSound == null) doorOpenSound = Resources.Load<AudioClip>("Audio/Hospital/doorOpenSound2");
             if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("Audio/Hospital/doorCloseSound2");
-            if (doorLockedSound == null) doorLockedSound = Resources.Load<AudioClip>("Audio/Hospital/doorCloseSound2");
+            if (doorLockedSound == null) doorLockedSound = Resources.Load<AudioClip>("Audio/Hospital/errorSound");
         }
 
         if (doorOpenSound == null) doorOpenSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
         if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
-        if (doorLockedSound == null) doorLockedSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
+        if (doorLockedSound == null) doorLockedSound = Resources.Load<AudioClip>("Audio/Hospital/errorSound");
     }
 
     private void FindPlayerReference()
@@ -189,20 +189,28 @@ public class ProceduralDoorInteract : MonoBehaviour
 
             if (cam != null)
             {
-                // Calcular distancia a cualquier hijo o centro de la puerta
+                float maxDist = 3.5f;
+                float closeDist = 2.0f;
+
+                // Calcular distancia al colisionador de la puerta o al centro geométrico en lugar del pivote offset
+                BoxCollider doorCollider = GetComponent<BoxCollider>();
                 float dist = Vector3.Distance(transform.position, cam.transform.position);
+                if (doorCollider != null)
+                {
+                    dist = Vector3.Distance(doorCollider.bounds.center, cam.transform.position);
+                }
                 
                 // Buscar si la cámara o el jugador apuntan/miran a la puerta
-                if (dist <= 3.5f)
+                if (dist <= maxDist)
                 {
-                    bool isFocused = InteractionFocusManager.IsFocused(gameObject, 3.5f);
+                    bool isFocused = InteractionFocusManager.IsFocused(gameObject, maxDist);
                     
                     // Si no detectó por el padre, probar con todos los hijos (mallas de la puerta)
                     if (!isFocused)
                     {
                         foreach (Transform child in transform)
                         {
-                            if (InteractionFocusManager.IsFocused(child.gameObject, 3.5f))
+                            if (InteractionFocusManager.IsFocused(child.gameObject, maxDist))
                             {
                                 isFocused = true;
                                 break;
@@ -210,10 +218,11 @@ public class ProceduralDoorInteract : MonoBehaviour
                         }
                     }
 
-                    // Fallback de proximidad directa si está a menos de 2.2m mirando hacia la puerta
-                    if (!isFocused && dist <= 2.2f)
+                    // Fallback de proximidad directa si está a menos de closeDist mirando hacia la puerta
+                    if (!isFocused && dist <= closeDist)
                     {
-                        Vector3 dirToDoor = (transform.position - cam.transform.position).normalized;
+                        Vector3 targetCenter = doorCollider != null ? doorCollider.bounds.center : transform.position;
+                        Vector3 dirToDoor = (targetCenter - cam.transform.position).normalized;
                         if (Vector3.Dot(cam.transform.forward, dirToDoor) > 0.35f)
                         {
                             isFocused = true;
@@ -224,6 +233,7 @@ public class ProceduralDoorInteract : MonoBehaviour
                     {
                         playerNear = true;
                     }
+                    Debug.Log($"[DoorDebug] {gameObject.name} dist={dist:F2}/{maxDist:F2}, isFocused={isFocused}, playerNear={playerNear}");
                 }
             }
         }
@@ -296,10 +306,17 @@ public class ProceduralDoorInteract : MonoBehaviour
             }
             else
             {
-                if (audioSource != null && doorLockedSound != null)
+                if (audioSource != null)
                 {
-                    audioSource.PlayOneShot(doorLockedSound, 1.0f);
+                    audioSource.Stop();
+                    AudioClip lockSound = doorLockedSound != null ? doorLockedSound : Resources.Load<AudioClip>("Audio/Hospital/errorSound");
+                    if (lockSound != null) audioSource.PlayOneShot(lockSound, 1.0f);
                 }
+
+                PlayerMonologueManager.ShowDialogue("Esta puerta está bloqueada. Necesito el código de seguridad para abrirla.", 3.5f);
+                PowerBox pBox = FindObjectOfType<PowerBox>();
+                if (pBox != null) pBox.ShowMessage("PUERTA BLOQUEADA: Requiere Código de Seguridad", Color.red, 3.0f);
+
                 return;
             }
         }
@@ -315,7 +332,7 @@ public class ProceduralDoorInteract : MonoBehaviour
 
                 if (doorType == DoorType.Rotating)
                 {
-                    float partialAngle = openAngle * progress;
+                    float partialAngle = (hingeOnRightSide ? -openAngle : openAngle) * progress;
                     targetRot = closedRot * Quaternion.AngleAxis(partialAngle, rotationAxis);
                 }
                 else
@@ -342,7 +359,8 @@ public class ProceduralDoorInteract : MonoBehaviour
             currentStage = 0; // Reiniciar contador si se cierra la puerta
         }
 
-        targetRot = isOpen ? closedRot * Quaternion.AngleAxis(openAngle, rotationAxis) : closedRot;
+        float actualAngle = hingeOnRightSide ? -openAngle : openAngle;
+        targetRot = isOpen ? closedRot * Quaternion.AngleAxis(actualAngle, rotationAxis) : closedRot;
         
         // Calcular el offset exacto en metros del mundo usando los ejes locales de la puerta
         Vector3 finalWorldOffset = pivotTransform.right * slideOffset.x + 

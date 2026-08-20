@@ -11,6 +11,7 @@ TagManager:
   - BedArea
   - BlockedMetalicDoor
   - MetalicDoor
+  - OfficeDirectorBlocked
   layers:
   - Default
   - TransparentFX

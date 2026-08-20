@@ -6,8 +6,8 @@ namespace ModularHospital
     {
     [Header("Ajustes del Cajón")]
     public float slideDistance = 0.45f;
-    public float openSpeed = 2.5f;
-    public float interactDistance = 2.0f;
+    public float openSpeed = 2.5f;    
+    public float interactDistance = 4.5f;
     public AudioClip openSound;
     public AudioClip closeSound;
 
@@ -16,6 +16,7 @@ namespace ModularHospital
     private Vector3 closedLocalPos;
     private Vector3 openLocalPos;
     private Vector3 targetLocalPos;
+    private float lastInteractTime;
     private AudioSource audioSource;
 
     [Header("Tarjeta de Acceso")]
@@ -24,45 +25,28 @@ namespace ModularHospital
     void Start()
     {
         closedLocalPos = transform.localPosition;
-        
-        // El cajón se desplaza en su eje Z local hacia adelante (o X local según pivote)
-        openLocalPos = closedLocalPos + Vector3.forward * slideDistance;
+        // La dirección hacia afuera del cajón en este modelo es +Z local
+        openLocalPos = closedLocalPos + new Vector3(0f, 0f, slideDistance);
         targetLocalPos = closedLocalPos;
 
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
         {
             audioSource = gameObject.AddComponent<AudioSource>();
-            audioSource.spatialBlend = 1.0f; // 3D
-            audioSource.minDistance = 1.5f;
-            audioSource.maxDistance = 10f;
+            audioSource.spatialBlend = 1.0f;
+            audioSource.maxDistance = 10.0f;
         }
 
         if (openSound == null) openSound = Resources.Load<AudioClip>("Audio/Hospital/OpenDrawer");
-        if (openSound == null) openSound = Resources.Load<AudioClip>("OpenDrawer");
-        if (openSound == null) openSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
-
         if (closeSound == null) closeSound = Resources.Load<AudioClip>("Audio/Hospital/CloseDrawer");
-        if (closeSound == null) closeSound = Resources.Load<AudioClip>("CloseDrawer");
-        if (closeSound == null) closeSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
 
-        // Configurar BoxCollider de interacción para el cajón y DESACTIVAR colisiones físicas sólidas en la malla móvil
-        Collider[] allCols = GetComponentsInChildren<Collider>(true);
-        foreach (Collider c in allCols)
-        {
-            if (c != null)
-            {
-                c.isTrigger = true; // TRIGGER ABSOLUTO = Cero impacto/empujón físico al jugador
-            }
-        }
-
+        // Configurar BoxCollider de interacción amplio para el cajón
         BoxCollider box = GetComponent<BoxCollider>();
         if (box == null)
         {
             box = gameObject.AddComponent<BoxCollider>();
         }
-        box.isTrigger = true; // TRIGGER = Cero colisión física / No frena al jugador
-        box.size = new Vector3(0.8f, 0.4f, 0.5f);
+        box.size = new Vector3(1.2f, 0.6f, 0.8f);
         box.center = new Vector3(0f, 0f, 0.2f);
     }
 
@@ -78,8 +62,6 @@ namespace ModularHospital
         }
     }
 
-    private float lastInteractTime = 0f;
-
     void Update()
     {
         // Animar desplazamiento suave del cajón
@@ -89,14 +71,14 @@ namespace ModularHospital
         if (isOpen) TryAutoFindKeycard();
 
         Camera cam = Camera.main;
-        bool isFocused = false;
-        if (cam != null)
+        bool isFocused = InteractionFocusManager.IsFocused(gameObject);
+        if (!isFocused && cam != null)
         {
             float dist = Vector3.Distance(cam.transform.position, transform.position);
             if (dist <= interactDistance)
             {
                 Vector3 dir = (transform.position - cam.transform.position).normalized;
-                if (Vector3.Dot(cam.transform.forward, dir) > 0.55f) isFocused = true;
+                if (Vector3.Dot(cam.transform.forward, dir) > 0.2f) isFocused = true;
             }
         }
 
@@ -143,23 +125,31 @@ namespace ModularHospital
 
         // Auto-buscar tarjeta en hijos si la referencia está vacía
         if (isOpen && keycardInside == null) TryAutoFindKeycard();
-        // Revelar tarjeta de acceso al abrir
-        if (keycardInside != null && isOpen)
+        
+        // Revelar y posicionar la tarjeta de acceso al abrir
+        if (keycardInside != null)
         {
-            keycardInside.SetActive(true);
+            keycardInside.SetActive(isOpen);
+            if (isOpen)
+            {
+                keycardInside.transform.localPosition = new Vector3(0f, 0.02f, -0.12f);
+            }
         }
     }
 
     void OnGUI()
     {
         Camera cam = Camera.main;
-        if (cam == null) return;
-
-        float dist = Vector3.Distance(cam.transform.position, transform.position);
-        if (dist > interactDistance) return;
-
-        Vector3 dir = (transform.position - cam.transform.position).normalized;
-        bool focused = Vector3.Dot(cam.transform.forward, dir) > 0.55f;
+        bool focused = InteractionFocusManager.IsFocused(gameObject);
+        if (!focused && cam != null)
+        {
+            float dist = Vector3.Distance(cam.transform.position, transform.position);
+            if (dist <= interactDistance)
+            {
+                Vector3 dir = (transform.position - cam.transform.position).normalized;
+                if (Vector3.Dot(cam.transform.forward, dir) > 0.2f) focused = true;
+            }
+        }
         if (!focused) return;
 
         // Auto-buscar tarjeta en hijos si no está asignada
