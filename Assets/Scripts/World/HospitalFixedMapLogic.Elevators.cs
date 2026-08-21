@@ -57,9 +57,10 @@ public partial class HospitalFixedMapLogic
             return;
         }
 
-        // 3. Seleccionar EXACTAMENTE 1 ascensor ALEATORIO como el Elevador Real de Escape y apagar todos los demás
+        // 3. Seleccionar EXACTAMENTE 1 ascensor ALEATORIO como el Elevador Real de Escape
         int realIndex = Random.Range(0, validElevators.Count);
         ElevatorController realElevator = validElevators[realIndex];
+        Transform rootRealGroup = GetElevatorGroupRoot(realElevator.transform);
 
         // Aplicar opciones de desarrollo/pruebas configuradas en el Inspector de HospitalFixedMapLogic
         realElevator.startWithKeycard = startWithKeycard;
@@ -73,24 +74,77 @@ public partial class HospitalFixedMapLogic
 
         Debug.Log($"[FixedHospital] Se detectaron {validElevators.Count} ascensores en el mapa. ELEVADOR REAL DE ESCAPE SELECCIONADO: {realElevator.name} en {realElevator.transform.position}. Se ocultaron los otros {validElevators.Count - 1}.");
 
-        for (int i = 0; i < validElevators.Count; i++)
+        // 4. Activar el ascensor real y ocultar/desactivar al 100% los ascensores falsos
+        foreach (ElevatorController ec in validElevators)
         {
-            ElevatorController ec = validElevators[i];
-            Transform rootGroup = GetElevatorGroupRoot(ec.transform);
+            if (ec == null) continue;
 
             if (ec == realElevator)
             {
                 ec.isFake = false;
                 ec.gameObject.SetActive(true);
+
+                Transform rootGroup = GetElevatorGroupRoot(ec.transform);
                 if (rootGroup != null) rootGroup.gameObject.SetActive(true);
+
+                // Forzar activación de renderers y luces en el ascensor real
+                Renderer[] realRenderers = ec.GetComponentsInChildren<Renderer>(true);
+                foreach (Renderer r in realRenderers) if (r != null) r.enabled = true;
+
+                Light[] realLights = ec.GetComponentsInChildren<Light>(true);
+                foreach (Light l in realLights) if (l != null) { l.enabled = true; l.gameObject.SetActive(true); }
             }
             else
             {
                 ec.isFake = true;
                 ec.gameObject.SetActive(false);
-                if (rootGroup != null)
+
+                Vector3 fakePos = ec.transform.position;
+
+                // Desactivar jerarquía de mallas del ascensor falso
+                Transform rootGroup = GetElevatorGroupRoot(ec.transform);
+                if (rootGroup != null && rootGroup != rootRealGroup && !realElevator.transform.IsChildOf(rootGroup))
                 {
-                    rootGroup.gameObject.SetActive(false); // Apagar todo el grupo del ascensor falso (luces, mallas, botones)
+                    rootGroup.gameObject.SetActive(false);
+                }
+
+                // Ocultar mallas y luces por proximidad (3.5m) para capturar cualquier sub-objeto o hermano visual
+                Renderer[] allSceneRenderers = FindObjectsByType<Renderer>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                foreach (Renderer r in allSceneRenderers)
+                {
+                    if (r == null) continue;
+                    if (r.transform.IsChildOf(realElevator.transform) || (rootRealGroup != null && r.transform.IsChildOf(rootRealGroup))) continue;
+
+                    string rName = r.name.ToLower();
+                    string pName = r.transform.parent != null ? r.transform.parent.name.ToLower() : "";
+
+                    if (rName.Contains("ascensor") || rName.Contains("elevator") || pName.Contains("ascensor") || pName.Contains("elevator"))
+                    {
+                        if (Vector3.Distance(r.transform.position, fakePos) < 3.5f)
+                        {
+                            r.enabled = false;
+                            r.gameObject.SetActive(false);
+                        }
+                    }
+                }
+
+                Light[] allSceneLights = FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                foreach (Light l in allSceneLights)
+                {
+                    if (l == null) continue;
+                    if (l.transform.IsChildOf(realElevator.transform) || (rootRealGroup != null && l.transform.IsChildOf(rootRealGroup))) continue;
+
+                    string lName = l.name.ToLower();
+                    string pName = l.transform.parent != null ? l.transform.parent.name.ToLower() : "";
+
+                    if (lName.Contains("ascensor") || lName.Contains("elevator") || pName.Contains("ascensor") || pName.Contains("elevator"))
+                    {
+                        if (Vector3.Distance(l.transform.position, fakePos) < 4.5f)
+                        {
+                            l.enabled = false;
+                            l.gameObject.SetActive(false);
+                        }
+                    }
                 }
             }
         }
