@@ -219,7 +219,7 @@ MonoBehaviour:
   direction: 1
   isConnected: 0
   connectedTarget: {fileID: 0}
-  parentModule: {fileID: 2150300337895675203}
+  parentModule: {fileID: 0}
   showGizmos: 0
 --- !u!1 &8933457212407189012
 GameObject:
@@ -230,8 +230,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6160489099295112707}
-  - component: {fileID: 2150300337895675203}
   - component: {fileID: 331509668111740068}
+  - component: {fileID: 813000002636206898}
   m_Layer: 0
   m_Name: FuseBox
   m_TagString: Untagged
@@ -249,7 +249,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.6503, y: 1.582365, z: 1.8094491}
+  m_LocalScale: {x: 1.5, y: 2.5, z: 2.5}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 3051216013647654496}
@@ -260,23 +260,6 @@ Transform:
   - {fileID: 6650670547358615509}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2150300337895675203
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8933457212407189012}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0a1b0229c5235a64aa3c93523344c896, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  moduleType: 15
-  moduleSize: {x: 4, y: 4, z: 4}
-  showBoundsGizmo: 1
-  connectors:
-  - {fileID: 6659519499428021477}
 --- !u!114 &331509668111740068
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -302,6 +285,27 @@ MonoBehaviour:
   fuseIcon: {fileID: 0}
   blackoutSoundClip: {fileID: 0}
   internalFuseMesh: {fileID: 0}
+--- !u!65 &813000002636206898
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8933457212407189012}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1.1891207, y: 2.3104272, z: 0.76452273}
+  m_Center: {x: 0.09455949, y: 0.6552128, z: -0.33417854}
 --- !u!1001 &1895603559763570724
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -310,6 +314,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 6160489099295112707}
     m_Modifications:
+    - target: {fileID: 2160316559773369815, guid: 639ec624a2e431440861325d26393d07, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8310963074948834503, guid: 639ec624a2e431440861325d26393d07, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0.079253554

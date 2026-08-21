@@ -201,6 +201,10 @@ public class CrawlerAI : MonoBehaviour
         {
             if (col != null)
             {
+                if (col is MeshCollider mc && !mc.convex)
+                {
+                    mc.convex = true;
+                }
                 col.isTrigger = true;
             }
         }

@@ -22,6 +22,10 @@ public class ElevatorController : MonoBehaviour
     [Tooltip("Tiempo de espera (en segundos) antes de abrir las puertas al llegar (para dar tiempo al timbre)")]
     public float doorOpenDelay = 1.0f;
 
+    [Header("Estado de Elevador Falso / Deshabilitado")]
+    [Tooltip("Si es verdadero, este elevador estará fuera de servicio y no permitirá escapar")]
+    public bool isFake = false;
+
     [Header("Configuración del Mapa de la Libreta")]
     [Tooltip("Mostrar el punto verde 'TÚ' en el mapa (falso por omisión según requerimiento)")]
     public bool showPlayerPositionOnMap = false;
@@ -481,6 +485,14 @@ public class ElevatorController : MonoBehaviour
 
     void HandleInteraction(bool hasPower)
     {
+        if (isFake)
+        {
+            PlaySound(errorSound);
+            ShowScreenMsg("ASCENSOR FUERA DE SERVICIO", Color.yellow);
+            PlayerMonologueManager.ShowDialogue("Este ascensor está fuera de servicio. Debo buscar otro ascensor en el hospital...", 4.0f);
+            return;
+        }
+
         // En modo pruebas o dev (startWithKeycard/bypassKeycard/bypassPower), habilitar la energía del elevador de inmediato
         bool effectivePower = hasPower || bypassPower || bypassKeycard || startWithKeycard;
 
@@ -872,7 +884,12 @@ public class ElevatorController : MonoBehaviour
 
         bool hasPower = roomLightsManager == null || !roomLightsManager.powerOutage;
 
-        if (isInside)
+        if (isFake)
+        {
+            promptText = "Ascensor Fuera de Servicio";
+            textColor = new Color(0.9f, 0.45f, 0.1f);
+        }
+        else if (isInside)
         {
             if (!isEscaping)
             {
