@@ -34,13 +34,13 @@ public class CrawlerAI : MonoBehaviour
     }
     [Header("Ajustes de Acecho y Movimiento")]
     [Tooltip("Velocidad de caminata/arrastre sigiloso (Ajustado a la nueva escala)")]
-    public float walkSpeed = 3.6f;
+    public float walkSpeed = 4.6f;
     [Tooltip("Velocidad al perseguir al jugador en la oscuridad (Ajustado a la nueva escala)")]
     public float chaseSpeed = 5.8f;
     [Tooltip("Velocidad al huir hacia las sombras")]
-    public float fleeSpeed = 5.5f;
+    public float fleeSpeed = 6.5f;
     [Tooltip("Distancia a la que empieza a perseguir al jugador en la oscuridad")]
-    public float chaseDistance = 10.0f;
+    public float chaseDistance = 20.0f;
     [Tooltip("Distancia mínima al jugador para afectar su cordura")]
     public float sanityEffectRadius = 10.0f;
     [Tooltip("Pérdida de cordura por segundo al estar cerca del Rastrero")]

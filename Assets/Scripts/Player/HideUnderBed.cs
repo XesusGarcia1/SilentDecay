@@ -7,7 +7,7 @@ public class HideUnderBed : MonoBehaviour
     public GameObject player;         // Objeto del jugador (se auto-detectará si es null)
     public GameObject playerCapsule;  // Objeto con scripts de movimiento (se auto-detectará si es null)
     public Camera mainCamera;         // Cámara del jugador (se auto-detectará si es null)
-    public float interactDistance = 3.8f;
+    public float interactDistance = 2.5f;
 
     [Header("Estado")]
     public bool isHiding = false;
@@ -182,7 +182,7 @@ public class HideUnderBed : MonoBehaviour
                 }
 
                 float surfaceDist = Vector3.Distance(surfacePoint, camPos);
-                float maxDistAllowed = Mathf.Max(interactDistance, 4.5f);
+                float maxDistAllowed = Mathf.Max(interactDistance, 3.5f);
 
                 // Si la superficie de la cama está a menos de 4.5 metros de la cámara, es válida inmediatamente
                 if (surfaceDist <= maxDistAllowed && surfaceDist < bestSurfaceDist)
@@ -381,7 +381,7 @@ public class HideUnderBed : MonoBehaviour
                 }
 
                 float distToBed = Vector3.Distance(targetPoint, mainCamera.transform.position);
-                float maxDistAllowed = Mathf.Max(interactDistance, 4.5f);
+                float maxDistAllowed = Mathf.Max(interactDistance, 3.5f);
                 if (distToBed <= maxDistAllowed)
                 {
                     GUIStyle style = new GUIStyle();
