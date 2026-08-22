@@ -110,6 +110,7 @@ public partial class HospitalFixedMapLogic
                 );
 
                 batComp.interactDistance = 3.5f;
+                SnapItemToSurface(targetBat);
 
                 if (!allBatteryObjects.Contains(targetBat))
                 {
@@ -142,6 +143,7 @@ public partial class HospitalFixedMapLogic
                 );
 
                 fuseComp.interactDistance = 3.5f;
+                SnapItemToSurface(targetFuse);
 
                 if (!allFuseObjects.Contains(targetFuse))
                 {
@@ -311,5 +313,37 @@ public partial class HospitalFixedMapLogic
         }
 
         isBatteryRespawnTimerRunning = false;
+    }
+
+    private void SnapItemToSurface(GameObject itemObj)
+    {
+        if (itemObj == null) return;
+
+        // Si el ítem ya está emparentado a una camilla o mueble (Worn_Hospital_Gurney, desk, etc.), mantener su posición local
+        Transform p = itemObj.transform.parent;
+        while (p != null)
+        {
+            string pName = p.name.ToLower();
+            if (pName.Contains("gurney") || pName.Contains("camilla") || pName.Contains("desk") || pName.Contains("table") || pName.Contains("mueble"))
+            {
+                return;
+            }
+            p = p.parent;
+        }
+
+        // Raycast desde arriba hacia abajo para encontrar la superficie física real más cercana (camilla, estante, mesa)
+        Vector3 rayStart = itemObj.transform.position + Vector3.up * 0.8f;
+        RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, 2.5f);
+        
+        System.Array.Sort(hits, (x, y) => x.distance.CompareTo(y.distance));
+
+        foreach (var hit in hits)
+        {
+            if (hit.collider == null || hit.collider.isTrigger) continue;
+            if (hit.collider.gameObject == itemObj || hit.collider.transform.IsChildOf(itemObj.transform)) continue;
+
+            itemObj.transform.position = hit.point + Vector3.up * 0.02f;
+            return;
+        }
     }
 }

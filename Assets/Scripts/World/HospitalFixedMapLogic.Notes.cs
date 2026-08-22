@@ -52,16 +52,61 @@ public partial class HospitalFixedMapLogic
 
         ShuffleList(validPaperObjects);
 
-        // Desactivar todos los objetos de papel para evitar notas duplicadas
+        // Desactivar todos los objetos de papel base para evitar notas duplicadas
         foreach (GameObject p in validPaperObjects)
         {
             if (p != null) p.SetActive(false);
         }
 
-        // Activar y configurar EXACTAMENTE 7 notas con los dígitos de la clave (posiciones 1 a 7)
-        int notesToSpawn = Mathf.Min(7, validPaperObjects.Count);
-        for (int i = 0; i < notesToSpawn; i++)
+        // Si hay menos de 7 papeles en los prefabs del mapa, crear notas adicionales en camillas/muebles hasta tener EXACTAMENTE 7 NOTAS
+        if (validPaperObjects.Count < 7)
         {
+            int missing = 7 - validPaperObjects.Count;
+            Debug.Log($"[FixedHospital] Se encontraron {validPaperObjects.Count} papeles base. Generando {missing} notas adicionales en camillas/muebles para garantizar las 7 NOTAS DE CÓDIGO.");
+
+            // Buscar camillas y escritorios de la escena para colocar las notas faltantes
+            List<Transform> itemSurfaces = new List<Transform>();
+            foreach (Transform t in allTransforms)
+            {
+                if (t == null) continue;
+                string n = t.name.ToLower();
+                if ((n.Contains("gurney") || n.Contains("camilla") || n.Contains("desk") || n.Contains("table") || n.Contains("mueble") || n.Contains("apothecary") || n.Contains("room")) && t.position.sqrMagnitude > 0.01f)
+                {
+                    itemSurfaces.Add(t);
+                }
+            }
+
+            ShuffleList(itemSurfaces);
+
+            GameObject samplePaper = (validPaperObjects.Count > 0) ? validPaperObjects[0] : loreNotePrefab;
+            if (samplePaper != null)
+            {
+                for (int m = 0; m < missing; m++)
+                {
+                    Transform parentSurface = (m < itemSurfaces.Count) ? itemSurfaces[m] : null;
+                    Vector3 spawnPos = (parentSurface != null) ? parentSurface.position + Vector3.up * 0.85f : new Vector3(m * 2f, 0.8f, m * 2f);
+
+                    RaycastHit surfaceHit;
+                    if (Physics.Raycast(spawnPos + Vector3.up * 0.5f, Vector3.down, out surfaceHit, 2.0f))
+                    {
+                        if (!surfaceHit.collider.isTrigger)
+                        {
+                            spawnPos = surfaceHit.point + Vector3.up * 0.02f;
+                        }
+                    }
+
+                    GameObject newPaper = Instantiate(samplePaper, spawnPos, Quaternion.identity, parentSurface);
+                    newPaper.name = $"[Hospital_CodeNote_Extra_{m + 1}]";
+                    validPaperObjects.Add(newPaper);
+                }
+            }
+        }
+
+        // Activar y configurar EXACTAMENTE 7 NOTAS con los dígitos de la clave (posiciones 1 a 7)
+        for (int i = 0; i < 7; i++)
+        {
+            if (i >= validPaperObjects.Count) break;
+
             GameObject paper = validPaperObjects[i];
             ActivateItemWithAllChildren(paper);
 
@@ -76,12 +121,7 @@ public partial class HospitalFixedMapLogic
             nComp.digitValue = int.Parse(correctKeypadCode[i].ToString());
             nComp.interactDistance = 4.5f;
 
-            Debug.Log($"[FixedHospital] Nota {i + 1}/7 activada en {paper.name}: Dígito #{nComp.digitPosition} = {nComp.digitValue} (Clave del Director: {correctKeypadCode})");
-        }
-
-        if (notesToSpawn < 7)
-        {
-            Debug.LogWarning($"[FixedHospital] ATENCIÓN: Solo se encontraron {notesToSpawn} objetos tipo nota en la escena. ¡Se requieren al menos 7 en el mapa para completar el código!");
+            Debug.Log($"[FixedHospital] ✅ NOTA CÓDIGO {i + 1}/7 activada en {paper.name} ({paper.transform.position}): Dígito #{nComp.digitPosition} = {nComp.digitValue} (Clave Director: {correctKeypadCode})");
         }
     }
 

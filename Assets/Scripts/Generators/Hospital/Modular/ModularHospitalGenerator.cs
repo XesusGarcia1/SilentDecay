@@ -605,21 +605,7 @@ namespace ModularHospital
             RenderSettings.fogStartDistance = 1.5f;
             RenderSettings.fogEndDistance = 14.0f;
 
-            // MÚSICA AMBIENTAL DEL MAPA DE HOSPITAL (Music Hospital Level)
-            AudioClip hospitalMusic = Resources.Load<AudioClip>("Audio/Hospital/Music Hospital Level");
-            if (hospitalMusic == null) hospitalMusic = Resources.Load<AudioClip>("Music Hospital Level");
-            if (hospitalMusic != null)
-            {
-                AudioSource bgAudio = GetComponent<AudioSource>();
-                if (bgAudio == null) bgAudio = gameObject.AddComponent<AudioSource>();
-                bgAudio.clip = hospitalMusic;
-                bgAudio.loop = true;
-                bgAudio.volume = 0.25f; // Volumen moderado, ambiental y aterrador (25%)
-                bgAudio.spatialBlend = 0f; // Sonido ambiente 2D global
-                bgAudio.playOnAwake = true;
-                if (!bgAudio.isPlaying) bgAudio.Play();
-                Debug.Log("ModularHospitalGenerator: Música ambiental 'Music Hospital Level' iniciada con volumen calibrado (25%).");
-            }
+            // Música ambiental deshabilitada por código (asignada manualmente por el desarrollador en el inspector)
 
             Debug.Log($"ModularHospitalGenerator: Mapa de 10x10 generado con éxito. Módulos colocados: {placedModules.Count}. Clave del Keypad: {correctKeypadCode}");
 

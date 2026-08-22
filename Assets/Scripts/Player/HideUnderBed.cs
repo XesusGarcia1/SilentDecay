@@ -138,7 +138,9 @@ public class HideUnderBed : MonoBehaviour
             {
                 if (col == null) continue;
                 string n = col.gameObject.name.ToLower();
-                if (n.Contains("cama") || n.Contains("bed") || n.Contains("camilla") || n.Contains("gurney") || n.Contains("medical") || n.Contains("bedding"))
+                if (n.Contains("cart") || n.Contains("trolley") || n.Contains("shelf") || n.Contains("equipment") || n.Contains("abandoned_medical") || n.Contains("gurney") || n.Contains("camilla")) continue;
+
+                if (n.Contains("cama") || n.Contains("bed") || n.Contains("bedding") || n.Contains("p_bed"))
                 {
                     if (col.GetComponentInParent<ProceduralDoorInteract>() != null) continue;
                     
@@ -416,12 +418,21 @@ public class HideUnderBed : MonoBehaviour
             }
         }
 
+        bool triggerBedInspection = (Random.value < 0.40f);
+
         EnemyAIController[] b1s = FindObjectsOfType<EnemyAIController>(true);
         foreach (var b in b1s)
         {
             if (b != null && b.gameObject.activeInHierarchy)
             {
-                b.FleeFarFromPlayer();
+                if (triggerBedInspection && targetBed != null)
+                {
+                    StartCoroutine(BedInspectionRoutine(b, targetBed));
+                }
+                else
+                {
+                    b.FleeFarFromPlayer();
+                }
             }
         }
 
@@ -431,6 +442,50 @@ public class HideUnderBed : MonoBehaviour
             if (b != null && b.gameObject.activeInHierarchy)
             {
                 b.FleeFarFromPlayer();
+            }
+        }
+    }
+
+    private System.Collections.IEnumerator BedInspectionRoutine(EnemyAIController monster, Bed bed)
+    {
+        if (monster == null || bed == null) yield break;
+
+        UnityEngine.AI.NavMeshAgent agent = monster.GetComponent<UnityEngine.AI.NavMeshAgent>();
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        {
+            Vector3 bedSide = bed.transform.position + bed.transform.right * 1.1f;
+            UnityEngine.AI.NavMeshHit hit;
+            if (UnityEngine.AI.NavMesh.SamplePosition(bedSide, out hit, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                Debug.Log("[Escondite] BookHead se acerca a inspeccionar la cama...");
+                agent.SetDestination(hit.position);
+                agent.speed = 1.8f;
+
+                float timer = 0f;
+                while (Vector3.Distance(monster.transform.position, hit.position) > 1.3f && timer < 8f)
+                {
+                    timer += Time.deltaTime;
+                    yield return null;
+                }
+
+                // Detenerse frente a la cama con respiración sorda durante 4.5 segundos
+                agent.isStopped = true;
+                Vector3 lookDir = (bed.transform.position - monster.transform.position).normalized;
+                lookDir.y = 0f;
+                if (lookDir.sqrMagnitude > 0.01f)
+                {
+                    monster.transform.rotation = Quaternion.LookRotation(lookDir);
+                }
+
+                yield return new WaitForSeconds(4.5f);
+
+                Debug.Log("[Escondite] BookHead no descubrió al jugador y se retira despacio.");
+                agent.isStopped = false;
+                monster.FleeFarFromPlayer();
+            }
+            else
+            {
+                monster.FleeFarFromPlayer();
             }
         }
     }

@@ -48,7 +48,7 @@ public class PowerBox : MonoBehaviour
 
         if (roomLightsManager == null)
         {
-            roomLightsManager = FindObjectOfType<RoomLightsManager>();
+            roomLightsManager = FindFirstObjectByType<RoomLightsManager>();
             if (roomLightsManager == null)
                 Debug.LogWarning("PowerBox: RoomLightsManager no encontrado en la escena. El corte de luz no afectará las luces.");
         }
@@ -71,7 +71,7 @@ public class PowerBox : MonoBehaviour
         }
 
         // Buscar todos los interruptores en la escena
-        allSwitches = FindObjectsOfType<LightSwitch>();
+        allSwitches = FindObjectsByType<LightSwitch>(FindObjectsSortMode.None);
         Debug.Log($"PowerBox: Se detectaron {allSwitches.Length} interruptores de luz en el nivel.");
 
         // Forzar encendido inicial al iniciar la escena (SIN mensaje ni sonido)
@@ -128,7 +128,7 @@ public class PowerBox : MonoBehaviour
         {
             // Contar cuántas luces están encendidas actualmente
             int activeLights = 0;
-            if (allSwitches == null) allSwitches = FindObjectsOfType<LightSwitch>();
+            if (allSwitches == null) allSwitches = FindObjectsByType<LightSwitch>(FindObjectsSortMode.None);
             if (allSwitches != null)
             {
                 foreach (LightSwitch sw in allSwitches)
@@ -231,7 +231,7 @@ public class PowerBox : MonoBehaviour
         }
 
         // Verificar que todos los subgeneradores estén activos antes de permitir el rearmado
-        SubGenerator[] subGens = FindObjectsOfType<SubGenerator>();
+        SubGenerator[] subGens = FindObjectsByType<SubGenerator>(FindObjectsSortMode.None);
         int activeCount = 0;
         foreach (var gen in subGens)
         {
@@ -355,7 +355,7 @@ public class PowerBox : MonoBehaviour
         else
         {
             // Auto-control de todas las luces de lámparas del mapa procedural (excluyendo linterna y luces de generadores)
-            Light[] allLights = FindObjectsOfType<Light>(true);
+            Light[] allLights = FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (Light l in allLights)
             {
                 if (l != null && l.type == LightType.Point)
@@ -369,7 +369,7 @@ public class PowerBox : MonoBehaviour
             }
 
             // Auto-control de los materiales y emisión de las lámparas de techo (oscurecer tubos en apagón)
-            Renderer[] allRenderers = FindObjectsOfType<Renderer>(true);
+            Renderer[] allRenderers = FindObjectsByType<Renderer>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (Renderer r in allRenderers)
             {
                 if (r != null && r.gameObject != null)
@@ -408,24 +408,45 @@ public class PowerBox : MonoBehaviour
             GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
             Vector3 playerPos = playerObj != null ? playerObj.transform.position : transform.position;
 
-            EnemyAIBookHead bookHead = FindObjectOfType<EnemyAIBookHead>(true);
-            if (bookHead != null)
-            {
-                RelocateEnemyModerateDistance(bookHead.gameObject, playerPos, 10f, 15f);
-                bookHead.gameObject.SetActive(true);
-                bookHead.detectionRange = 9.0f;   // Ligeramente mayor en la oscuridad
-                bookHead.runSpeed = 4.2f;           // Correr ágil adaptado a la nueva escala
-                Debug.Log("PowerBox: ¡Monstruo BookHead activado por el apagón a distancia moderada!");
-            }
+            // ─── AMBIENTACIÓN Y EVENTO DE TERROR ALEATORIO DE APAGÓN ─────────────
+            float blackoutRoll = UnityEngine.Random.value;
 
-            EnemyAIController enemyController = FindObjectOfType<EnemyAIController>(true);
+            EnemyAIController enemyController = FindFirstObjectByType<EnemyAIController>(FindObjectsInactive.Include);
             if (enemyController != null)
             {
-                RelocateEnemyModerateDistance(enemyController.gameObject, playerPos, 10f, 15f);
-                enemyController.gameObject.SetActive(true);
-                enemyController.detectionRange = 9.0f;
-                enemyController.runSpeed = 2.3f;
-                Debug.Log("PowerBox: ¡Monstruo EnemyAIController activado por el apagón a distancia moderada!");
+                if (blackoutRoll < 0.20f)
+                {
+                    // 20% Apagón Tipo A: Silencio total / Falsa alarma
+                    RelocateEnemyFarFromPlayer(enemyController.gameObject, playerPos, 45f);
+                    enemyController.gameObject.SetActive(false);
+                    Debug.Log("[PowerBox] Apagón Tipo A: Silencio total (Falsa Alarma).");
+                }
+                else if (blackoutRoll < 0.50f)
+                {
+                    // 30% Apagón Tipo B: Evento STALK (Aparece a 18-25m en el pasillo mirando en silencio)
+                    RelocateEnemyModerateDistance(enemyController.gameObject, playerPos, 18f, 25f);
+                    enemyController.gameObject.SetActive(true);
+                    UnityEngine.AI.NavMeshAgent ag = enemyController.GetComponent<UnityEngine.AI.NavMeshAgent>();
+                    EnemyAnimation an = enemyController.GetComponent<EnemyAnimation>();
+                    enemyController.ChangeState(new EnemyStalkState(enemyController, ag, an, enemyController.player));
+                    Debug.Log("[PowerBox] Apagón Tipo B: Evento STALK (BookHead observando a distancia).");
+                }
+                else
+                {
+                    // 50% Apagón Tipo C: Persecución activa de BookHead
+                    RelocateEnemyModerateDistance(enemyController.gameObject, playerPos, 10f, 15f);
+                    enemyController.gameObject.SetActive(true);
+                    enemyController.detectionRange = 10.0f;
+                    enemyController.runSpeed = 5.6f;
+                    Debug.Log("[PowerBox] Apagón Tipo C: Persecución activa de BookHead.");
+                }
+            }
+
+            EnemyAIBookHead bookHead = FindFirstObjectByType<EnemyAIBookHead>(FindObjectsInactive.Include);
+            if (bookHead != null)
+            {
+                RelocateEnemyModerateDistance(bookHead.gameObject, playerPos, 12f, 18f);
+                bookHead.gameObject.SetActive(true);
             }
 
             // Reproducir sonido impactante de chispazo y cortocircuito directo en 2D en los oídos del jugador
@@ -448,7 +469,7 @@ public class PowerBox : MonoBehaviour
             RenderSettings.ambientIntensity = Mathf.Max(0.6f, curGamma * 0.8f);
 
             // 2. Activar chispas dinámicas en lámparas apagadas del pasillo del Hospital
-            Renderer[] hospitalRenderers = FindObjectsOfType<Renderer>(true);
+            Renderer[] hospitalRenderers = FindObjectsByType<Renderer>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (Renderer r in hospitalRenderers)
             {
                 if (r != null && r.gameObject != null)
@@ -467,7 +488,7 @@ public class PowerBox : MonoBehaviour
         else
         {
             // AL RESTABLECER LA ENERGÍA / LUZ: EL MONSTRUO SE REPLIEGA Y SE DESACTIVA DE LA ESCENA
-            EnemyAIBookHead bookHead = FindObjectOfType<EnemyAIBookHead>(true);
+            EnemyAIBookHead bookHead = FindFirstObjectByType<EnemyAIBookHead>(FindObjectsInactive.Include);
             if (bookHead != null)
             {
                 bookHead.detectionRange = 7.5f;
@@ -475,7 +496,7 @@ public class PowerBox : MonoBehaviour
                 Debug.Log("PowerBox: Monstruo BookHead desactivado al restablecer las luces.");
             }
 
-            EnemyAIController enemyController = FindObjectOfType<EnemyAIController>(true);
+            EnemyAIController enemyController = FindFirstObjectByType<EnemyAIController>(FindObjectsInactive.Include);
             if (enemyController != null)
             {
                 enemyController.detectionRange = 7.5f;
@@ -527,7 +548,7 @@ public class PowerBox : MonoBehaviour
         if (NotepadUIManager.IsOpen) return;
 
         // Ocultar si estamos en modo menú
-        ModularHospital.ModularHospitalGenerator generator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
+        ModularHospital.ModularHospitalGenerator generator = FindFirstObjectByType<ModularHospital.ModularHospitalGenerator>();
         if (generator != null && generator.isMenuMode) return;
 
         // 0. Cartel de interacción [E] cuando la mirilla enfoca directamente la Caja de Fusibles (distancia corta 2.2m)
@@ -578,7 +599,7 @@ public class PowerBox : MonoBehaviour
             GUIUtility.ScaleAroundPivot(new Vector2(hudScale, hudScale), pivot);
         }
 
-        SubGenerator[] subGens = FindObjectsOfType<SubGenerator>();
+        SubGenerator[] subGens = FindObjectsByType<SubGenerator>(FindObjectsSortMode.None);
         if (subGens != null && subGens.Length > 0)
         {
             // Ordenar alfabéticamente para que salgan en orden A, B, C, D...

@@ -9,16 +9,16 @@ public partial class HospitalFixedMapLogic
         Transform[] allTransforms = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         int bedsConfigured = 0;
 
-        string[] bedKeywords = new string[] { "cama", "bed", "camilla", "gurney", "abandoned_medical", "bedding" };
-        string[] bedExcludes = new string[] { "spawn", "manager", "canvas", "ui", "p_note", "note", "papel", "battery", "fuse", "door", "puerta", "p_door" };
+        string[] bedKeywords = new string[] { "cama", "bed", "bedding", "p_bed" };
+        string[] bedExcludes = new string[] { "spawn", "manager", "canvas", "ui", "p_note", "note", "papel", "battery", "fuse", "door", "puerta", "p_door", "cart", "trolley", "shelf", "equipment", "abandoned_medical", "medical_cart", "gurney", "worn_hospital_gurney", "camilla" };
 
-        // 1. Limpiar componentes Bed erróneos colocados previamente en partes de puertas
+        // 1. Limpiar componentes Bed erróneos colocados previamente en puertas, carritos o camillas de transporte Worn_Hospital_Gurney
         Bed[] existingBeds = FindObjectsByType<Bed>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         foreach (Bed b in existingBeds)
         {
             if (b == null) continue;
             string n = b.gameObject.name.ToLower();
-            if (n.Contains("door") || n.Contains("puerta") || b.transform.root.name.ToLower().Contains("door"))
+            if (n.Contains("door") || n.Contains("puerta") || n.Contains("cart") || n.Contains("trolley") || n.Contains("equipment") || n.Contains("abandoned_medical") || n.Contains("gurney") || n.Contains("camilla"))
             {
                 Destroy(b);
             }
