@@ -1839,10 +1839,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: Weathered_Industrial
       objectReference: {fileID: 0}
-    - target: {fileID: 7883663590665337990, guid: 5a557e8806d79454eab6ce873df6e8ee, type: 3}
-      propertyPath: m_IsActive
-      value: 1
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1908,10 +1904,6 @@ PrefabInstance:
     - target: {fileID: 5435682807816364900, guid: 968a64626e93f234a8a6a9022bb6ea04, type: 3}
       propertyPath: m_Name
       value: Door
-      objectReference: {fileID: 0}
-    - target: {fileID: 5435682807816364900, guid: 968a64626e93f234a8a6a9022bb6ea04, type: 3}
-      propertyPath: m_IsActive
-      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

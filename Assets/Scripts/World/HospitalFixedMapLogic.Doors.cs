@@ -56,19 +56,18 @@ public partial class HospitalFixedMapLogic
             }
             if (isElevator) continue;
 
-            // Si ya tiene un ProceduralDoorInteract en sí misma o en su jerarquía, respetarlo
+            // Si ya tiene un ProceduralDoorInteract en sí misma o en su jerarquía, reconfigurarla limpiamente
             ProceduralDoorInteract existingScript = t.GetComponent<ProceduralDoorInteract>();
             if (existingScript == null) existingScript = t.GetComponentInParent<ProceduralDoorInteract>();
 
-            if (existingScript != null)
+            ProceduralDoorInteract doorInteract = existingScript;
+            if (doorInteract == null)
             {
-                continue;
+                doorInteract = t.gameObject.AddComponent<ProceduralDoorInteract>();
             }
 
-            // Asignar el componente de interacción a la puerta para que abra hacia adentro desde el otro lado de la bisagra
-            ProceduralDoorInteract doorInteract = t.gameObject.AddComponent<ProceduralDoorInteract>();
             doorInteract.autoFixCenterPivot = true;
-            doorInteract.hingeOnRightSide = true; // Pivote en el otro borde de la pared
+            doorInteract.hingeOnRightSide = true; // Pivote en el borde correcto de la pared
             doorInteract.openAngle = -90f; // Giro hacia adentro de la habitación
             doorInteract.interactDistance = 2.8f;
 

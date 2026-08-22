@@ -414,7 +414,7 @@ public class PowerBox : MonoBehaviour
                 RelocateEnemyModerateDistance(bookHead.gameObject, playerPos, 10f, 15f);
                 bookHead.gameObject.SetActive(true);
                 bookHead.detectionRange = 9.0f;   // Ligeramente mayor en la oscuridad
-                bookHead.runSpeed = 2.3f;           // Correr amenazante pero equilibrado
+                bookHead.runSpeed = 4.2f;           // Correr ágil adaptado a la nueva escala
                 Debug.Log("PowerBox: ¡Monstruo BookHead activado por el apagón a distancia moderada!");
             }
 
@@ -731,7 +731,15 @@ public class PowerBox : MonoBehaviour
         UnityEngine.AI.NavMeshAgent agent = enemyObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
         if (agent != null && agent.enabled)
         {
-            agent.Warp(bestPos);
+            UnityEngine.AI.NavMeshHit hit;
+            if (UnityEngine.AI.NavMesh.SamplePosition(bestPos, out hit, 4.0f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                agent.Warp(hit.position);
+            }
+            else
+            {
+                enemyObj.transform.position = bestPos;
+            }
         }
         else
         {

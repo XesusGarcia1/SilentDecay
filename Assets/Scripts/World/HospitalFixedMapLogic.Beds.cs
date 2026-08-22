@@ -6,11 +6,11 @@ public partial class HospitalFixedMapLogic
 {
     private void SetupHideBeds()
     {
-        Transform[] allTransforms = FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        Transform[] allTransforms = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         int bedsConfigured = 0;
 
-        string[] bedKeywords = new string[] { "cama", "bed", "camilla", "gurney" };
-        string[] bedExcludes = new string[] { "spawn", "manager", "canvas", "ui", "p_note", "note", "papel", "battery", "fuse", "door", "puerta", "p_door", "bedding", "p_bedbedding" };
+        string[] bedKeywords = new string[] { "cama", "bed", "camilla", "gurney", "abandoned_medical", "bedding" };
+        string[] bedExcludes = new string[] { "spawn", "manager", "canvas", "ui", "p_note", "note", "papel", "battery", "fuse", "door", "puerta", "p_door" };
 
         // 1. Limpiar componentes Bed erróneos colocados previamente en partes de puertas
         Bed[] existingBeds = FindObjectsByType<Bed>(FindObjectsInactive.Include, FindObjectsSortMode.None);
@@ -18,7 +18,7 @@ public partial class HospitalFixedMapLogic
         {
             if (b == null) continue;
             string n = b.gameObject.name.ToLower();
-            if (n.Contains("door") || n.Contains("puerta") || n.Contains("bedding") || b.transform.root.name.ToLower().Contains("door"))
+            if (n.Contains("door") || n.Contains("puerta") || b.transform.root.name.ToLower().Contains("door"))
             {
                 Destroy(b);
             }
@@ -30,13 +30,12 @@ public partial class HospitalFixedMapLogic
             string tName = t.name.ToLower();
 
             // Evitar categorizar objetos de puertas como camas de escondite
-            if (tName.Contains("door") || tName.Contains("puerta") || tName.Contains("bedding")) continue;
+            if (tName.Contains("door") || tName.Contains("puerta")) continue;
             if (t.GetComponentInParent<ProceduralDoorInteract>() != null) continue;
 
             if (IsTopLevelElement(t, bedKeywords, bedExcludes))
             {
-                // Ignorar objetos demasiado pequeños que no sean camas reales de ocultarse
-                if (t.lossyScale.x < 0.5f || t.lossyScale.z < 0.5f) continue;
+                if (t.position.sqrMagnitude < 0.001f) continue;
 
                 // Asegurar el componente Bed en la cama
                 Bed bedComp = t.GetComponent<Bed>();
@@ -48,7 +47,7 @@ public partial class HospitalFixedMapLogic
                 {
                     GameObject hObj = new GameObject("HidePosition");
                     hObj.transform.SetParent(t, false);
-                    hObj.transform.localPosition = new Vector3(0f, 0.15f, 0f); // Levantar un poquito del suelo
+                    hObj.transform.localPosition = new Vector3(0f, 0.28f, 0f); // Posicionar a 28cm del suelo para no clipear el piso
                     hObj.transform.localRotation = Quaternion.identity;
                     hidePos = hObj.transform;
                 }
@@ -57,7 +56,7 @@ public partial class HospitalFixedMapLogic
                 // Asegurar colisionador trigger para que se pueda interactuar posicionado sobre la cama física
                 BoxCollider box = t.GetComponent<BoxCollider>();
                 if (box == null) box = t.gameObject.AddComponent<BoxCollider>();
-                ConfigureBoxColliderFromRenderers(t.gameObject, box, true, 0.9f);
+                ConfigureBoxColliderFromRenderers(t.gameObject, box, true, 1.1f);
 
                 // Limitar la altura del colisionador de la cama al colchón para evitar que se extienda hacia la cabecera/pared
                 Vector3 bSize = box.size;

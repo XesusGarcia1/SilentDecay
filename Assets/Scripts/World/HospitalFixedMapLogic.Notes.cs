@@ -26,8 +26,7 @@ public partial class HospitalFixedMapLogic
 
             if (IsTopLevelElement(t, noteKeywords, noteExcludes))
             {
-                if (t.position.sqrMagnitude < 0.01f) continue;
-                if (t.parent != null && t.parent.name.ToLower().Contains("prefabs")) continue;
+                if (t.position.sqrMagnitude < 0.001f) continue;
 
                 GameObject targetPaper = t.gameObject;
                 MeshRenderer mr = t.GetComponentInChildren<MeshRenderer>(true);
@@ -44,7 +43,7 @@ public partial class HospitalFixedMapLogic
         {
             if (oldN != null && !validPaperObjects.Contains(oldN.gameObject))
             {
-                if (oldN.transform.position.sqrMagnitude >= 0.01f)
+                if (oldN.transform.position.sqrMagnitude >= 0.001f)
                 {
                     validPaperObjects.Add(oldN.gameObject);
                 }
@@ -53,7 +52,7 @@ public partial class HospitalFixedMapLogic
 
         ShuffleList(validPaperObjects);
 
-        // Desactivar absolutamente TODOS los objetos de papel para evitar que queden notas '0' activas en el mapa
+        // Desactivar todos los objetos de papel para evitar notas duplicadas
         foreach (GameObject p in validPaperObjects)
         {
             if (p != null) p.SetActive(false);
@@ -64,7 +63,7 @@ public partial class HospitalFixedMapLogic
         for (int i = 0; i < notesToSpawn; i++)
         {
             GameObject paper = validPaperObjects[i];
-            paper.SetActive(true);
+            ActivateItemWithAllChildren(paper);
 
             NoteItem nComp = paper.GetComponent<NoteItem>();
             if (nComp == null) nComp = paper.AddComponent<NoteItem>();
@@ -182,6 +181,7 @@ public partial class HospitalFixedMapLogic
                 Vector3 spawnPosElevated = hit.point + hit.normal * 0.02f; // Asentado 2cm sobre el suelo
                 GameObject loreNote = Instantiate(loreNotePrefab, spawnPosElevated, Quaternion.identity, chosenRoom);
                 loreNote.name = $"[Hospital_LoreNote_{spawnedCount + 1}]";
+                ActivateItemWithAllChildren(loreNote);
 
                 // Forzar orientación horizontal plana sobre el suelo para evitar que quede clavado en vertical
                 Renderer noteRen = loreNote.GetComponentInChildren<Renderer>();

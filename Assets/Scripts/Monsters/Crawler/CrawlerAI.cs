@@ -33,12 +33,12 @@ public class CrawlerAI : MonoBehaviour
         isFleeing = false;
     }
     [Header("Ajustes de Acecho y Movimiento")]
-    [Tooltip("Velocidad de caminata/arrastre sigiloso (Lenta y aterradora)")]
-    public float walkSpeed = 1.35f;
-    [Tooltip("Velocidad al perseguir al jugador en la oscuridad (Rápida e intensa)")]
-    public float chaseSpeed = 3.25f;
+    [Tooltip("Velocidad de caminata/arrastre sigiloso (Ajustado a la nueva escala)")]
+    public float walkSpeed = 3.6f;
+    [Tooltip("Velocidad al perseguir al jugador en la oscuridad (Ajustado a la nueva escala)")]
+    public float chaseSpeed = 5.8f;
     [Tooltip("Velocidad al huir hacia las sombras")]
-    public float fleeSpeed = 3.0f;
+    public float fleeSpeed = 5.5f;
     [Tooltip("Distancia a la que empieza a perseguir al jugador en la oscuridad")]
     public float chaseDistance = 10.0f;
     [Tooltip("Distancia mínima al jugador para afectar su cordura")]
@@ -170,6 +170,8 @@ public class CrawlerAI : MonoBehaviour
         if (agent != null)
         {
             agent.speed = walkSpeed;
+            agent.height = 1.2f;
+            agent.radius = 0.6f;
             agent.angularSpeed = 180f; // Giro fluido y natural (~180 deg/s)
             agent.acceleration = 12f;   // Aceleración orgánica sin tirones
             agent.stoppingDistance = 1.6f; // Evitar que el agente se empotre dentro de la cápsula del jugador
@@ -342,13 +344,13 @@ public class CrawlerAI : MonoBehaviour
         // 4. Daño de Cordura y sonidos de pisadas
         CheckSanityDrain();
 
-        // --- SISTEMA ANTI-ESTANCAMIENTO (TIMEOUT Y PATH INVALIDO/PARCIAL) ---
+        // --- SISTEMA ANTI-ESTANCAMIENTO (TIMEOUT Y PATH INVALIDO) ---
         if (agent != null && agent.enabled && agent.hasPath && !agent.pathPending && !isFleeing)
         {
-            if (agent.pathStatus == NavMeshPathStatus.PathInvalid || agent.pathStatus == NavMeshPathStatus.PathPartial)
+            if (agent.pathStatus == NavMeshPathStatus.PathInvalid)
             {
                 stuckTimer = 0f;
-                Debug.LogWarning("[TheCreep] Path inválido/parcial → buscando nuevo destino de patrulla.");
+                Debug.LogWarning("[TheCreep] Path inválido → buscando nuevo destino de patrulla.");
                 SetNextPerimeterDestination();
             }
             else if (agent.velocity.magnitude < 0.15f)
@@ -594,10 +596,54 @@ public class CrawlerAI : MonoBehaviour
         }
     }
 
+    void OnEnable()
+    {
+        if (agent == null) agent = GetComponent<NavMeshAgent>();
+        if (agent != null)
+        {
+            agent.height = 1.2f;
+            agent.radius = 0.6f;
+            agent.speed = walkSpeed;
+
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(transform.position, out hit, 5.0f, NavMesh.AllAreas))
+            {
+                agent.Warp(hit.position);
+            }
+        }
+    }
+
     void SetNextPerimeterDestination()
     {
         stuckTimer = 0f;
-        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
+        if (agent == null || !agent.enabled) return;
+
+        if (!agent.isOnNavMesh)
+        {
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(transform.position, out hit, 5.0f, NavMesh.AllAreas))
+            {
+                agent.Warp(hit.position);
+            }
+            if (!agent.isOnNavMesh) return;
+        }
+
+        if (perimeterWaypoints.Count == 0)
+        {
+            GameObject roomsObj = GameObject.Find("Rooms");
+            if (roomsObj == null) roomsObj = GameObject.Find("BackroomsHospital/Rooms");
+            if (roomsObj != null)
+            {
+                for (int i = 0; i < roomsObj.transform.childCount; i++)
+                {
+                    Transform child = roomsObj.transform.GetChild(i);
+                    if (child != null && !perimeterWaypoints.Contains(child.position))
+                    {
+                        perimeterWaypoints.Add(child.position);
+                    }
+                }
+            }
+        }
 
         if (perimeterWaypoints.Count == 0)
         {
@@ -615,18 +661,17 @@ public class CrawlerAI : MonoBehaviour
             attempts++;
 
             NavMeshHit hit;
-            Vector3 finalTarget = NavMesh.SamplePosition(target, out hit, 4f, NavMesh.AllAreas) ? hit.position : target;
+            Vector3 finalTarget = NavMesh.SamplePosition(target, out hit, 5f, NavMesh.AllAreas) ? hit.position : target;
 
-            NavMeshPath path = new NavMeshPath();
-            if (agent.CalculatePath(finalTarget, path) && path.status == NavMeshPathStatus.PathComplete)
+            if (agent.SetDestination(finalTarget))
             {
-                agent.SetPath(path);
+                agent.isStopped = false;
+                agent.speed = walkSpeed;
                 return;
             }
         }
         while (attempts < maxAttempts);
 
-        // Fallback si ningún waypoint perimetral es directamente completable
         TrySetRandomNavMeshDestination();
     }
 
@@ -642,10 +687,10 @@ public class CrawlerAI : MonoBehaviour
             NavMeshHit hit;
             if (NavMesh.SamplePosition(randomDir, out hit, 18f, NavMesh.AllAreas))
             {
-                NavMeshPath path = new NavMeshPath();
-                if (agent.CalculatePath(hit.position, path) && path.status == NavMeshPathStatus.PathComplete)
+                if (agent.SetDestination(hit.position))
                 {
-                    agent.SetPath(path);
+                    agent.isStopped = false;
+                    agent.speed = walkSpeed;
                     return;
                 }
             }

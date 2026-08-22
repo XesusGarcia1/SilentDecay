@@ -5,12 +5,12 @@ using System.Collections.Generic;
 public class CrawlerDecalTrail : MonoBehaviour
 {
     [Header("Ajustes del Rastro de Podredumbre")]
-    [Tooltip("Distancia en metros que debe avanzar El Rastrero para dejar una nueva mancha")]
+    [Tooltip("Distancia base en metros que debe avanzar El Rastrero para dejar una nueva mancha")]
     public float distanceBetweenDecals = 0.9f;
     [Tooltip("Cantidad máxima de manchas activas en la escena para proteger el rendimiento")]
     public int maxDecalsInScene = 40;
-    [Tooltip("Tamaño aleatorio de la mancha de moho")]
-    public Vector2 decalScaleRange = new Vector2(0.8f, 1.4f);
+    [Tooltip("Escala multiplicadora base para las manchas")]
+    public float baseDecalScale = 3.5f;
     [Tooltip("Tiempo en segundos que tarda en desvanecerse y desaparecer una mancha")]
     public float decalLifetime = 45f;
 
@@ -43,8 +43,11 @@ public class CrawlerDecalTrail : MonoBehaviour
 
     void Update()
     {
+        float monsterScale = Mathf.Max(0.5f, transform.lossyScale.x);
+        float effectiveDistance = distanceBetweenDecals * monsterScale;
+
         float movedDist = Vector3.Distance(transform.position, lastSpawnPos);
-        if (movedDist >= distanceBetweenDecals)
+        if (movedDist >= effectiveDistance)
         {
             lastSpawnPos = transform.position;
             SpawnDecalOnSurface();
@@ -53,18 +56,21 @@ public class CrawlerDecalTrail : MonoBehaviour
 
     void SpawnDecalOnSurface()
     {
+        float monsterScale = Mathf.Max(0.5f, transform.lossyScale.x);
+
         // 1. Manchar el Suelo por donde pasa El Rastrero
         RaycastHit groundHit;
-        Vector3 rayStart = transform.position + Vector3.up * 1.0f;
+        Vector3 rayStart = transform.position + Vector3.up * (1.0f * monsterScale);
 
-        if (Physics.Raycast(rayStart, Vector3.down, out groundHit, 2.5f))
+        if (Physics.Raycast(rayStart, Vector3.down, out groundHit, 2.5f * monsterScale))
         {
             string hitName = groundHit.collider.name.ToLower();
             if (!hitName.Contains("player") && !hitName.Contains("rastrero") && !hitName.Contains("bookhead"))
             {
                 if (Vector3.Angle(groundHit.normal, Vector3.up) < 25f)
                 {
-                    CreateDecal(groundHit.point + Vector3.up * 0.003f, Quaternion.Euler(90f, Random.Range(0f, 360f), 0f), Random.Range(3.4f, 4.0f), true);
+                    float floorScale = Random.Range(3.5f, 4.8f) * monsterScale;
+                    CreateDecal(groundHit.point + Vector3.up * 0.003f, Quaternion.Euler(90f, Random.Range(0f, 360f), 0f), floorScale, true);
                 }
             }
         }
@@ -74,7 +80,7 @@ public class CrawlerDecalTrail : MonoBehaviour
         foreach (Vector3 dir in sideDirs)
         {
             RaycastHit hit;
-            float maxRayDist = (dir == Vector3.up) ? 3.0f : 1.8f;
+            float maxRayDist = ((dir == Vector3.up) ? 3.0f : 1.8f) * monsterScale;
 
             int layerMask = ~LayerMask.GetMask("Ignore Raycast", "Water", "UI");
 
@@ -93,8 +99,8 @@ public class CrawlerDecalTrail : MonoBehaviour
                     Quaternion rot = Quaternion.LookRotation(-hit.normal, Vector3.up);
                     if (dir == Vector3.up || angleToDown < 20f) rot = Quaternion.Euler(-90f, Random.Range(0f, 360f), 0f);
 
-                    float adaptedScale = Random.Range(2.5f, 3.2f);
-                    CreateDecal(hit.point + hit.normal * 0.002f, rot, adaptedScale, false);
+                    float wallScale = Random.Range(2.8f, 3.8f) * monsterScale;
+                    CreateDecal(hit.point + hit.normal * 0.002f, rot, wallScale, false);
                 }
             }
         }

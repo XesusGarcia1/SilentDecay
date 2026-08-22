@@ -6,10 +6,10 @@ using System.Collections.Generic;
 public class EnemyAIBookHead : MonoBehaviour
 {
     public Transform player;
-    public float detectionRange = 7f;    // Rango de detección reducido para mapa pequeño
+    public float detectionRange = 9.0f;    // Rango de detección
     public float attackRange = 1.8f;
-    public float runSpeed = 2.2f;         // Correr lento — más tenso, menos imposible
-    public float walkSpeed = 1.2f;        // Caminar pausado y amenazante
+    public float runSpeed = 4.2f;         // Correr rápido e intenso (ajustado a la nueva escala)
+    public float walkSpeed = 2.4f;        // Caminar veloz (ajustado a la nueva escala)
     public Transform[] patrolPoints;
 
     private NavMeshAgent agent;
@@ -22,16 +22,46 @@ public class EnemyAIBookHead : MonoBehaviour
 
     private bool initialized = false;
 
+    void OnEnable()
+    {
+        if (agent == null) agent = GetComponent<NavMeshAgent>();
+        if (agent != null)
+        {
+            agent.agentTypeID = 0; // Humanoid
+            agent.height = 2.1f;   // Corregir altura de 9.73m a 2.1m para no chocar con techos ni marcos de puertas
+            agent.radius = 0.5f;
+            agent.stoppingDistance = 1.6f;
+            agent.baseOffset = 0f;
+            agent.speed = walkSpeed;
+
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(transform.position, out hit, 4.0f, NavMesh.AllAreas))
+            {
+                agent.Warp(hit.position);
+            }
+        }
+
+        if (patrolPoints != null && patrolPoints.Length > 0 && !isPatrolling)
+        {
+            initialized = true;
+            isPatrolling = true;
+            if (anim != null) { anim.SetBool("Walking", true); anim.SetBool("Still", false); }
+            remainingPatrolPoints = new List<Transform>(patrolPoints);
+            StartCoroutine(PatrolRoutine());
+        }
+    }
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         if (agent != null)
         {
             agent.agentTypeID = 0; // Humanoid por defecto
-            agent.height = 2.0f;   // Altura humana realista
-            agent.radius = 0.40f;
+            agent.height = 2.1f;   // Altura humana realista
+            agent.radius = 0.50f;
             agent.stoppingDistance = 1.6f;
             agent.baseOffset = 0f;
+            agent.speed = walkSpeed;
         }
 
         anim = GetComponent<Animator>();
@@ -73,8 +103,6 @@ public class EnemyAIBookHead : MonoBehaviour
             }
         }
 
-        // NO lanzar PatrolRoutine aquí. El generador llamará InitializePatrol() cuando el NavMesh esté listo.
-        // Si ya fue inicializado externamente (ej. prefab existente en escena), iniciar normal.
         if (initialized) return;
 
         if (patrolPoints != null && patrolPoints.Length > 0)
@@ -97,7 +125,6 @@ public class EnemyAIBookHead : MonoBehaviour
 
         if (isPlayerHidden)
         {
-            // Detener persecución o ataque incondicionalmente
             if (isAttacking)
             {
                 StopAllCoroutines();
@@ -122,7 +149,7 @@ public class EnemyAIBookHead : MonoBehaviour
                 }
                 StartCoroutine(PatrolRoutine());
             }
-            return; // No hacer nada más mientras el jugador esté escondido
+            return;
         }
 
         if (isAttacking) return;
@@ -135,7 +162,7 @@ public class EnemyAIBookHead : MonoBehaviour
             {
                 StopCoroutine(EatCycle());
                 isEating = false;
-                anim.SetBool("Eating", false);
+                if (anim != null) anim.SetBool("Eating", false);
             }
 
             if (distanceToPlayer <= attackRange)
@@ -145,7 +172,6 @@ public class EnemyAIBookHead : MonoBehaviour
         }
         else
         {
-            // Si no está persiguiendo o atacando, sigue patrullando
             if (!isPatrolling && !isAttacking && !isEating && initialized)
             {
                 isPatrolling = true;
@@ -154,10 +180,6 @@ public class EnemyAIBookHead : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Pre-carga los puntos de patrullaje y al jugador sin iniciar movimiento.
-    /// Llamado por el generador cuando el monstruo está inactivo (antes del primer apagón).
-    /// </summary>
     public void PreloadPatrol(Transform[] points, Transform playerTarget)
     {
         if (points != null && points.Length > 0)
@@ -166,7 +188,6 @@ public class EnemyAIBookHead : MonoBehaviour
             remainingPatrolPoints = new List<Transform>(patrolPoints);
         }
         if (playerTarget != null) player = playerTarget;
-        // NO iniciar PatrolRoutine aqui — se iniciara en OnEnable cuando PowerBox active al monstruo
     }
 
     public void InitializePatrol(Transform[] points, Transform playerTarget)
@@ -185,9 +206,8 @@ public class EnemyAIBookHead : MonoBehaviour
         if (agent == null) agent = GetComponent<NavMeshAgent>();
         if (anim == null) anim = GetComponent<Animator>();
 
-        if (agent != null)
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
         {
-            agent.enabled = true;
             agent.isStopped = false;
             agent.speed = walkSpeed;
         }
@@ -201,16 +221,6 @@ public class EnemyAIBookHead : MonoBehaviour
 
         StopAllCoroutines();
         StartCoroutine(PatrolRoutine());
-    }
-
-    // Al activarse con SetActive(true) desde PowerBox: reanudar patrullaje si ya fue pre-cargado
-    void OnEnable()
-    {
-        if (!initialized && patrolPoints != null && patrolPoints.Length > 0)
-        {
-            // Pre-cargado por generador: iniciar ahora que estamos activos
-            InitializePatrol(patrolPoints, player);
-        }
     }
 
     IEnumerator PatrolRoutine()
@@ -234,7 +244,6 @@ public class EnemyAIBookHead : MonoBehaviour
 
             if (nextPoint != null && agent != null && agent.enabled)
             {
-                // Si no está sobre el NavMesh, intentar reposicionarse y esperar 1 frame
                 if (!agent.isOnNavMesh)
                 {
                     UnityEngine.AI.NavMeshHit hit;
@@ -242,15 +251,14 @@ public class EnemyAIBookHead : MonoBehaviour
                     {
                         agent.Warp(hit.position);
                     }
-                    yield return null; // Esperar 1 frame para que isOnNavMesh se actualice
+                    yield return null;
                 }
 
-                if (agent.isOnNavMesh)
+                if (agent != null && agent.enabled && agent.isOnNavMesh)
                 {
                     agent.isStopped = false;
                     agent.speed = walkSpeed;
 
-                    // Verificar que el destino sea alcanzable en el NavMesh
                     UnityEngine.AI.NavMeshHit destHit;
                     Vector3 dest = nextPoint.position;
                     if (UnityEngine.AI.NavMesh.SamplePosition(dest, out destHit, 4.0f, UnityEngine.AI.NavMesh.AllAreas))
@@ -258,20 +266,37 @@ public class EnemyAIBookHead : MonoBehaviour
 
                     agent.SetDestination(dest);
 
-                    if (anim != null)
-                    {
-                        anim.SetBool("Walking", true);
-                        anim.SetBool("Still", false);
-                    }
-
-                    // Esperar hasta llegar al punto (timeout 15s para mapas grandes)
                     float timeout = 0f;
+                    float stuckTimer = 0f;
+
                     while (agent != null && agent.enabled && agent.isOnNavMesh
-                           && Vector3.Distance(transform.position, dest) > 1.2f
-                           && timeout < 15f)
+                           && Vector3.Distance(transform.position, dest) > 1.3f
+                           && timeout < 12f)
                     {
                         if (isAttacking || isEating) break;
                         timeout += Time.deltaTime;
+
+                        bool isMoving = agent.velocity.magnitude > 0.15f;
+                        if (anim != null)
+                        {
+                            anim.SetBool("Walking", isMoving);
+                            anim.SetBool("Still", !isMoving);
+                        }
+
+                        if (!isMoving)
+                        {
+                            stuckTimer += Time.deltaTime;
+                            if (stuckTimer >= 2.0f)
+                            {
+                                Debug.LogWarning("BookHeadAI: Estancado en pasillo. Saltando al siguiente punto de patrulla.");
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            stuckTimer = 0f;
+                        }
+
                         yield return null;
                     }
 
@@ -280,45 +305,61 @@ public class EnemyAIBookHead : MonoBehaviour
                         anim.SetBool("Walking", false);
                         anim.SetBool("Still", true);
                     }
-                    if (agent != null && agent.isOnNavMesh) agent.isStopped = true;
+                    if (agent != null && agent.enabled && agent.isOnNavMesh) agent.isStopped = true;
                 }
             }
 
             currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Length;
-            yield return new WaitForSeconds(Random.Range(2.0f, 4.0f)); // Pausa entre puntos
+            yield return new WaitForSeconds(Random.Range(2.0f, 4.0f));
         }
     }
 
     void ChasePlayer()
     {
         isPatrolling = false;
-        agent.SetDestination(player.position);
-        agent.isStopped = false;
-        agent.speed = runSpeed;
-        anim.SetBool("Running", true);
-        anim.SetBool("Walking", false);
-        anim.SetBool("Still", false);
+        if (agent != null && agent.enabled && agent.isOnNavMesh && player != null)
+        {
+            agent.isStopped = false;
+            agent.speed = runSpeed;
+            agent.SetDestination(player.position);
+        }
+        if (anim != null)
+        {
+            anim.SetBool("Running", true);
+            anim.SetBool("Walking", false);
+            anim.SetBool("Still", false);
+        }
     }
 
     void AttackPlayer()
     {
         isAttacking = true;
-        agent.isStopped = true;
-        anim.SetBool("Attacking", true);
-        anim.SetBool("Running", false);
-        anim.SetBool("Walking", false);
-        anim.SetBool("Still", false);
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+        }
+        if (anim != null)
+        {
+            anim.SetBool("Attacking", true);
+            anim.SetBool("Running", false);
+            anim.SetBool("Walking", false);
+            anim.SetBool("Still", false);
+        }
         StartCoroutine(AttackCooldown());
     }
 
     IEnumerator AttackCooldown()
     {
         yield return new WaitForSeconds(1f);
-        anim.SetBool("Attacking", false);
+        if (anim != null) anim.SetBool("Attacking", false);
         isAttacking = false;
-        agent.isStopped = false;
 
-        if (Vector3.Distance(transform.position, player.position) > detectionRange)
+        if (agent != null && agent.enabled && agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+        }
+
+        if (player != null && Vector3.Distance(transform.position, player.position) > detectionRange)
         {
             isPatrolling = true;
             StartCoroutine(PatrolRoutine());
@@ -328,13 +369,16 @@ public class EnemyAIBookHead : MonoBehaviour
     IEnumerator EatCycle()
     {
         isEating = true;
-        anim.SetBool("Eating", true);
-        anim.SetBool("Still", false);
+        if (anim != null)
+        {
+            anim.SetBool("Eating", true);
+            anim.SetBool("Still", false);
+        }
         yield return new WaitForSeconds(4f);
-        anim.SetBool("Eating", false);
+        if (anim != null) anim.SetBool("Eating", false);
         isEating = false;
 
-        if (Vector3.Distance(transform.position, player.position) > detectionRange)
+        if (player != null && Vector3.Distance(transform.position, player.position) > detectionRange)
         {
             isPatrolling = true;
             StartCoroutine(PatrolRoutine());
@@ -343,7 +387,7 @@ public class EnemyAIBookHead : MonoBehaviour
 
     public void FleeFarFromPlayer()
     {
-        if (agent == null || !agent.enabled) return;
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
 
         GameObject patrolHolder = GameObject.Find("[BookHead_Patrol_Points]");
         Vector3 farthestPos = transform.position;
@@ -369,6 +413,5 @@ public class EnemyAIBookHead : MonoBehaviour
 
         agent.speed = runSpeed * 1.35f;
         agent.SetDestination(farthestPos);
-        Debug.Log("BookHeadAI: Jugador escondido debajo de cama. Retirándose rápido a punto lejano: " + farthestPos);
     }
 }

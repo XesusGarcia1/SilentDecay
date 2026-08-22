@@ -16,8 +16,7 @@ public partial class HospitalFixedMapLogic
             string tName = t.name.ToLower();
             if (tName.Contains("worn_hospital_gurney") || tName.Contains("gurney"))
             {
-                if (t.position.sqrMagnitude < 0.01f) continue;
-                if (t.parent != null && t.parent.name.ToLower().Contains("prefabs")) continue;
+                if (t.position.sqrMagnitude < 0.001f) continue;
 
                 if (!gurneys.Contains(t))
                 {
@@ -54,8 +53,8 @@ public partial class HospitalFixedMapLogic
             {
                 ShuffleList(childItems);
 
-                // Activar SOLO 1 ítem al azar de los 3 presentes en la camilla
-                childItems[0].SetActive(true);
+                // Activar SOLO 1 ítem al azar de los 3 presentes en la camilla (activando mallas hijas)
+                ActivateItemWithAllChildren(childItems[0]);
 
                 // Desactivar los demás ítems de la camilla
                 for (int i = 1; i < childItems.Count; i++)
@@ -89,8 +88,7 @@ public partial class HospitalFixedMapLogic
             // 1. Configurar BATERÍAS crudas
             if (IsTopLevelElement(t, batteryKeywords, batteryExcludes))
             {
-                if (t.position.sqrMagnitude < 0.01f) continue;
-                if (t.parent != null && t.parent.name.ToLower().Contains("prefabs")) continue;
+                if (t.position.sqrMagnitude < 0.001f) continue;
 
                 GameObject targetBat = t.gameObject;
                 MeshRenderer mr = t.GetComponentInChildren<MeshRenderer>(true);
@@ -122,8 +120,7 @@ public partial class HospitalFixedMapLogic
             // 2. Configurar FUSIBLES crudos
             if (IsTopLevelElement(t, fuseKeywords, fuseExcludes))
             {
-                if (t.position.sqrMagnitude < 0.01f) continue;
-                if (t.parent != null && t.parent.name.ToLower().Contains("prefabs")) continue;
+                if (t.position.sqrMagnitude < 0.001f) continue;
 
                 GameObject targetFuse = t.gameObject;
                 MeshRenderer mr = t.GetComponentInChildren<MeshRenderer>(true);
@@ -163,7 +160,7 @@ public partial class HospitalFixedMapLogic
         {
             if (i < initialActiveBats)
             {
-                allBatteryObjects[i].SetActive(true);
+                ActivateItemWithAllChildren(allBatteryObjects[i]);
                 batteriesConfigured++;
             }
             else
@@ -183,7 +180,7 @@ public partial class HospitalFixedMapLogic
         {
             if (i < initialActiveFuses)
             {
-                allFuseObjects[i].SetActive(true);
+                ActivateItemWithAllChildren(allFuseObjects[i]);
                 fusesConfigured++;
             }
             else
@@ -248,7 +245,7 @@ public partial class HospitalFixedMapLogic
 
         if (fuseToActivate != null)
         {
-            fuseToActivate.SetActive(true);
+            ActivateItemWithAllChildren(fuseToActivate);
             Debug.Log($"[FixedHospital] ¡FUSIBLE REESPAWNEADO! En {fuseToActivate.name} en posición {fuseToActivate.transform.position}");
             PlayerMonologueManager.ShowDialogue("Un fusible de repuesto ha aparecido en una de las camillas o muebles del hospital...", 5.0f);
         }
@@ -308,6 +305,7 @@ public partial class HospitalFixedMapLogic
         if (batToActivate != null)
         {
             batToActivate.SetActive(true);
+            ActivateItemWithAllChildren(batToActivate);
             Debug.Log($"[FixedHospital] ¡BATERÍA REESPAWNEADA! En {batToActivate.name} en posición {batToActivate.transform.position}");
             PlayerMonologueManager.ShowDialogue("Parece que ha aparecido una batería de repuesto en una de las camillas o muebles del hospital...", 5.0f);
         }

@@ -1723,7 +1723,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8454599220726194173, guid: 01e1d1b7113115c49a0fcfff115c7090, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 66.55
+      value: 66.44
       objectReference: {fileID: 0}
     - target: {fileID: 8454599220726194173, guid: 01e1d1b7113115c49a0fcfff115c7090, type: 3}
       propertyPath: m_LocalPosition.y
@@ -6577,7 +6577,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2862278905927072855, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.7640001
+      value: 0.62000006
       objectReference: {fileID: 0}
     - target: {fileID: 5126527961139664760, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       propertyPath: m_LocalPosition.x
@@ -6589,11 +6589,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5126527961139664760, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.7640001
+      value: 0.62000006
       objectReference: {fileID: 0}
     - target: {fileID: 5242107653240477475, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.382
+      value: 0.31
       objectReference: {fileID: 0}
     - target: {fileID: 6556307555316582679, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       propertyPath: m_LocalPosition.x
@@ -6777,15 +6777,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: b0634dad6b8ca6c4799e81f014729ec0, type: 3}
       propertyPath: m_LocalScale.x
-      value: 186.7882
+      value: 269.68616
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b0634dad6b8ca6c4799e81f014729ec0, type: 3}
       propertyPath: m_LocalScale.y
-      value: 218.52066
+      value: 309.8768
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b0634dad6b8ca6c4799e81f014729ec0, type: 3}
       propertyPath: m_LocalScale.z
-      value: 216.2125
+      value: 330.3078
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: b0634dad6b8ca6c4799e81f014729ec0, type: 3}
       propertyPath: m_LocalPosition.x
@@ -8527,15 +8527,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 939dd2b1b2633e840b9645b503fa3457, type: 3}
       propertyPath: m_LocalScale.x
-      value: 6.5163927
+      value: 6.844167
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 939dd2b1b2633e840b9645b503fa3457, type: 3}
       propertyPath: m_LocalScale.y
-      value: 5.4082694
+      value: 6.2692657
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 939dd2b1b2633e840b9645b503fa3457, type: 3}
       propertyPath: m_LocalScale.z
-      value: 5.552182
+      value: 6.111287
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 939dd2b1b2633e840b9645b503fa3457, type: 3}
       propertyPath: m_LocalPosition.x
@@ -13619,7 +13619,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5242107653240477475, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.382
+      value: 0.31
       objectReference: {fileID: 0}
     - target: {fileID: 6556307555316582679, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       propertyPath: m_LocalPosition.x
@@ -17004,8 +17004,8 @@ NavMeshAgent:
   m_GameObject: {fileID: 1421901077}
   m_Enabled: 1
   m_AgentTypeID: 0
-  m_Radius: 0.4
-  m_Speed: 1.8
+  m_Radius: 0.8
+  m_Speed: 3
   m_Acceleration: 12
   avoidancePriority: 50
   m_AngularSpeed: 180
@@ -17013,7 +17013,7 @@ NavMeshAgent:
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
   m_AutoRepath: 1
-  m_Height: 0.9
+  m_Height: 1.2
   m_BaseOffset: 0
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
@@ -17053,7 +17053,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   distanceBetweenDecals: 0.9
   maxDecalsInScene: 40
-  decalScaleRange: {x: 0.8, y: 1.4}
+  baseDecalScale: 3.5
   decalLifetime: 45
   moldTexture: {fileID: 2800000, guid: bca1e9e1a0893c0448326d84b65cacc9, type: 3}
   veinsTexture: {fileID: 2800000, guid: d037ae9260a09d74bac58c11af90658d, type: 3}
@@ -17095,7 +17095,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1.1901}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1018951248}
@@ -17142,8 +17142,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1.6138371, y: 1.549051, z: 1.9282374}
-  m_Center: {x: -0.21145946, y: 0.6879152, z: -0.47539878}
+  m_Size: {x: 3.3042874, y: 2.5187767, z: 3.2790136}
+  m_Center: {x: -0.38177896, y: 1.172778, z: 0.19998784}
 --- !u!1001 &1429680420
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -26299,7 +26299,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   startModulePrefab: {fileID: 2031606150241885134, guid: 321485ae42aee3744b5e86540e42b91c, type: 3}
-  directorOfficePrefab: {fileID: 776224036884911986, guid: 2e8cb66a06bbdec45b20f15396a42dac, type: 3}
+  directorOfficePrefab: {fileID: 0}
   straightCorridorPrefabs:
   - {fileID: 957726594522466578, guid: 37f730e870dd83348bb5ba5b7fb3e9ac, type: 3}
   longCorridorPrefabs:

@@ -7,7 +7,7 @@ public class HideUnderBed : MonoBehaviour
     public GameObject player;         // Objeto del jugador (se auto-detectará si es null)
     public GameObject playerCapsule;  // Objeto con scripts de movimiento (se auto-detectará si es null)
     public Camera mainCamera;         // Cámara del jugador (se auto-detectará si es null)
-    public float interactDistance = 3.5f;
+    public float interactDistance = 3.8f;
 
     [Header("Estado")]
     public bool isHiding = false;
@@ -24,7 +24,7 @@ public class HideUnderBed : MonoBehaviour
     private float rotationX = 0f;
     private float rotationY = 0f;
     
-    private bool nearBed = false;
+    public bool nearBed = false;
     public Bed targetBed = null;
     private StarterAssets.StarterAssetsInputs playerInputs;
 
@@ -35,19 +35,27 @@ public class HideUnderBed : MonoBehaviour
 
     void InitializeReferences()
     {
-        if (player == null)
+        if (player == null || !player.activeInHierarchy)
         {
-            CharacterController cc = FindObjectOfType<CharacterController>();
-            if (cc != null) player = cc.gameObject;
-            else player = GameObject.Find("NestedParent_Unpack");
+            var fpc = FindFirstObjectByType<StarterAssets.FirstPersonController>();
+            if (fpc != null && fpc.gameObject.activeInHierarchy)
+            {
+                player = fpc.gameObject;
+            }
+            else
+            {
+                CharacterController cc = FindFirstObjectByType<CharacterController>();
+                if (cc != null && cc.gameObject.activeInHierarchy) player = cc.gameObject;
+                else player = GameObject.Find("NestedParent_Unpack");
+            }
         }
 
-        if (playerCapsule == null)
+        if (playerCapsule == null || !playerCapsule.activeInHierarchy)
         {
             playerCapsule = player;
         }
 
-        if (mainCamera == null)
+        if (mainCamera == null || !mainCamera.gameObject.activeInHierarchy)
         {
             mainCamera = Camera.main;
             if (mainCamera == null && player != null)
@@ -56,7 +64,7 @@ public class HideUnderBed : MonoBehaviour
             }
             if (mainCamera == null)
             {
-                mainCamera = FindAnyObjectByType<Camera>();
+                mainCamera = FindFirstObjectByType<Camera>();
             }
         }
 
@@ -75,6 +83,14 @@ public class HideUnderBed : MonoBehaviour
 
     void Update()
     {
+        // Si el juego está pausado o en el menú de opciones, desactivar interacción de cama
+        if (Time.timeScale == 0f || (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsGamePaused))
+        {
+            nearBed = false;
+            targetBed = null;
+            return;
+        }
+
         if (player == null || playerCapsule == null || mainCamera == null)
         {
             InitializeReferences();
@@ -88,22 +104,23 @@ public class HideUnderBed : MonoBehaviour
                 mainCamera.transform.position = bedHidePosition.position;
             }
 
-            float mouseX = 0f;
-            float mouseY = 0f;
+            float mouseX = Input.GetAxis("Mouse X") * 2.5f;
+            float mouseY = Input.GetAxis("Mouse Y") * 2.5f;
 
-            if (playerInputs != null)
+            if (playerInputs != null && (Mathf.Abs(playerInputs.look.x) > 0.01f || Mathf.Abs(playerInputs.look.y) > 0.01f))
             {
-                // Usar la entrada de mirada unificada del nuevo Input System (funciona para mouse en PC y táctil en móviles)
-                // Multiplicamos por 0.8f para velocidad adecuada y añadimos el signo menos en Y para corregir la inversión
                 mouseX = playerInputs.look.x * 0.8f;
-                mouseY = -playerInputs.look.y * 0.8f;
+                mouseY = playerInputs.look.y * 0.8f;
             }
 
-            rotationX -= mouseY;
-            rotationX = Mathf.Clamp(rotationX, -60f, 60f);
             rotationY += mouseX;
+            rotationX -= mouseY;
 
-            mainCamera.transform.localRotation = Quaternion.Euler(rotationX, rotationY, 0f);
+            rotationX = Mathf.Clamp(rotationX, -8f, 25f);
+            rotationY = Mathf.Clamp(rotationY, -75f, 75f);
+
+            Quaternion baseRot = bedHidePosition != null ? bedHidePosition.rotation : Quaternion.identity;
+            mainCamera.transform.rotation = baseRot * Quaternion.Euler(rotationX, rotationY, 0f);
         }
         else
         {
@@ -112,79 +129,73 @@ public class HideUnderBed : MonoBehaviour
 
             if (ElevatorController.isNotepadOpen) return;
 
-            // Detección de cama limpia y directa por proximidad y ángulo de mirada
-            Bed[] beds = FindObjectsOfType<Bed>();
+            // Detección de camas en el mapa
+            Bed[] beds = FindObjectsByType<Bed>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+            // Auto-asignación al vuelo de componente Bed en cualquier objeto de cama/camilla cercano
+            Collider[] nearbyCols = Physics.OverlapSphere(mainCamera.transform.position, 4.5f);
+            foreach (Collider col in nearbyCols)
+            {
+                if (col == null) continue;
+                string n = col.gameObject.name.ToLower();
+                if (n.Contains("cama") || n.Contains("bed") || n.Contains("camilla") || n.Contains("gurney") || n.Contains("medical") || n.Contains("bedding"))
+                {
+                    if (col.GetComponentInParent<ProceduralDoorInteract>() != null) continue;
+                    
+                    Bed bComp = col.GetComponent<Bed>();
+                    if (bComp == null) bComp = col.GetComponentInParent<Bed>();
+                    if (bComp == null) bComp = col.gameObject.AddComponent<Bed>();
+
+                    Transform hidePos = bComp.transform.Find("HidePosition");
+                    if (hidePos == null)
+                    {
+                        GameObject hObj = new GameObject("HidePosition");
+                        hObj.transform.SetParent(bComp.transform, false);
+                        hObj.transform.localPosition = new Vector3(0f, 0.28f, 0f);
+                        hObj.transform.localRotation = Quaternion.identity;
+                        hidePos = hObj.transform;
+                    }
+                    bComp.hidePosition = hidePos;
+
+                    BoxCollider bc = bComp.GetComponent<BoxCollider>();
+                    if (bc != null) bc.isTrigger = true;
+                }
+            }
+
+            beds = FindObjectsByType<Bed>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+
             Bed closestBed = null;
-            float bestDist = float.MaxValue;
+            float bestSurfaceDist = float.MaxValue;
+            Vector3 camPos = mainCamera.transform.position;
 
             foreach (Bed bed in beds)
             {
-                if (bed == null) continue;
+                if (bed == null || !bed.gameObject.activeInHierarchy) continue;
 
-                Vector3 bedCenter = bed.transform.position;
                 BoxCollider box = bed.GetComponent<BoxCollider>();
+                if (box != null) box.isTrigger = true;
+
+                Vector3 surfacePoint = bed.transform.position;
                 if (box != null)
                 {
-                    bedCenter = box.bounds.center;
+                    surfacePoint = box.ClosestPoint(camPos);
                 }
 
-                // Distancia entre el jugador y el centro/cuerpo de la cama
-                float dist = Vector3.Distance(bedCenter, player.transform.position);
-                
-                // Dynamic distance threshold based on player lossyScale
-                float scaleFactor = Mathf.Max(1.0f, player.transform.lossyScale.y);
-                float maxBedDist = 4.8f * scaleFactor;
-                
-                // Rango justo para interactuar estando dentro de la habitación
-                if (dist > maxBedDist) continue;
+                float surfaceDist = Vector3.Distance(surfacePoint, camPos);
+                float maxDistAllowed = Mathf.Max(interactDistance, 4.5f);
 
-                // Usar InteractionFocusManager para ver si el jugador está mirando directamente a la cama (su colisionador)
-                bool isFocused = InteractionFocusManager.IsFocused(bed.gameObject, maxBedDist);
-
-                // Si no detectó por el padre, probar con los hijos (si los hay)
-                if (!isFocused)
+                // Si la superficie de la cama está a menos de 4.5 metros de la cámara, es válida inmediatamente
+                if (surfaceDist <= maxDistAllowed && surfaceDist < bestSurfaceDist)
                 {
-                    foreach (Transform child in bed.transform)
-                    {
-                        if (InteractionFocusManager.IsFocused(child.gameObject, maxBedDist))
-                        {
-                            isFocused = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (isFocused && dist < bestDist)
-                {
-                    bestDist = dist;
+                    bestSurfaceDist = surfaceDist;
                     closestBed = bed;
                 }
             }
 
             if (closestBed != null)
             {
-                // PRIORIDAD ABSOLUTA DE BATERÍA/ITEM: Si la mirilla apunta directamente a una Batería cercana, NO activar esconderse
-                bool lookingAtBattery = false;
-                RaycastHit itemHit;
-                if (Physics.Raycast(mainCamera.transform.position, mainCamera.transform.forward, out itemHit, 3.5f))
-                {
-                    if (itemHit.collider != null)
-                    {
-                        BatteryItem batComp = itemHit.collider.GetComponentInParent<BatteryItem>();
-                        if (batComp == null) batComp = itemHit.collider.GetComponent<BatteryItem>();
-                        if (batComp != null) lookingAtBattery = true;
-                    }
-                }
-
-                if (!lookingAtBattery)
-                {
-                    nearBed = true;
-                    targetBed = closestBed;
-                }
-            }
-            if (beds.Length > 0 || closestBed != null)
-            {
-                Debug.Log($"[BedDebug] bedsCount={beds.Length}, closest={closestBed?.name ?? "null"}, nearBed={nearBed}, target={targetBed?.name ?? "null"}");
+                nearBed = true;
+                targetBed = closestBed;
             }
         }
     }
@@ -193,18 +204,15 @@ public class HideUnderBed : MonoBehaviour
 
     void LateUpdate()
     {
+        // Si el juego está pausado o en menú de opciones, cancelar cualquier interacción
+        if (Time.timeScale == 0f || (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsGamePaused)) return;
         if (ElevatorController.isNotepadOpen) return;
 
-        // Prevenir que el mismo tap de interactuar para esconderte te saque de inmediato de la cama (cooldown de 0.40s)
         if (Time.unscaledTime < lastToggleTime + 0.40f) return;
 
         if (isHiding)
         {
-            #if UNITY_ANDROID || UNITY_IOS
-            if (MobileInput.GetKeyDown(KeyCode.E))
-            #else
-            if (MobileInput.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
-            #endif
+            if (MobileInput.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
             {
                 MobileInput.ePressedDown = false;
                 ToggleHide(null);
@@ -212,8 +220,9 @@ public class HideUnderBed : MonoBehaviour
         }
         else
         {
-            // Interacción directa con cama: presionar E cuando nearBed es true
-            if (nearBed && targetBed != null && MobileInput.GetKeyDown(KeyCode.E))
+            // Interacción directa: Presionar E o presionar botón táctil cuando el juego NO está pausado
+            bool triggerPressed = MobileInput.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.E);
+            if (nearBed && targetBed != null && triggerPressed)
             {
                 MobileInput.ePressedDown = false;
                 ToggleHide(targetBed);
@@ -234,7 +243,6 @@ public class HideUnderBed : MonoBehaviour
         {
             Debug.Log("🛌 Escondiéndose bajo la cama...");
 
-            // Forzar a los monstruos a retirarse rápidamente a un punto lejano del mapa
             EvictEnemiesFarFromPlayer();
 
             bedHidePosition = activeBed.hidePosition;
@@ -247,7 +255,6 @@ public class HideUnderBed : MonoBehaviour
                 cc.enabled = false;
             }
 
-            // Detener inmediatamente cualquier sonido de pasos (caminando/corriendo) que se haya quedado reproduciendo
             AudioSource playerAudio = playerCapsule.GetComponent<AudioSource>();
             if (playerAudio != null)
             {
@@ -296,8 +303,8 @@ public class HideUnderBed : MonoBehaviour
 
             MobileInput.SetCursorState(true);
 
-            rotationX = mainCamera.transform.localEulerAngles.x;
-            rotationY = mainCamera.transform.localEulerAngles.y;
+            rotationX = 0f;
+            rotationY = 0f;
         }
         else
         {
@@ -339,6 +346,8 @@ public class HideUnderBed : MonoBehaviour
 
     void OnGUI()
     {
+        // Si el juego está pausado o en el menú de opciones, NUNCA mostrar el cartel de la cama
+        if (Time.timeScale == 0f || (PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsGamePaused)) return;
         if (ElevatorController.isNotepadOpen) return;
 
         if (isHiding)
@@ -362,19 +371,18 @@ public class HideUnderBed : MonoBehaviour
         }
         else
         {
-            // Mostrar prompt directamente cuando el jugador está cerca de una cama y la mira
             if (nearBed && targetBed != null)
             {
                 BoxCollider box = targetBed.GetComponent<BoxCollider>();
                 Vector3 targetPoint = targetBed.transform.position;
                 if (box != null)
                 {
-                    targetPoint = box.ClosestPoint(player.transform.position);
+                    targetPoint = box.ClosestPoint(mainCamera.transform.position);
                 }
 
-                float distToBed = Vector3.Distance(targetPoint, player.transform.position);
-                float maxRange = interactDistance * 1.5f;
-                if (distToBed <= maxRange)
+                float distToBed = Vector3.Distance(targetPoint, mainCamera.transform.position);
+                float maxDistAllowed = Mathf.Max(interactDistance, 4.5f);
+                if (distToBed <= maxDistAllowed)
                 {
                     GUIStyle style = new GUIStyle();
                     style.fontSize = 22;
@@ -399,7 +407,6 @@ public class HideUnderBed : MonoBehaviour
 
     void EvictEnemiesFarFromPlayer()
     {
-        // 1. Evacuar a El Rastrero / CrawlerAI hacia las sombras alejadas del mapa
         CrawlerAI[] crawlers = FindObjectsOfType<CrawlerAI>(true);
         foreach (var c in crawlers)
         {
@@ -409,7 +416,6 @@ public class HideUnderBed : MonoBehaviour
             }
         }
 
-        // 2. Evacuar a BookHead / EnemyAIController & EnemyAIBookHead hacia puntos de patrulla distantes
         EnemyAIController[] b1s = FindObjectsOfType<EnemyAIController>(true);
         foreach (var b in b1s)
         {

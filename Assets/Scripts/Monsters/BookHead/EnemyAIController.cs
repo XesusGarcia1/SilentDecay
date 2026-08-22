@@ -42,9 +42,9 @@ public class EnemyAIController : MonoBehaviour
 
     public Transform player;
     public float attackRange = 2f;
-    public float detectionRange = 5.0f;
-    public float walkSpeed = 1.0f;
-    public float runSpeed = 1.8f;
+    public float detectionRange = 9.0f;
+    public float walkSpeed = 2.4f;
+    public float runSpeed = 4.2f;
     public Transform[] patrolPoints;
 
     [Header("Reposicionamiento Silencioso")]
@@ -103,12 +103,14 @@ public class EnemyAIController : MonoBehaviour
 
         if (agent != null)
         {
-            agent.radius = 0.45f;
+            agent.agentTypeID = 0; // Humanoid por defecto
+            agent.height = 2.1f;   // Corregir altura de 9.73m a 2.1m para no chocar con techos ni marcos de puertas
+            agent.radius = 0.50f;
             agent.stoppingDistance = 1.6f;
             // Asegurar que el agente controla el transform (no el motor de fisica)
             agent.updatePosition = true;
             agent.updateRotation = true;
-            if (agent.isOnNavMesh) agent.isStopped = false;
+            if (agent.enabled && agent.isOnNavMesh) agent.isStopped = false;
         }
 
         // CRITICO: Rigidbodies y BoxColliders sólidos en hijos pelean contra el NavMeshAgent.
@@ -230,7 +232,9 @@ public class EnemyAIController : MonoBehaviour
         roomLightsManager = FindObjectOfType<RoomLightsManager>();
         playerSanity = FindObjectOfType<PlayerSanity>();
 
-        ChangeState(new EnemyPatrolState(this, agent, anim, (patrolPoints != null && patrolPoints.Length > 0) ? patrolPoints : new Transform[0]));
+        if (patrolPoints == null) patrolPoints = new Transform[0];
+
+        ChangeState(new EnemyPatrolState(this, agent, anim, patrolPoints));
 
         SetupAudio();
         StartCoroutine(SilentRepositionRoutine());
@@ -239,6 +243,16 @@ public class EnemyAIController : MonoBehaviour
     // Se ejecuta CADA VEZ que el enemigo se activa con SetActive(true)
     void OnEnable()
     {
+        if (agent == null) agent = GetComponent<NavMeshAgent>();
+        if (agent == null) agent = GetComponentInChildren<NavMeshAgent>();
+        if (agent != null)
+        {
+            agent.agentTypeID = 0; // Humanoid
+            agent.height = 2.1f;   // Corregir altura de 9.73m a 2.1m para no chocar con techos ni marcos de puertas
+            agent.radius = 0.5f;
+            agent.stoppingDistance = 1.6f;
+        }
+
         // Solo reiniciar si ya tenemos patrol points (no en el primer Start())
         if (patrolPoints != null && patrolPoints.Length > 0)
         {

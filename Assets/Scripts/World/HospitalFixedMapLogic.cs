@@ -43,6 +43,7 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
         SetupLoreNotes();
         SetupItems();
         SetupElevators();
+        SetupBookHeadMonster();
 
         // Monitorear e iniciar respawn automático de fusibles y baterías si el jugador los necesita
         StartCoroutine(CheckAndRespawnFusesRoutine());
@@ -50,6 +51,116 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
 
         // Disparar monólogo inicial del jugador con pequeño delay
         StartCoroutine(TriggerStartMonologueDelayed());
+    }
+
+    private void SetupBookHeadMonster()
+    {
+        EnemyAIBookHead bookHeadA = FindFirstObjectByType<EnemyAIBookHead>(FindObjectsInactive.Include);
+        EnemyAIController bookHeadB = FindFirstObjectByType<EnemyAIController>(FindObjectsInactive.Include);
+
+        if (bookHeadA == null && bookHeadB == null)
+        {
+            GameObject bhObj = GameObject.Find("BookHead");
+            if (bhObj != null)
+            {
+                bookHeadA = bhObj.GetComponent<EnemyAIBookHead>();
+                bookHeadB = bhObj.GetComponent<EnemyAIController>();
+            }
+        }
+
+        if (bookHeadA == null && bookHeadB == null) return;
+
+        // Recolectar ÚNICAMENTE pasillos/corredores del mapa (EXCLUYENDO habitaciones y la Oficina del Director)
+        List<Vector3> corridorPositions = new List<Vector3>();
+
+        var modGen = FindFirstObjectByType<ModularHospital.ModularHospitalGenerator>();
+        if (modGen != null && modGen.gridMatrix != null)
+        {
+            int sX = modGen.gridMatrix.GetLength(0);
+            int sZ = modGen.gridMatrix.GetLength(1);
+            float halfW = (sX * 4.0f) / 2.0f;
+            float halfD = (sZ * 4.0f) / 2.0f;
+
+            for (int x = 1; x < sX - 1; x++)
+            {
+                for (int z = 1; z < sZ - 1; z++)
+                {
+                    // gridMatrix[x, z] == 1 indica pasillo abierto del hospital
+                    if (modGen.gridMatrix[x, z] == 1)
+                    {
+                        float wX = (x * 4.0f) - halfW + 2.0f;
+                        float wZ = (z * 4.0f) - halfD + 2.0f;
+                        Vector3 worldPos = modGen.transform.position + new Vector3(wX, 0f, wZ);
+
+                        UnityEngine.AI.NavMeshHit hit;
+                        if (UnityEngine.AI.NavMesh.SamplePosition(worldPos, out hit, 2.5f, UnityEngine.AI.NavMesh.AllAreas))
+                        {
+                            if (!corridorPositions.Contains(hit.position))
+                            {
+                                corridorPositions.Add(hit.position);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Si no se encontraron por gridMatrix, buscar objetos con 'corridor' o 'pasillo' en el mapa sin tocar rooms/director
+        if (corridorPositions.Count == 0)
+        {
+            Transform[] allTransforms = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (Transform t in allTransforms)
+            {
+                if (t == null) continue;
+                string tName = t.name.ToLower();
+
+                if (tName.Contains("director") || tName.Contains("room") || tName.Contains("apothecary") || tName.Contains("medical")) continue;
+
+                if (tName.Contains("corridor") || tName.Contains("pasillo") || tName.Contains("hallway"))
+                {
+                    if (t.position.sqrMagnitude > 0.01f && !corridorPositions.Contains(t.position))
+                    {
+                        corridorPositions.Add(t.position);
+                    }
+                }
+            }
+        }
+
+        // Crear o actualizar la carpeta exclusiva de patrulla en pasillos [BookHead_Patrol_Points]
+        GameObject patrolHolder = GameObject.Find("[BookHead_Patrol_Points]");
+        if (patrolHolder != null) Destroy(patrolHolder);
+        patrolHolder = new GameObject("[BookHead_Patrol_Points]");
+
+        List<Transform> validPts = new List<Transform>();
+        for (int i = 0; i < corridorPositions.Count; i++)
+        {
+            GameObject pPoint = new GameObject($"[Corridor_Patrol_Point_{i + 1}]");
+            pPoint.transform.position = corridorPositions[i];
+            pPoint.transform.parent = patrolHolder.transform;
+            validPts.Add(pPoint.transform);
+        }
+
+        Transform playerTarget = playerTransform;
+        if (playerTarget == null)
+        {
+            GameObject pObj = GameObject.FindGameObjectWithTag("Player");
+            if (pObj != null) playerTarget = pObj.transform;
+        }
+
+        // Pre-cargar patrulla para EnemyAIBookHead y EnemyAIController
+        if (bookHeadA != null)
+        {
+            bookHeadA.PreloadPatrol(validPts.ToArray(), playerTarget);
+            bookHeadA.gameObject.SetActive(false);
+        }
+        if (bookHeadB != null)
+        {
+            bookHeadB.patrolPoints = validPts.ToArray();
+            bookHeadB.player = playerTarget;
+            bookHeadB.gameObject.SetActive(false);
+        }
+
+        Debug.Log($"[FixedHospital] BookHead configurado con {validPts.Count} puntos de patrulla en pasillos. Esperando apagón...");
     }
 
     private void SetupPlayerSpawn()
@@ -94,6 +205,14 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
             Physics.SyncTransforms();
 
             if (cc != null) cc.enabled = true;
+
+            // Asegurar que el componente HideUnderBed está presente y configurado en el jugador activo
+            HideUnderBed hub = playerObj.GetComponent<HideUnderBed>();
+            if (hub == null) hub = playerObj.AddComponent<HideUnderBed>();
+            hub.player = playerObj;
+            hub.playerCapsule = playerObj;
+            hub.mainCamera = playerObj.GetComponentInChildren<Camera>(true);
+            hub.enabled = true;
 
             if (GameManager.Instance != null)
             {
@@ -217,6 +336,30 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
             box.center = Vector3.zero;
             box.size = Vector3.one * sizePaddingMultiplier;
             box.isTrigger = isTrigger;
+        }
+    }
+
+    private void ActivateItemWithAllChildren(GameObject itemObj)
+    {
+        if (itemObj == null) return;
+        itemObj.SetActive(true);
+
+        Transform[] allChildren = itemObj.GetComponentsInChildren<Transform>(true);
+        foreach (Transform c in allChildren)
+        {
+            if (c != null)
+            {
+                c.gameObject.SetActive(true);
+            }
+        }
+
+        Renderer[] renderers = itemObj.GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer r in renderers)
+        {
+            if (r != null)
+            {
+                r.enabled = true;
+            }
         }
     }
 
