@@ -120,18 +120,20 @@ public class NotepadUIManager : MonoBehaviour
 
     private void TrackMapExploration()
     {
-        var gen = FindFirstObjectByType<ModularHospital.ModularHospitalGenerator>();
-        if (gen != null && gen.gridMatrix != null)
+        int[,] grid = GetFallbackHospitalGridMatrix();
+        if (grid != null)
         {
             if (playerTransform == null) FindPlayer();
             if (playerTransform == null) return;
 
-            int sX = gen.gridMatrix.GetLength(0);
-            int sZ = gen.gridMatrix.GetLength(1);
+            var gen = FindFirstObjectByType<ModularHospital.ModularHospitalGenerator>();
+            int sX = grid.GetLength(0);
+            int sZ = grid.GetLength(1);
 
+            Vector3 basePos = (gen != null) ? gen.transform.position : Vector3.zero;
             float halfW = (sX * 4.0f) / 2.0f;
             float halfD = (sZ * 4.0f) / 2.0f;
-            Vector3 pLocal = playerTransform.position - gen.transform.position;
+            Vector3 pLocal = playerTransform.position - basePos;
             int pGX = Mathf.Clamp(Mathf.RoundToInt((pLocal.x + halfW - 2.0f) / 4.0f), 0, sX - 1);
             int pGZ = Mathf.Clamp(Mathf.RoundToInt((pLocal.z + halfD - 2.0f) / 4.0f), 0, sZ - 1);
 
@@ -585,10 +587,12 @@ public class NotepadUIManager : MonoBehaviour
             return;
         }
 
-        if (gen != null && gen.gridMatrix != null)
+        int[,] currentGrid = (gen != null && gen.gridMatrix != null) ? gen.gridMatrix : GetFallbackHospitalGridMatrix();
+
+        if (currentGrid != null)
         {
-            int sX = gen.gridMatrix.GetLength(0);
-            int sZ = gen.gridMatrix.GetLength(1);
+            int sX = currentGrid.GetLength(0);
+            int sZ = currentGrid.GetLength(1);
 
             float mapBoxSize = 255f;
             float cellW = mapBoxSize / sX;
@@ -602,9 +606,10 @@ public class NotepadUIManager : MonoBehaviour
             int pGZ = -1;
             if (playerTransform != null)
             {
+                Vector3 basePos = (gen != null) ? gen.transform.position : Vector3.zero;
                 float halfW = (sX * 4.0f) / 2.0f;
                 float halfD = (sZ * 4.0f) / 2.0f;
-                Vector3 pLocal = playerTransform.position - gen.transform.position;
+                Vector3 pLocal = playerTransform.position - basePos;
                 pGX = Mathf.Clamp(Mathf.RoundToInt((pLocal.x + halfW - 2.0f) / 4.0f), 0, sX - 1);
                 pGZ = Mathf.Clamp(Mathf.RoundToInt((pLocal.z + halfD - 2.0f) / 4.0f), 0, sZ - 1);
 
@@ -719,7 +724,7 @@ public class NotepadUIManager : MonoBehaviour
             {
                 for (int z = 0; z < sZ; z++)
                 {
-                    int type = gen.gridMatrix[x, z];
+                    int type = currentGrid[x, z];
                     float rx = startMapX + x * cellW;
                     float ry = startMapY + (sZ - 1 - z) * cellH;
                     Rect cellRect = new Rect(rx, ry, cellW, cellH);
@@ -815,7 +820,7 @@ public class NotepadUIManager : MonoBehaviour
             {
                 for (int z = 0; z < sZ; z++)
                 {
-                    int type = gen.gridMatrix[x, z];
+                    int type = currentGrid[x, z];
                     if (type == 0) continue;
 
                     float rx = startMapX + x * cellW;
@@ -823,16 +828,16 @@ public class NotepadUIManager : MonoBehaviour
 
                     GUI.color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
 
-                    if (z + 1 >= sZ || gen.gridMatrix[x, z + 1] == 0)
+                    if (z + 1 >= sZ || currentGrid[x, z + 1] == 0)
                         GUI.DrawTexture(new Rect(rx, ry, cellW, 2.5f), Texture2D.whiteTexture);
 
-                    if (z - 1 < 0 || gen.gridMatrix[x, z - 1] == 0)
+                    if (z - 1 < 0 || currentGrid[x, z - 1] == 0)
                         GUI.DrawTexture(new Rect(rx, ry + cellH - 2.5f, cellW, 2.5f), Texture2D.whiteTexture);
 
-                    if (x - 1 < 0 || gen.gridMatrix[x - 1, z] == 0)
+                    if (x - 1 < 0 || currentGrid[x - 1, z] == 0)
                         GUI.DrawTexture(new Rect(rx, ry, 2.5f, cellH), Texture2D.whiteTexture);
 
-                    if (x + 1 >= sX || gen.gridMatrix[x + 1, z] == 0)
+                    if (x + 1 >= sX || currentGrid[x + 1, z] == 0)
                         GUI.DrawTexture(new Rect(rx + cellW - 2.5f, ry, 2.5f, cellH), Texture2D.whiteTexture);
 
                     GUI.color = Color.white;
@@ -1350,5 +1355,89 @@ public class NotepadUIManager : MonoBehaviour
     {
         if (tabLoreTex == null) tabLoreTex = Resources.Load<Texture2D>("UI/Tab_Lore_Icon");
         return tabLoreTex;
+    }
+
+    private static int[,] cachedRealGrid;
+    private static int[,] GetFallbackHospitalGridMatrix()
+    {
+        var modGen = FindFirstObjectByType<ModularHospital.ModularHospitalGenerator>();
+        if (modGen != null && modGen.gridMatrix != null && modGen.gridMatrix.GetLength(0) >= 5)
+        {
+            return modGen.gridMatrix;
+        }
+
+        if (cachedRealGrid != null) return cachedRealGrid;
+
+        // Escanear dinámicamente todos los objetos y módulos de la escena real en 3D
+        int[,] grid = new int[9, 9];
+
+        // Llenar bordes exteriores como paredes (0) y centro como pasillos caminables (1)
+        for (int x = 0; x < 9; x++)
+        {
+            for (int z = 0; z < 9; z++)
+            {
+                if (x == 0 || x == 8 || z == 0 || z == 8) grid[x, z] = 0;
+                else grid[x, z] = 1;
+            }
+        }
+
+        Transform[] allTransforms = FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        Vector3 minPos = new Vector3(float.MaxValue, 0, float.MaxValue);
+        Vector3 maxPos = new Vector3(float.MinValue, 0, float.MinValue);
+        int validCount = 0;
+
+        foreach (var t in allTransforms)
+        {
+            if (t == null || t.position.sqrMagnitude < 0.1f) continue;
+            string nameLower = t.name.ToLower();
+
+            if (nameLower.Contains("gurney") || nameLower.Contains("room") || nameLower.Contains("director") || nameLower.Contains("elevator") || nameLower.Contains("ascensor") || nameLower.Contains("corridor") || nameLower.Contains("pasillo"))
+            {
+                minPos = Vector3.Min(minPos, t.position);
+                maxPos = Vector3.Max(maxPos, t.position);
+                validCount++;
+            }
+        }
+
+        if (validCount < 4)
+        {
+            minPos = new Vector3(-35f, 0, -35f);
+            maxPos = new Vector3(35f, 0, 35f);
+        }
+
+        float sizeX = Mathf.Max(maxPos.x - minPos.x, 10f);
+        float sizeZ = Mathf.Max(maxPos.z - minPos.z, 10f);
+
+        // Mapear la ubicación 3D real de cada módulo importante dentro de la matriz 9x9 del plano
+        foreach (var t in allTransforms)
+        {
+            if (t == null || t.position.sqrMagnitude < 0.1f) continue;
+            string n = t.name.ToLower();
+
+            float normX = Mathf.Clamp01((t.position.x - minPos.x) / sizeX);
+            float normZ = Mathf.Clamp01((t.position.z - minPos.z) / sizeZ);
+
+            int gx = Mathf.Clamp(Mathf.FloorToInt(normX * 9f), 0, 8);
+            int gz = Mathf.Clamp(Mathf.FloorToInt(normZ * 9f), 0, 8);
+
+            if (n.Contains("director") || n.Contains("puertadirector") || n.Contains("keypad"))
+            {
+                grid[gx, gz] = 2; // Oficina del Director (Rojo/Dorado)
+            }
+            else if (n.Contains("elevator") || n.Contains("ascensor"))
+            {
+                grid[gx, gz] = 4; // Ascensor de Evacuación (Azul)
+            }
+            else if (n.Contains("room") || n.Contains("camilla") || n.Contains("apothecary") || n.Contains("morgue") || n.Contains("desk"))
+            {
+                if (grid[gx, gz] != 2 && grid[gx, gz] != 4)
+                {
+                    grid[gx, gz] = 3; // Habitaciones secundarias de notas (Marrón/Dorado)
+                }
+            }
+        }
+
+        cachedRealGrid = grid;
+        return cachedRealGrid;
     }
 }

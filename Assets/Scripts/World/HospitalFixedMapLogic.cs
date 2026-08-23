@@ -35,12 +35,23 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
             pMenu.AddComponent<PauseMenuManager>();
         }
 
+        // Ejecutar spawn del jugador inmediatamente para evitar caídas
         SetupPlayerSpawn();
+        
+        // Retrasar el resto para asegurar que ModularHospitalGenerator (si existe) haya terminado de instanciar todas las habitaciones y notas
+        StartCoroutine(DelayedSetupRoutine());
+    }
+
+    private IEnumerator DelayedSetupRoutine()
+    {
+        // Esperar unos frames para garantizar que el generador procedural y NavMesh terminen
+        yield return new WaitForSeconds(0.2f);
+
         SetupDoors();
-        ProcessGurneyItems(); // Filtrar camillas Worn_Hospital_Gurney (1 ítem por camilla)
-        SetupRandomElements();
+        ProcessGurneyItems();  // 1. Filtrar camillas (ESTRICTAMENTE 1 ítem por camilla para evitar papeles duplicados)
+        SetupRandomElements(); // 2. Configurar clave del Director y activar EXACTAMENTE las 7 Notas del Código
         SetupHideBeds();
-        SetupLoreNotes();
+        SetupLoreNotes();      // 3. Activar EXACTAMENTE las 3 Notas de Lore en los papeles restantes
         SetupItems();
         SetupElevators();
         SetupBookHeadMonster();
@@ -51,6 +62,32 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
 
         // Disparar monólogo inicial del jugador con pequeño delay
         StartCoroutine(TriggerStartMonologueDelayed());
+
+        // BARRIDO NUCLEAR FINAL: Asegurar que CUALQUIER objeto 'Nota' que esté activo en la escena
+        // pero que no haya sido seleccionado (no tiene NoteItem) sea DESACTIVADO FORZOSAMENTE.
+        Transform[] finalSweep = FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        foreach (Transform t in finalSweep)
+        {
+            if (t == null) continue;
+            string tName = t.name.Trim();
+
+            if (tName.StartsWith("NotaCode"))
+            {
+                // Solo revisamos el objeto principal (padre) para ver si fue elegido
+                if (t.parent != null && t.parent.name.StartsWith("NotaCode")) continue;
+
+                bool hasValidNote = false;
+                foreach (var comp in t.GetComponents<NoteItem>())
+                {
+                    if (comp != null) hasValidNote = true;
+                }
+                
+                if (!hasValidNote)
+                {
+                    t.gameObject.SetActive(false);
+                }
+            }
+        }
     }
 
     private void SetupBookHeadMonster()
@@ -342,7 +379,14 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
     private void ActivateItemWithAllChildren(GameObject itemObj)
     {
         if (itemObj == null) return;
-        itemObj.SetActive(true);
+
+        // Activar el objeto y todos sus padres hacia arriba en la jerarquía
+        Transform curr = itemObj.transform;
+        while (curr != null)
+        {
+            curr.gameObject.SetActive(true);
+            curr = curr.parent;
+        }
 
         Transform[] allChildren = itemObj.GetComponentsInChildren<Transform>(true);
         foreach (Transform c in allChildren)

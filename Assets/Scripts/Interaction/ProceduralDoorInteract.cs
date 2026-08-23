@@ -43,7 +43,7 @@ public class ProceduralDoorInteract : MonoBehaviour
 
     private Transform player;
     public bool playerNear = false;
-    private bool isOpen = false;
+    public bool isOpen = false;
     private Quaternion closedRot;
     private Quaternion targetRot;
     private Vector3 closedPos;
@@ -152,8 +152,14 @@ public class ProceduralDoorInteract : MonoBehaviour
         }
         else
         {
+            if (doorOpenSound == null) doorOpenSound = Resources.Load<AudioClip>("Audio/Hospital/hospital-opening-door");
+            if (doorOpenSound == null) doorOpenSound = Resources.Load<AudioClip>("hospital-opening-door");
             if (doorOpenSound == null) doorOpenSound = Resources.Load<AudioClip>("Audio/Hospital/doorOpenSound2");
+
+            if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("Audio/Hospital/hospital-closing-door");
+            if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("hospital-closing-door");
             if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("Audio/Hospital/doorCloseSound2");
+
             if (doorLockedSound == null) doorLockedSound = Resources.Load<AudioClip>("Audio/Hospital/errorSound");
         }
 
@@ -173,68 +179,81 @@ public class ProceduralDoorInteract : MonoBehaviour
         }
     }
 
+    private Camera cachedCam;
+    private BoxCollider cachedBoxCol;
+    private float nextPlayerCheckTime = 0f;
+
     void Update()
     {
         if (player == null)
         {
-            FindPlayerReference();
+            if (Time.time >= nextPlayerCheckTime)
+            {
+                nextPlayerCheckTime = Time.time + 1.0f;
+                FindPlayerReference();
+            }
+            if (player == null) return;
         }
 
         playerNear = false;
 
-        if (player != null)
+        if (cachedCam == null)
         {
-            Camera cam = Camera.main;
-            if (cam == null && player != null) cam = player.GetComponentInChildren<Camera>();
+            cachedCam = Camera.main;
+            if (cachedCam == null && player != null) cachedCam = player.GetComponentInChildren<Camera>();
+        }
 
-            if (cam != null)
+        if (cachedCam == null) return;
+
+        // CULLING DE DISTANCIA ULTRA-RÁPIDO: Si el jugador está a más de 5 metros, ignorar esta puerta inmediatamente
+        Vector3 camPos = cachedCam.transform.position;
+        if ((transform.position - camPos).sqrMagnitude > 25.0f)
+        {
+            return;
+        }
+
+        if (cachedBoxCol == null) cachedBoxCol = GetComponent<BoxCollider>();
+
+        float maxDist = 3.5f;
+        float closeDist = 2.0f;
+
+        float dist = (transform.position - camPos).magnitude;
+        if (cachedBoxCol != null)
+        {
+            dist = (cachedBoxCol.bounds.center - camPos).magnitude;
+        }
+        
+        if (dist <= maxDist)
+        {
+            bool isFocused = InteractionFocusManager.IsFocused(gameObject, maxDist);
+            
+            // Si no detectó por el padre, probar con todos los hijos (mallas de la puerta)
+            if (!isFocused)
             {
-                float maxDist = 3.5f;
-                float closeDist = 2.0f;
-
-                // Calcular distancia al colisionador de la puerta o al centro geométrico en lugar del pivote offset
-                BoxCollider doorCollider = GetComponent<BoxCollider>();
-                float dist = Vector3.Distance(transform.position, cam.transform.position);
-                if (doorCollider != null)
+                foreach (Transform child in transform)
                 {
-                    dist = Vector3.Distance(doorCollider.bounds.center, cam.transform.position);
+                    if (InteractionFocusManager.IsFocused(child.gameObject, maxDist))
+                    {
+                        isFocused = true;
+                        break;
+                    }
                 }
-                
-                // Buscar si la cámara o el jugador apuntan/miran a la puerta
-                if (dist <= maxDist)
+            }
+
+            // Fallback de proximidad directa si está a menos de closeDist mirando hacia la puerta
+            if (!isFocused && dist <= closeDist)
+            {
+                Vector3 targetCenter = cachedBoxCol != null ? cachedBoxCol.bounds.center : transform.position;
+                Vector3 dirToDoor = (targetCenter - camPos).normalized;
+                if (Vector3.Dot(cachedCam.transform.forward, dirToDoor) > 0.35f)
                 {
-                    bool isFocused = InteractionFocusManager.IsFocused(gameObject, maxDist);
-                    
-                    // Si no detectó por el padre, probar con todos los hijos (mallas de la puerta)
-                    if (!isFocused)
-                    {
-                        foreach (Transform child in transform)
-                        {
-                            if (InteractionFocusManager.IsFocused(child.gameObject, maxDist))
-                            {
-                                isFocused = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    // Fallback de proximidad directa si está a menos de closeDist mirando hacia la puerta
-                    if (!isFocused && dist <= closeDist)
-                    {
-                        Vector3 targetCenter = doorCollider != null ? doorCollider.bounds.center : transform.position;
-                        Vector3 dirToDoor = (targetCenter - cam.transform.position).normalized;
-                        if (Vector3.Dot(cam.transform.forward, dirToDoor) > 0.35f)
-                        {
-                            isFocused = true;
-                        }
-                    }
-
-                    if (isFocused)
-                    {
-                        playerNear = true;
-                    }
-                    Debug.Log($"[DoorDebug] {gameObject.name} dist={dist:F2}/{maxDist:F2}, isFocused={isFocused}, playerNear={playerNear}");
+                    isFocused = true;
                 }
+            }
+
+            if (isFocused)
+            {
+                playerNear = true;
             }
         }
 

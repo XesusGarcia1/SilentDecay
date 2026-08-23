@@ -11,6 +11,12 @@ public partial class HospitalFixedMapLogic
 
         Transform[] allTransforms = FindObjectsByType<Transform>(FindObjectsSortMode.None);
 
+        AudioClip hospOpenSound = Resources.Load<AudioClip>("Audio/Hospital/hospital-opening-door");
+        if (hospOpenSound == null) hospOpenSound = Resources.Load<AudioClip>("hospital-opening-door");
+
+        AudioClip hospCloseSound = Resources.Load<AudioClip>("Audio/Hospital/hospital-closing-door");
+        if (hospCloseSound == null) hospCloseSound = Resources.Load<AudioClip>("hospital-closing-door");
+
         foreach (Transform t in allTransforms)
         {
             if (t == null || t.name.Contains("_AutoHinge")) continue;
@@ -70,6 +76,8 @@ public partial class HospitalFixedMapLogic
             doorInteract.hingeOnRightSide = true; // Pivote en el borde correcto de la pared
             doorInteract.openAngle = -90f; // Giro hacia adentro de la habitación
             doorInteract.interactDistance = 2.8f;
+            if (hospOpenSound != null) doorInteract.doorOpenSound = hospOpenSound;
+            if (hospCloseSound != null) doorInteract.doorCloseSound = hospCloseSound;
 
             // Bloquear automáticamente si pertenece a la Oficina del Director
             Transform p = t;

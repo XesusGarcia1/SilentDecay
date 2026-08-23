@@ -53,10 +53,11 @@ public partial class HospitalFixedMapLogic
             {
                 ShuffleList(childItems);
 
-                // Activar SOLO 1 ítem al azar de los 3 presentes en la camilla (activando mallas hijas)
+                // Activar ESTRICTAMENTE 1 SOLO ítem al azar de los presentes en la camilla
+                childItems[0].SetActive(true);
                 ActivateItemWithAllChildren(childItems[0]);
 
-                // Desactivar los demás ítems de la camilla
+                // Desactivar TODOS los demás ítems de la camilla para evitar papeles duplicados lado a lado
                 for (int i = 1; i < childItems.Count; i++)
                 {
                     childItems[i].SetActive(false);

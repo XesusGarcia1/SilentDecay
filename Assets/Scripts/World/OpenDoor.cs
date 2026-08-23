@@ -13,6 +13,18 @@ public class OpenDoor : MonoBehaviour
 
     private float lastInteractTime = 0f;
 
+    void Start()
+    {
+        if (audioSource == null) audioSource = GetComponent<AudioSource>();
+        if (audioSource == null) audioSource = GetComponentInChildren<AudioSource>();
+
+        if (doorOpenSound == null) doorOpenSound = Resources.Load<AudioClip>("Audio/Hospital/hospital-opening-door");
+        if (doorOpenSound == null) doorOpenSound = Resources.Load<AudioClip>("hospital-opening-door");
+
+        if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("Audio/Hospital/hospital-closing-door");
+        if (doorCloseSound == null) doorCloseSound = Resources.Load<AudioClip>("hospital-closing-door");
+    }
+
     void Update()
     {
         if (isLocked) return;

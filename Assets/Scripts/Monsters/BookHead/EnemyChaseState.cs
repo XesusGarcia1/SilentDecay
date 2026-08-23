@@ -77,8 +77,20 @@ public class EnemyChaseState : IEnemyState
                 enemy.transform.rotation = Quaternion.Slerp(enemy.transform.rotation, lookRotation, Time.deltaTime * 8f);
             }
 
-            float speedFactor = Mathf.InverseLerp(5f, maxChaseDistance, distanceToPlayer);
-            agent.speed = Mathf.Lerp(enemy.walkSpeed, enemy.runSpeed, speedFactor);
+            float targetSpeed = enemy.runSpeed;
+            if (enemy.playerSprintDetector != null && enemy.playerSprintDetector.IsRunning)
+            {
+                // Si el jugador sigue corriendo en pánico, BookHead entra en frenesí auditivo (mayor velocidad y rango de oído)
+                targetSpeed = enemy.runSpeed + 1.2f; // Velocidad frenética de carrera (hasta 6.8 m/s)
+                if (fov != null) fov.hearingRadius = 75f;
+            }
+            else
+            {
+                float speedFactor = Mathf.InverseLerp(5f, maxChaseDistance, distanceToPlayer);
+                targetSpeed = Mathf.Lerp(enemy.walkSpeed, enemy.runSpeed, speedFactor);
+            }
+
+            agent.speed = targetSpeed;
             agent.SetDestination(player.position);
 
             bool isRunning = agent.velocity.magnitude > 0.5f;
@@ -209,8 +221,8 @@ public class EnemyChaseState : IEnemyState
                     }
                     else
                     {
-                        Debug.Log("Jugador no encontrado tras busqueda - regresando a patrulla.");
-                        enemy.ChangeState(new EnemyPatrolState(enemy, agent, anim, enemy.patrolPoints));
+                        Debug.Log("[ChaseState] Persecución y búsqueda finalizadas. BookHead desaparece en las sombras (Reposición Silenciosa).");
+                        enemy.TrySilentReposition();
                     }
                 }
             }

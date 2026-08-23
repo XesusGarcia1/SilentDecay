@@ -38,7 +38,6 @@ public class InteractionFocusManager : MonoBehaviour
             {
                 CurrentFocus = hit.collider.gameObject;
                 CurrentDist = hit.distance;
-                Debug.Log($"[FocusDebug] Raycast hit: {CurrentFocus.name} (Tag={CurrentFocus.tag}, Layer={LayerMask.LayerToName(CurrentFocus.layer)}, Dist={CurrentDist:F2})");
             }
         }
     }
