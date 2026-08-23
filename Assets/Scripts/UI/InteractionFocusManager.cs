@@ -86,24 +86,6 @@ public class InteractionFocusManager : MonoBehaviour
                         KeycardItem kInHit = hitObj.GetComponentInChildren<KeycardItem>(true);
                         if (kInObj != null && kInHit != null && kInObj == kInHit) isMatch = true;
                     }
-
-                    // Si el objeto tiene un script de item en la misma raíz local
-                    MonoBehaviour itemScript = obj.GetComponent<MonoBehaviour>();
-                    if (itemScript != null && hitObj.transform.parent == obj.transform.parent && hitObj.transform.parent != null)
-                    {
-                        string parentName = hitObj.transform.parent.name.ToLower();
-                        bool isGenericMapContainer = parentName.Contains("hospital") || 
-                                                     parentName.Contains("generator") || 
-                                                     parentName.Contains("corridor") || 
-                                                     parentName.Contains("room") || 
-                                                     parentName.Contains("container") || 
-                                                     hitObj.transform.parent.GetComponent<ModularHospital.HospitalModule>() != null;
-
-                        if (!isGenericMapContainer)
-                        {
-                            isMatch = true;
-                        }
-                    }
                 }
 
                 if (isMatch)

@@ -6,22 +6,36 @@ public partial class HospitalFixedMapLogic
 {
     private static List<GameObject> activeNoteObjects = new List<GameObject>();
 
+    private bool IsCodeNoteTransform(Transform t)
+    {
+        if (t == null) return false;
+        string n = t.name.Trim().ToLower();
+        if (n.Contains("papellore") || n.Contains("notalore")) return false;
+        return n.StartsWith("notacode") || n == "nota" || n.StartsWith("nota (") || n == "papel" || n.StartsWith("papel (");
+    }
+
+    private bool IsLoreNoteTransform(Transform t)
+    {
+        if (t == null) return false;
+        string n = t.name.Trim().ToLower();
+        return n.StartsWith("notalore") || n.StartsWith("papellore");
+    }
+
     private void SetupCodeNotes(Transform[] allTransforms)
     {
         activeNoteObjects.Clear();
 
-        // PASO 1: Buscar TODOS los objetos 'NotaCode' del mapa
+        // PASO 1: Buscar TODOS los objetos de notas de código del mapa (NotaCode, Nota, Papel)
         List<GameObject> allNotaObjects = new List<GameObject>();
 
         foreach (Transform t in allTransforms)
         {
             if (t == null) continue;
-            string tName = t.name.Trim();
             
-            if (tName.StartsWith("NotaCode"))
+            if (IsCodeNoteTransform(t))
             {
                 // Si este es el objeto hijo (la malla), lo ignoramos para no contarlo doble
-                if (t.parent != null && t.parent.name.StartsWith("NotaCode")) continue;
+                if (t.parent != null && IsCodeNoteTransform(t.parent)) continue;
 
                 // DESACTIVAR TODOS por defecto
                 t.gameObject.SetActive(false);
@@ -50,37 +64,48 @@ public partial class HospitalFixedMapLogic
             nota.SetActive(true);
             ActivateItemWithAllChildren(nota);
 
-            // Reutilizar o agregar componente de nota de codigo
-            NoteItem nComp = nota.GetComponent<NoteItem>();
-            if (nComp == null) nComp = nota.AddComponent<NoteItem>();
-            nComp.digitPosition = (i + 1);
-            nComp.digitValue = int.Parse(correctKeypadCode[i].ToString());
-            nComp.interactDistance = 4.5f;
+            int dPos = i + 1;
+            int dVal = int.Parse(correctKeypadCode[i].ToString());
+
+            // Configurar TODOS los componentes NoteItem presentes en el objeto y sus hijos
+            NoteItem[] nComps = nota.GetComponentsInChildren<NoteItem>(true);
+            if (nComps == null || nComps.Length == 0)
+            {
+                NoteItem newComp = nota.AddComponent<NoteItem>();
+                nComps = new NoteItem[] { newComp };
+            }
+
+            foreach (var nComp in nComps)
+            {
+                if (nComp == null) continue;
+                nComp.digitPosition = dPos;
+                nComp.digitValue = dVal;
+                nComp.interactDistance = 4.5f;
+            }
 
             BoxCollider bc = nota.GetComponent<BoxCollider>();
             if (bc == null) bc = nota.AddComponent<BoxCollider>();
             ConfigureBoxColliderFromRenderers(nota, bc, true, 1.5f);
 
             activeNoteObjects.Add(nota);
-            Debug.Log($"[FixedHospital] NOTA CODIGO {i + 1}/7 activada en {nota.name}: Digito #{nComp.digitPosition} = {nComp.digitValue}");
+            Debug.Log($"[FixedHospital] NOTA CODIGO {i + 1}/7 activada en {nota.name}: Digito #{dPos} = {dVal}");
         }
     }
 
     private void SetupLoreNotes()
     {
-        // PASO 1: Buscar TODOS los objetos 'NotaLore' del mapa
+        // PASO 1: Buscar TODOS los objetos 'NotaLore' / 'PapelLore' del mapa
         Transform[] allTransforms = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         List<GameObject> allLoreObjects = new List<GameObject>();
 
         foreach (Transform t in allTransforms)
         {
             if (t == null) continue;
-            string tName = t.name.Trim();
 
-            if (tName.StartsWith("NotaLore"))
+            if (IsLoreNoteTransform(t))
             {
                 // Si este es el objeto hijo (la malla), lo ignoramos para no contarlo doble
-                if (t.parent != null && t.parent.name.StartsWith("NotaLore")) continue;
+                if (t.parent != null && IsLoreNoteTransform(t.parent)) continue;
 
                 // DESACTIVAR TODOS los objetos NotaLore por defecto
                 t.gameObject.SetActive(false);
@@ -141,20 +166,29 @@ public partial class HospitalFixedMapLogic
             lore.SetActive(true);
             ActivateItemWithAllChildren(lore);
 
-            LoreNoteItem lComp = lore.GetComponent<LoreNoteItem>();
-            if (lComp == null) lComp = lore.AddComponent<LoreNoteItem>();
+            // Configurar TODOS los componentes LoreNoteItem presentes en el objeto y sus hijos
+            LoreNoteItem[] lComps = lore.GetComponentsInChildren<LoreNoteItem>(true);
+            if (lComps == null || lComps.Length == 0)
+            {
+                LoreNoteItem newComp = lore.AddComponent<LoreNoteItem>();
+                lComps = new LoreNoteItem[] { newComp };
+            }
 
-            lComp.loreId = i + 1;
-            lComp.noteTitle = loreTitles[i];
-            lComp.noteBody = loreBodies[i];
-            lComp.interactDistance = 4.5f;
+            foreach (var lComp in lComps)
+            {
+                if (lComp == null) continue;
+                lComp.loreId = i + 1;
+                lComp.noteTitle = loreTitles[i];
+                lComp.noteBody = loreBodies[i];
+                lComp.interactDistance = 4.5f;
+            }
 
             BoxCollider bc = lore.GetComponent<BoxCollider>();
             if (bc == null) bc = lore.AddComponent<BoxCollider>();
             bc.isTrigger = true;
 
             activeNoteObjects.Add(lore);
-            Debug.Log($"[FixedHospital] NOTA LORE #{i + 1} activada en '{lore.name}' ({lore.transform.position}).");
+            Debug.Log($"[FixedHospital] NOTA LORE #{i + 1} activada en '{lore.name}' ({lore.transform.position}): '{loreTitles[i]}'");
         }
     }
 }

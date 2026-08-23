@@ -69,15 +69,16 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
         foreach (Transform t in finalSweep)
         {
             if (t == null) continue;
-            string tName = t.name.Trim();
+            string tName = t.name.Trim().ToLower();
 
-            if (tName.StartsWith("NotaCode"))
+            // Si es un objeto de nota de código (NotaCode, Nota, Papel)
+            if (tName.StartsWith("notacode") || tName == "nota" || tName.StartsWith("nota (") || tName == "papel" || tName.StartsWith("papel ("))
             {
-                // Solo revisamos el objeto principal (padre) para ver si fue elegido
-                if (t.parent != null && t.parent.name.StartsWith("NotaCode")) continue;
+                if (tName.Contains("notalore") || tName.Contains("papellore")) continue;
+                if (t.parent != null && IsCodeNoteTransform(t.parent)) continue;
 
                 bool hasValidNote = false;
-                foreach (var comp in t.GetComponents<NoteItem>())
+                foreach (var comp in t.GetComponentsInChildren<NoteItem>(true))
                 {
                     if (comp != null) hasValidNote = true;
                 }
