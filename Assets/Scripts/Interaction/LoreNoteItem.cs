@@ -47,17 +47,7 @@ public class LoreNoteItem : MonoBehaviour
         paperReadingTex = ProceduralPaperTexture.GetPaperTexture();
         globalPaperTexture = paperReadingTex;
 
-        // 2. CREAR LUZ DE GUÍA CÁLIDA PULSANTE PARA LA OSCURIDAD
-        GameObject lightObj = new GameObject("LoreNote_GlowLight");
-        lightObj.transform.SetParent(this.transform);
-        lightObj.transform.localPosition = new Vector3(0f, 0.12f, 0f); // Ligeramente levantada sobre el papel
-
-        glowLight = lightObj.AddComponent<Light>();
-        glowLight.type = LightType.Point;
-        glowLight.color = new Color(0.9f, 0.65f, 0.35f); // Tinte ámbar/cálido de papel viejo
-        glowLight.range = 2.5f * transform.lossyScale.x; // Escalar rango con la nota
-        glowLight.intensity = 0.6f;
-        glowLight.shadows = LightShadows.None; // Optimizado: sin sombras dinámicas
+        // El punto de luz ha sido removido. El usuario lo agregará manualmente en el prefab.
     }
 
     private void ApplyEnvejecidoMaterial()

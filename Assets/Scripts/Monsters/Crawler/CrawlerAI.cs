@@ -285,9 +285,8 @@ public class CrawlerAI : MonoBehaviour
             if (procDoor == null) procDoor = hit.collider.GetComponent<ProceduralDoorInteract>();
             if (procDoor != null)
             {
-                if (!procDoor.gameObject.name.Contains("PuertaDirector"))
+                if (!procDoor.isLocked && !EnemyAIController.IsDirectorOfficeDoor(procDoor.gameObject))
                 {
-                    if (procDoor.isLocked) procDoor.isLocked = false;
                     float angleDiff = Quaternion.Angle(procDoor.transform.localRotation, procDoor.transform.parent != null ? Quaternion.identity : transform.rotation);
                     if (angleDiff < 10f || hit.collider.gameObject.name.Contains("Puerta_Panel"))
                     {
@@ -301,13 +300,15 @@ public class CrawlerAI : MonoBehaviour
             if (animDoor == null) animDoor = hit.collider.GetComponent<OpenDoor>();
             if (animDoor != null)
             {
-                if (animDoor.isLocked) animDoor.isLocked = false;
-                if (animDoor.doorAnimator != null && !animDoor.doorAnimator.GetBool("isOpen"))
+                if (!animDoor.isLocked && !EnemyAIController.IsDirectorOfficeDoor(animDoor.gameObject))
                 {
-                    animDoor.doorAnimator.SetBool("isOpen", true);
-                    if (animDoor.audioSource && animDoor.doorOpenSound)
+                    if (animDoor.doorAnimator != null && !animDoor.doorAnimator.GetBool("isOpen"))
                     {
-                        animDoor.audioSource.PlayOneShot(animDoor.doorOpenSound, 1.0f);
+                        animDoor.doorAnimator.SetBool("isOpen", true);
+                        if (animDoor.audioSource && animDoor.doorOpenSound)
+                        {
+                            animDoor.audioSource.PlayOneShot(animDoor.doorOpenSound, 1.0f);
+                        }
                     }
                 }
             }

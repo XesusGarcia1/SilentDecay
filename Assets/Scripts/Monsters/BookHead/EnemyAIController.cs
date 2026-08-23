@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections.Generic;
 
 public class EnemyAIController : MonoBehaviour
 {
@@ -83,6 +84,7 @@ public class EnemyAIController : MonoBehaviour
 
     private float accumulatedRunTime = 0f;
     private float noiseAlertCooldownTimer = 0f;
+    private float screechCooldownTimer = 0f;
 
     void Start()
     {
@@ -190,6 +192,7 @@ public class EnemyAIController : MonoBehaviour
         ChangeState(new EnemyPatrolState(this, agent, anim, patrolPoints));
 
         StartCoroutine(SilentRepositionRoutine());
+        StartCoroutine(PsychologicalDoorKnockRoutine());
     }
 
     void OnEnable()
@@ -336,6 +339,11 @@ public class EnemyAIController : MonoBehaviour
             noiseAlertCooldownTimer -= Time.deltaTime;
         }
 
+        if (screechCooldownTimer > 0f)
+        {
+            screechCooldownTimer -= Time.deltaTime;
+        }
+
         if (playerSprintDetector != null && playerSprintDetector.IsRunning)
         {
             accumulatedRunTime += Time.deltaTime;
@@ -363,31 +371,9 @@ public class EnemyAIController : MonoBehaviour
         {
             float dist = Vector3.Distance(transform.position, player.position);
 
-            // 1. GRITO EXTREMO A CORTA Y MEDIANA DISTANCIA (<10.0m) O AL ATACAR (GritoBookHead.mp3)
-            if ((currentState is EnemyChaseState && dist <= 10.0f) || currentState is EnemyAttackState)
+            if (currentState is EnemyChaseState)
             {
-                if (screechSoundClip != null)
-                {
-                    if (audioSource.clip != screechSoundClip)
-                    {
-                        audioSource.clip = screechSoundClip;
-                        audioSource.loop = true;
-                        audioSource.spatialBlend = 1f;
-                        audioSource.minDistance = 3f;
-                        audioSource.maxDistance = 24f;
-                        audioSource.rolloffMode = AudioRolloffMode.Logarithmic;
-                        audioSource.Play();
-                    }
-
-                    // El volumen del grito aumenta progresivamente conforme se acerca (de 10m a 2m)
-                    float screechVol = Mathf.Clamp01(1f - (dist / 14f)) * 0.95f;
-                    screechVol = Mathf.Max(0.35f, screechVol); // Garantizar que a 10m empiece sonando claramente
-                    audioSource.volume = Mathf.MoveTowards(audioSource.volume, screechVol, Time.deltaTime * 3.5f);
-                }
-            }
-            // 2. PERSECUCIÓN A DISTANCIA MAYOR (Chase.mp3)
-            else if (currentState is EnemyChaseState)
-            {
+                // 1. MÚSICA DE PERSECUCIÓN DE FONDO EN LOOP (Chase.mp3)
                 if (chaseSoundClip != null)
                 {
                     if (audioSource.clip != chaseSoundClip)
@@ -396,22 +382,62 @@ public class EnemyAIController : MonoBehaviour
                         audioSource.loop = true;
                         audioSource.spatialBlend = 1f;
                         audioSource.minDistance = 3f;
-                        audioSource.maxDistance = 28f;
+                        audioSource.maxDistance = 30f;
+                        audioSource.pitch = 1.0f; // Pitch normal para la música de persecución
                         audioSource.Play();
                     }
 
-                    float chaseVol = (1f - (dist / 25f)) * 0.85f;
+                    float chaseVol = (1f - (dist / 28f)) * 0.85f;
                     audioSource.volume = Mathf.MoveTowards(audioSource.volume, Mathf.Clamp01(chaseVol), Time.deltaTime * 3.0f);
                 }
+
+                // 2. RÁFAGAS ESPORÁDICAS DE GRITO DEMONÍACO GRAVE (<15.0m) (GritoBookHead.mp3)
+                if (screechSoundClip != null && dist <= 15.0f && screechCooldownTimer <= 0f)
+                {
+                    screechCooldownTimer = Random.Range(4.5f, 7.5f); // Cooldown entre gritos (evita repetición constante)
+
+                    GameObject screechObj = new GameObject("BookHead_ScreechBurst");
+                    screechObj.transform.position = transform.position;
+                    AudioSource sSource = screechObj.AddComponent<AudioSource>();
+                    sSource.clip = screechSoundClip;
+                    sSource.spatialBlend = 1f;
+                    sSource.minDistance = 3.5f;
+                    sSource.maxDistance = 28f;
+                    sSource.rolloffMode = AudioRolloffMode.Logarithmic;
+                    sSource.pitch = Random.Range(0.85f, 0.90f); // PITCH GRAVE DEMONÍACO (Elimina tono agudo)
+                    sSource.volume = 0.95f;
+                    sSource.Play();
+                    Destroy(screechObj, screechSoundClip.length + 0.5f);
+
+                    Debug.Log($"[BookHead] ¡Grito demoníaco lanzado a {dist:F1}m del jugador! Próximo grito en {screechCooldownTimer:F1}s.");
+                }
             }
-            // 3. PATRULLA O STALK (Audio ambiental tenue o silencio)
+            else if (currentState is EnemyAttackState)
+            {
+                if (screechSoundClip != null && screechCooldownTimer <= 0f)
+                {
+                    screechCooldownTimer = 3.0f;
+                    GameObject screechObj = new GameObject("BookHead_AttackScreech");
+                    screechObj.transform.position = transform.position;
+                    AudioSource sSource = screechObj.AddComponent<AudioSource>();
+                    sSource.clip = screechSoundClip;
+                    sSource.spatialBlend = 1f;
+                    sSource.minDistance = 3f;
+                    sSource.maxDistance = 20f;
+                    sSource.pitch = 0.85f;
+                    sSource.volume = 1.0f;
+                    sSource.Play();
+                    Destroy(screechObj, screechSoundClip.length + 0.5f);
+                }
+            }
             else
             {
-                if (audioSource.clip == chaseSoundClip || audioSource.clip == screechSoundClip)
+                if (audioSource.clip == chaseSoundClip)
                 {
                     audioSource.volume = Mathf.MoveTowards(audioSource.volume, 0f, Time.deltaTime * 2.0f);
                     if (audioSource.volume <= 0.01f)
                     {
+                        audioSource.pitch = 1.0f;
                         if (monsterSoundClip != null)
                         {
                             audioSource.clip = monsterSoundClip;
@@ -446,26 +472,97 @@ public class EnemyAIController : MonoBehaviour
         }
     }
 
+    public static bool IsDirectorOfficeDoor(GameObject doorObj)
+    {
+        if (doorObj == null) return false;
+        string n = doorObj.name.ToLower();
+        if (n.Contains("director") || n.Contains("keypad") || n.Contains("puertadirector") || n.Contains("oficinadirector")) return true;
+
+        Transform parent = doorObj.transform.parent;
+        while (parent != null)
+        {
+            string pName = parent.name.ToLower();
+            if (pName.Contains("director") || pName.Contains("keypad") || pName.Contains("directoroffice")) return true;
+            parent = parent.parent;
+        }
+        return false;
+    }
+
     private void CheckAndOpenObstacles()
     {
         if (isKnockingDoor) return;
 
-        Vector3 origin = transform.position + Vector3.up * 1.2f;
-        Vector3 direction = transform.forward;
-        float checkDistance = 1.8f;
-
-        RaycastHit hit;
-        if (Physics.Raycast(origin, direction, out hit, checkDistance))
+        // Detección de esfera precisa en 2.8m para detectar cualquier puerta en el camino sin fallar
+        Collider[] nearbyCols = Physics.OverlapSphere(transform.position + Vector3.up * 1.0f, 2.8f);
+        foreach (Collider col in nearbyCols)
         {
-            ProceduralDoorInteract procDoor = hit.collider.GetComponentInParent<ProceduralDoorInteract>();
-            if (procDoor == null) procDoor = hit.collider.GetComponent<ProceduralDoorInteract>();
+            if (col == null) continue;
 
-            OpenDoor animDoor = hit.collider.GetComponentInParent<OpenDoor>();
-            if (animDoor == null) animDoor = hit.collider.GetComponent<OpenDoor>();
+            ProceduralDoorInteract procDoor = col.GetComponentInParent<ProceduralDoorInteract>();
+            if (procDoor == null) procDoor = col.GetComponent<ProceduralDoorInteract>();
 
-            if (procDoor != null || animDoor != null)
+            OpenDoor animDoor = col.GetComponentInParent<OpenDoor>();
+            if (animDoor == null) animDoor = col.GetComponent<OpenDoor>();
+
+            if (procDoor != null && !procDoor.isOpen)
             {
-                StartCoroutine(KnockAndOpenDoorRoutine(procDoor, animDoor, hit.collider.gameObject));
+                if (procDoor.isLocked || IsDirectorOfficeDoor(procDoor.gameObject)) continue;
+
+                StartCoroutine(KnockAndOpenDoorRoutine(procDoor, null, procDoor.gameObject));
+                break;
+            }
+            else if (animDoor != null)
+            {
+                if (animDoor.isLocked || IsDirectorOfficeDoor(animDoor.gameObject)) continue;
+
+                StartCoroutine(KnockAndOpenDoorRoutine(null, animDoor, animDoor.gameObject));
+                break;
+            }
+        }
+    }
+
+    private System.Collections.IEnumerator PsychologicalDoorKnockRoutine()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(UnityEngine.Random.Range(14f, 24f));
+
+            if (isKnockingDoor || player == null) continue;
+
+            float distToPlayer = Vector3.Distance(transform.position, player.position);
+
+            // Si BookHead está en el área cercana al jugador (10 - 25m)
+            if (distToPlayer <= 25f && (currentState is EnemyPatrolState || currentState is EnemyStalkState))
+            {
+                // Buscar puertas cerca del jugador para dar golpes terroríficos aleatorios
+                Collider[] nearbyDoors = Physics.OverlapSphere(player.position, 12f);
+                List<GameObject> validDoors = new List<GameObject>();
+
+                foreach (var col in nearbyDoors)
+                {
+                    if (col == null) continue;
+                    ProceduralDoorInteract pDoor = col.GetComponentInParent<ProceduralDoorInteract>();
+                    if (pDoor != null && !pDoor.isLocked && !IsDirectorOfficeDoor(pDoor.gameObject) && !validDoors.Contains(pDoor.gameObject))
+                    {
+                        validDoors.Add(pDoor.gameObject);
+                    }
+                }
+
+                if (validDoors.Count > 0)
+                {
+                    GameObject chosenDoor = validDoors[UnityEngine.Random.Range(0, validDoors.Count)];
+                    if (doorKnockClip == null)
+                    {
+                        doorKnockClip = Resources.Load<AudioClip>("Audio/Compartido/tocar-la-puerta");
+                        if (doorKnockClip == null) doorKnockClip = Resources.Load<AudioClip>("tocar-la-puerta");
+                    }
+
+                    if (doorKnockClip != null)
+                    {
+                        AudioSource.PlayClipAtPoint(doorKnockClip, chosenDoor.transform.position, 0.95f);
+                        Debug.Log($"[BookHead] Evento de Terror Psicológico: Golpes en la puerta cerca del jugador en '{chosenDoor.name}'.");
+                    }
+                }
             }
         }
     }
@@ -489,7 +586,12 @@ public class EnemyAIController : MonoBehaviour
 
         if (procDoor != null)
         {
-            if (procDoor.isLocked) procDoor.isLocked = false;
+            if (procDoor.isLocked || IsDirectorOfficeDoor(procDoor.gameObject))
+            {
+                isKnockingDoor = false;
+                yield break;
+            }
+
             float angleDiff = Quaternion.Angle(procDoor.transform.localRotation, procDoor.transform.parent != null ? Quaternion.identity : transform.rotation);
             if (angleDiff < 10f || doorObj.name.Contains("Puerta_Panel"))
             {
@@ -500,7 +602,12 @@ public class EnemyAIController : MonoBehaviour
 
         if (animDoor != null)
         {
-            if (animDoor.isLocked) animDoor.isLocked = false;
+            if (animDoor.isLocked || IsDirectorOfficeDoor(animDoor.gameObject))
+            {
+                isKnockingDoor = false;
+                yield break;
+            }
+
             if (animDoor.doorAnimator != null && !animDoor.doorAnimator.GetBool("isOpen"))
             {
                 animDoor.doorAnimator.SetBool("isOpen", true);
@@ -747,7 +854,7 @@ public class EnemyAIController : MonoBehaviour
         return (vp.x >= -0.05f && vp.x <= 1.05f && vp.y >= -0.05f && vp.y <= 1.05f && vp.z > 0f);
     }
 
-    private void TrySilentReposition()
+    public void TrySilentReposition()
     {
         if (player == null) return;
         

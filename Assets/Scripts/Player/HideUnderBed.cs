@@ -27,6 +27,8 @@ public class HideUnderBed : MonoBehaviour
     public bool nearBed = false;
     public Bed targetBed = null;
     private StarterAssets.StarterAssetsInputs playerInputs;
+    private Bed[] cachedBeds;
+    private float nextBedScanTime = 0f;
 
     void Start()
     {
@@ -129,42 +131,45 @@ public class HideUnderBed : MonoBehaviour
 
             if (ElevatorController.isNotepadOpen) return;
 
-            // Detección de camas en el mapa
-            Bed[] beds = FindObjectsByType<Bed>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-
-            // Auto-asignación al vuelo de componente Bed en cualquier objeto de cama/camilla cercano
-            Collider[] nearbyCols = Physics.OverlapSphere(mainCamera.transform.position, 4.5f);
-            foreach (Collider col in nearbyCols)
+            if (Time.time >= nextBedScanTime)
             {
-                if (col == null) continue;
-                string n = col.gameObject.name.ToLower();
-                if (n.Contains("cart") || n.Contains("trolley") || n.Contains("shelf") || n.Contains("equipment") || n.Contains("abandoned_medical") || n.Contains("gurney") || n.Contains("camilla")) continue;
+                nextBedScanTime = Time.time + 1.5f;
+                cachedBeds = FindObjectsByType<Bed>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
-                if (n.Contains("cama") || n.Contains("bed") || n.Contains("bedding") || n.Contains("p_bed"))
+                // Auto-asignación periódica de componente Bed en objetos de cama cercanos
+                Collider[] nearbyCols = Physics.OverlapSphere(mainCamera.transform.position, 5.0f);
+                foreach (Collider col in nearbyCols)
                 {
-                    if (col.GetComponentInParent<ProceduralDoorInteract>() != null) continue;
-                    
-                    Bed bComp = col.GetComponent<Bed>();
-                    if (bComp == null) bComp = col.GetComponentInParent<Bed>();
-                    if (bComp == null) bComp = col.gameObject.AddComponent<Bed>();
+                    if (col == null) continue;
+                    string n = col.gameObject.name.ToLower();
+                    if (n.Contains("cart") || n.Contains("trolley") || n.Contains("shelf") || n.Contains("equipment") || n.Contains("abandoned_medical") || n.Contains("gurney") || n.Contains("camilla")) continue;
 
-                    Transform hidePos = bComp.transform.Find("HidePosition");
-                    if (hidePos == null)
+                    if (n.Contains("cama") || n.Contains("bed") || n.Contains("bedding") || n.Contains("p_bed"))
                     {
-                        GameObject hObj = new GameObject("HidePosition");
-                        hObj.transform.SetParent(bComp.transform, false);
-                        hObj.transform.localPosition = new Vector3(0f, 0.28f, 0f);
-                        hObj.transform.localRotation = Quaternion.identity;
-                        hidePos = hObj.transform;
-                    }
-                    bComp.hidePosition = hidePos;
+                        if (col.GetComponentInParent<ProceduralDoorInteract>() != null) continue;
+                        
+                        Bed bComp = col.GetComponent<Bed>();
+                        if (bComp == null) bComp = col.GetComponentInParent<Bed>();
+                        if (bComp == null) bComp = col.gameObject.AddComponent<Bed>();
 
-                    BoxCollider bc = bComp.GetComponent<BoxCollider>();
-                    if (bc != null) bc.isTrigger = true;
+                        Transform hidePos = bComp.transform.Find("HidePosition");
+                        if (hidePos == null)
+                        {
+                            GameObject hObj = new GameObject("HidePosition");
+                            hObj.transform.SetParent(bComp.transform, false);
+                            hObj.transform.localPosition = new Vector3(0f, 0.28f, 0f);
+                            hObj.transform.localRotation = Quaternion.identity;
+                            hidePos = hObj.transform;
+                        }
+                        bComp.hidePosition = hidePos;
+
+                        BoxCollider bc = bComp.GetComponent<BoxCollider>();
+                        if (bc != null) bc.isTrigger = true;
+                    }
                 }
             }
 
-            beds = FindObjectsByType<Bed>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            Bed[] beds = cachedBeds != null ? cachedBeds : new Bed[0];
 
             Bed closestBed = null;
             float bestSurfaceDist = float.MaxValue;
