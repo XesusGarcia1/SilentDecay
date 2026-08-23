@@ -1,17 +1,15 @@
 using UnityEngine;
 
 /// <summary>
-/// Pantalla de opciones de partida: selección de tamaño de mapa,
-/// dificultad y botones de inicio (Hospital y Túneles).
+/// Pantalla de opciones de partida: selección de dificultad, personaje y botones de inicio.
+/// Los tamaños de mapa ya no se seleccionan (Hospital usa mapa estático y Túneles usa Mediano por defecto).
 /// </summary>
 public class MenuScreenPlayOptions : MonoBehaviour
 {
     private MainMenuManager ctx;
 
-    private readonly string[] mapSizes   = { "CHICO (15x15)", "MEDIANO (20x20)", "GRANDE (25x25)" };
     private readonly string[] difficulties = { "FÁCIL", "NORMAL", "DIFÍCIL" };
 
-    private int selectedMapSizeIndex    = 0;
     private int selectedDifficultyIndex = 1;
     private int selectedCharacterIndex  = 0;
 
@@ -26,10 +24,9 @@ public class MenuScreenPlayOptions : MonoBehaviour
     {
         // ─── Textos localizados ───────────────────────────────────────────────
         string title     = "AJUSTES DE LA PARTIDA";
-        string sizeLabel = "Tamaño de Hospital:";
         string diffLabel = "Dificultad de Supervivencia:";
-        string startBtn  = "  [ EMPEZAR JUEGO ]";
-        string tunnelBtn = "  [ IR A LOS TÚNELES (NIVEL 2) ]";
+        string startBtn  = "  [ EMPEZAR JUEGO (HOSPITAL) ]";
+        string tunnelBtn = "  [ IR A LOS TÚNELES (MEDIANO) ]";
         string backBtn   = "  VOLVER AL MENÚ";
 
         if (LocalizationManager.Instance != null)
@@ -38,28 +35,25 @@ public class MenuScreenPlayOptions : MonoBehaviour
             if (lang == LocalizationManager.Idioma.ENGLISH)
             {
                 title     = "GAME PARAMETERS";
-                sizeLabel = "Hospital Size:";
                 diffLabel = "Survival Difficulty:";
-                startBtn  = "  [ START GAME ]";
-                tunnelBtn = "  [ GO TO TUNNELS (LEVEL 2) ]";
+                startBtn  = "  [ START GAME (HOSPITAL) ]";
+                tunnelBtn = "  [ GO TO TUNNELS (MEDIUM) ]";
                 backBtn   = "  BACK TO MENU";
             }
             else if (lang == LocalizationManager.Idioma.PORTUGUES)
             {
                 title     = "AJUSTES DA PARTIDA";
-                sizeLabel = "Tamanho do Hospital:";
                 diffLabel = "Dificuldade de Sobrevivência:";
-                startBtn  = "  [ INICIAR JOGO ]";
-                tunnelBtn = "  [ IR PARA OS TÚNEIS (NÍVEL 2) ]";
+                startBtn  = "  [ INICIAR JOGO (HOSPITAL) ]";
+                tunnelBtn = "  [ IR PARA OS TÚNEIS (MÉDIO) ]";
                 backBtn   = "  VOLTAR AO MENU";
             }
             else if (lang == LocalizationManager.Idioma.РУССКИЙ)
             {
                 title     = "ПАРАМЕТРЫ ИГРЫ";
-                sizeLabel = "Размер больницы:";
                 diffLabel = "Сложность выживания:";
-                startBtn  = "  [ НАЧАТЬ ИГРУ ]";
-                tunnelBtn = "  [ В ТОННЕЛИ (УРОВЕНЬ 2) ]";
+                startBtn  = "  [ НАЧАТЬ ИГРУ (БОЛЬНИЦА) ]";
+                tunnelBtn = "  [ В ТОННЕЛИ (СРЕДНИЙ) ]";
                 backBtn   = "  НАЗАД В МЕНЮ";
             }
         }
@@ -71,22 +65,14 @@ public class MenuScreenPlayOptions : MonoBehaviour
 
         // ─── COLUMNA IZQUIERDA: Configuraciones ───
         GUILayout.BeginVertical(GUILayout.Width(500));
-        
-        // Tamaño del mapa
-        GUILayout.Label(sizeLabel, s.Label);
-        GUILayout.Space(5);
-        DrawSelector(s, GetLocalizedSizes(), ref selectedMapSizeIndex);
-
-        string descSize = $"Hospital seleccionado: {mapSizes[selectedMapSizeIndex]}";
-        GUILayout.Label(descSize, s.SubTitle);
-        GUILayout.Space(25);
 
         // Dificultad
         GUILayout.Label(diffLabel, s.Label);
         GUILayout.Space(5);
         DrawSelector(s, GetLocalizedDiffs(), ref selectedDifficultyIndex);
+        GUILayout.Space(8);
         GUILayout.Label(GetDiffDescription(), s.SubTitle);
-        GUILayout.Space(25);
+        GUILayout.Space(30);
 
         // Selección de personaje
         string charLabel = "Seleccionar Personaje:";
@@ -102,6 +88,7 @@ public class MenuScreenPlayOptions : MonoBehaviour
         GUILayout.Label(charLabel, s.Label);
         GUILayout.Space(5);
         DrawSelector(s, charNames, ref selectedCharacterIndex);
+        GUILayout.Space(8);
 
         string charDesc = selectedCharacterIndex == 0 ? 
             (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH ? "Male Character (Ethan)" : (LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.РУССКИЙ ? "Мужской персонаж (Ethan)" : "Personaje Masculino (Ethan)")) : 
@@ -121,7 +108,7 @@ public class MenuScreenPlayOptions : MonoBehaviour
         if (GUILayout.Button(startBtn, redBtn, GUILayout.Height(60)))
         {
             ctx.PlayClickSound();
-            SaveAndLoad("Test_ModularHospital", HospitalWidth());
+            SaveAndLoad("Test_ModularHospital", 20); // Tamaño por defecto para el Hospital estático
         }
         GUILayout.Space(20);
 
@@ -134,7 +121,7 @@ public class MenuScreenPlayOptions : MonoBehaviour
             if (GUILayout.Button(tunnelBtn, goldBtn, GUILayout.Height(50)))
             {
                 ctx.PlayClickSound();
-                SaveAndLoad("TunnelsMap", TunnelWidth());
+                SaveAndLoad("TunnelsMap", 25); // Tamaño Mediano por defecto para Túneles
             }
             GUILayout.Space(20);
         }
@@ -169,18 +156,6 @@ public class MenuScreenPlayOptions : MonoBehaviour
         GUILayout.EndHorizontal();
     }
 
-    string[] GetLocalizedSizes()
-    {
-        if (LocalizationManager.Instance == null) return new[] { "CHICO", "MEDIANO", "GRANDE" };
-        return LocalizationManager.Instance.GetIdiomaActual() switch
-        {
-            LocalizationManager.Idioma.ENGLISH   => new[] { "SMALL",   "MEDIUM", "LARGE" },
-            LocalizationManager.Idioma.PORTUGUES => new[] { "PEQUENO", "MÉDIO",  "GRANDE" },
-            LocalizationManager.Idioma.РУССКИЙ   => new[] { "МАЛЕНЬКИЙ", "СРЕДНИЙ", "БОЛЬШОЙ" },
-            _                                    => new[] { "CHICO",   "MEDIANO","GRANDE" }
-        };
-    }
-
     string[] GetLocalizedDiffs()
     {
         if (LocalizationManager.Instance == null) return new[] { "FÁCIL", "NORMAL", "DIFÍCIL" };
@@ -202,20 +177,17 @@ public class MenuScreenPlayOptions : MonoBehaviour
 
         return selectedDifficultyIndex switch
         {
-            0 => isEN ? "The monster is slower with reduced sight. Flashlight batteries last longer."
-               : isPT ? "O monstro é mais lento com visão reduzida. As baterias duram mais."
-               :         "El monstruo es lento y tiene menor rango visual. Las baterías duran más tiempo.",
-            2 => isEN ? "The monster is extremely fast and hears noise from far away. Flashlight drains quickly."
-               : isPT ? "O monstro é extremamente rápido e ouve ruídos de longe. A lanterna acaba rápido."
-               :         "El monstruo es extremadamente rápido y detecta el ruido lejano. La linterna se agota rápido.",
-            _ => isEN ? "Aggressive monster. Speed, battery, and sanity calibrated for standard play."
-               : isPT ? "Monstro agressivo. Velocidade, bateria e sanidade calibradas para a experiência padrão."
-               :         "Monstruo agresivo. Velocidad, batería y cordura calibradas para la experiencia estándar."
+            0 => isEN ? "Monsters are slower with reduced vision. Flashlight batteries last longer."
+               : isPT ? "Os monstros são mais lentos com visão reduzida. As baterias duram mais."
+               :         "Los monstruos son más lentos y tienen menor rango visual. Las baterías duran más tiempo.",
+            2 => isEN ? "Monsters are extremely fast and aggressive. Flashlight drains faster."
+               : isPT ? "Os monstros são extremamente rápidos e agressivos. A lanterna acaba mais rápido."
+               :         "Los monstruos son extremadamente rápidos y agresivos. La linterna se agota más rápido.",
+            _ => isEN ? "Standard experience. Monster speed, noise detection, and sanity calibrated for standard play."
+               : isPT ? "Experiência padrão. Velocidade dos monstros, detecção de ruído e sanidade equilibradas."
+               :         "Experiencia estándar. Velocidad de monstruos, detección de ruido y baterías calibradas."
         };
     }
-
-    int HospitalWidth() => selectedMapSizeIndex switch { 1 => 20, 2 => 25, _ => 15 };
-    int TunnelWidth()   => selectedMapSizeIndex switch { 1 => 25, 2 => 35, _ => 15 };
 
     string DiffString() => selectedDifficultyIndex switch { 0 => "FACIL", 2 => "DIFICIL", _ => "NORMAL" };
 

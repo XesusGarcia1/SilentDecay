@@ -15,7 +15,6 @@ public class MainMenuManager : MonoBehaviour
     [HideInInspector] public MenuState currentState = MenuState.Main;
 
     // ─── Referencias ─────────────────────────────────────────────────────────
-    public ModularHospital.ModularHospitalGenerator modularGenerator;
 
     [Header("Título Personalizado")]
     public string gameTitle = "SILENT DECAY";
@@ -65,7 +64,6 @@ public class MainMenuManager : MonoBehaviour
     {
         InitRenderSettings();
         InitScreenOrientation();
-        InitGenerator();
         InitTextures();
         InitPreferences();
         InitAudio();
@@ -107,18 +105,7 @@ public class MainMenuManager : MonoBehaviour
         Screen.autorotateToLandscapeRight      = true;
     }
 
-    void InitGenerator()
-    {
-        if (modularGenerator == null)
-            modularGenerator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>(true);
 
-        if (modularGenerator != null)
-        {
-            modularGenerator.isMenuMode      = true;
-            modularGenerator.generateOnStart = true;
-            modularGenerator.smallMapGridSize = new Vector2Int(8, 8);
-        }
-    }
 
     void InitTextures()
     {
