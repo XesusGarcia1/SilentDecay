@@ -160,6 +160,12 @@ public class SubGenerator : MonoBehaviour
             audioSource.PlayOneShot(clickSound, 1.0f);
         }
 
+        BookHeadAIController bh = FindFirstObjectByType<BookHeadAIController>();
+        if (bh != null)
+        {
+            bh.AlertNoiseAtPosition(transform.position);
+        }
+
         UpdateVisuals();
 
         // Buscar caja de fusibles central para notificar y comprobar si ya se activaron ambos

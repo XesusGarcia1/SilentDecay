@@ -411,7 +411,7 @@ public class PowerBox : MonoBehaviour
             // ─── AMBIENTACIÓN Y EVENTO DE TERROR ALEATORIO DE APAGÓN ─────────────
             float blackoutRoll = UnityEngine.Random.value;
 
-            EnemyAIController enemyController = FindFirstObjectByType<EnemyAIController>(FindObjectsInactive.Include);
+            BookHeadAIController enemyController = FindFirstObjectByType<BookHeadAIController>(FindObjectsInactive.Include);
             if (enemyController != null)
             {
                 if (blackoutRoll < 0.20f)
@@ -427,8 +427,8 @@ public class PowerBox : MonoBehaviour
                     RelocateEnemyModerateDistance(enemyController.gameObject, playerPos, 18f, 25f);
                     enemyController.gameObject.SetActive(true);
                     UnityEngine.AI.NavMeshAgent ag = enemyController.GetComponent<UnityEngine.AI.NavMeshAgent>();
-                    EnemyAnimation an = enemyController.GetComponent<EnemyAnimation>();
-                    enemyController.ChangeState(new EnemyStalkState(enemyController, ag, an, enemyController.player));
+                    BookHeadAnimation an = enemyController.GetComponent<BookHeadAnimation>();
+                    enemyController.ChangeState(new BookHeadStalkState(enemyController, ag, an, enemyController.player));
                     Debug.Log("[PowerBox] Apagón Tipo B: Evento STALK (BookHead observando a distancia).");
                 }
                 else
@@ -496,12 +496,12 @@ public class PowerBox : MonoBehaviour
                 Debug.Log("PowerBox: Monstruo BookHead desactivado al restablecer las luces.");
             }
 
-            EnemyAIController enemyController = FindFirstObjectByType<EnemyAIController>(FindObjectsInactive.Include);
+            BookHeadAIController enemyController = FindFirstObjectByType<BookHeadAIController>(FindObjectsInactive.Include);
             if (enemyController != null)
             {
                 enemyController.detectionRange = 7.5f;
                 enemyController.gameObject.SetActive(false);
-                Debug.Log("PowerBox: Monstruo EnemyAIController desactivado al restablecer las luces.");
+                Debug.Log("PowerBox: Monstruo BookHeadAIController desactivado al restablecer las luces.");
             }
 
                 float curGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);

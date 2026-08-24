@@ -13,7 +13,7 @@ public class EnemyActivator : MonoBehaviour
         // Buscar el enemigo automaticamente si no esta asignado
         if (enemyToActivate == null)
         {
-            EnemyAIController controller = FindObjectOfType<EnemyAIController>();
+            BookHeadAIController controller = FindObjectOfType<BookHeadAIController>();
             if (controller != null)
                 enemyToActivate = controller.gameObject;
         }

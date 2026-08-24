@@ -123,6 +123,12 @@ public class NoteItem : MonoBehaviour
             pBox.ShowMessage($"Nota de clave recogida: Dígito #{digitPosition} es {digitValue}", Color.yellow, 4.5f);
         }
 
+        BookHeadAIController bh = FindFirstObjectByType<BookHeadAIController>();
+        if (bh != null)
+        {
+            bh.AlertNoiseAtPosition(transform.position);
+        }
+
         Destroy(gameObject);
     }
 

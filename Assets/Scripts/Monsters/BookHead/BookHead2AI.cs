@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
-public class Enemy2AI : MonoBehaviour
+public class BookHead2AI : MonoBehaviour
 {
     public Transform target; // El objetivo que el enemigo debe seguir
     public Transform[] patrolPoints; // Puntos dentro de la zona marcada

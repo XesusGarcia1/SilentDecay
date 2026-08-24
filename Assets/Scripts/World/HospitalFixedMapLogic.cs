@@ -63,27 +63,22 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
         // Disparar monólogo inicial del jugador con pequeño delay
         StartCoroutine(TriggerStartMonologueDelayed());
 
-        // BARRIDO NUCLEAR FINAL: Asegurar que CUALQUIER objeto 'Nota' que esté activo en la escena
-        // pero que no haya sido seleccionado (no tiene NoteItem) sea DESACTIVADO FORZOSAMENTE.
+        // BARRIDO NUCLEAR FINAL: Desactivar FORZOSAMENTE cualquier objeto 'NotaCode' o 'NotaLore'
+        // que haya quedado activo por error pero que NO esté en la lista oficial de seleccionadas.
         Transform[] finalSweep = FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         foreach (Transform t in finalSweep)
         {
             if (t == null) continue;
-            string tName = t.name.Trim().ToLower();
-
-            // Si es un objeto de nota de código (NotaCode, Nota, Papel)
-            if (tName.StartsWith("notacode") || tName == "nota" || tName.StartsWith("nota (") || tName == "papel" || tName.StartsWith("papel ("))
+            
+            if (IsCodeNoteTransform(t) || IsLoreNoteTransform(t))
             {
-                if (tName.Contains("notalore") || tName.Contains("papellore")) continue;
-                if (t.parent != null && IsCodeNoteTransform(t.parent)) continue;
+                // Si este es el objeto hijo (la malla), no lo procesamos aquí (el padre lo controla)
+                if (t.parent != null && (IsCodeNoteTransform(t.parent) || IsLoreNoteTransform(t.parent))) continue;
 
-                bool hasValidNote = false;
-                foreach (var comp in t.GetComponentsInChildren<NoteItem>(true))
-                {
-                    if (comp != null) hasValidNote = true;
-                }
-                
-                if (!hasValidNote)
+                // Una nota es válida ÚNICAMENTE si está en la lista oficial activeNoteObjects
+                bool isSelectedNote = activeNoteObjects.Contains(t.gameObject);
+
+                if (!isSelectedNote)
                 {
                     t.gameObject.SetActive(false);
                 }
@@ -94,7 +89,7 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
     private void SetupBookHeadMonster()
     {
         EnemyAIBookHead bookHeadA = FindFirstObjectByType<EnemyAIBookHead>(FindObjectsInactive.Include);
-        EnemyAIController bookHeadB = FindFirstObjectByType<EnemyAIController>(FindObjectsInactive.Include);
+        BookHeadAIController bookHeadB = FindFirstObjectByType<BookHeadAIController>(FindObjectsInactive.Include);
 
         if (bookHeadA == null && bookHeadB == null)
         {
@@ -102,7 +97,7 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
             if (bhObj != null)
             {
                 bookHeadA = bhObj.GetComponent<EnemyAIBookHead>();
-                bookHeadB = bhObj.GetComponent<EnemyAIController>();
+                bookHeadB = bhObj.GetComponent<BookHeadAIController>();
             }
         }
 
@@ -185,7 +180,7 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
             if (pObj != null) playerTarget = pObj.transform;
         }
 
-        // Pre-cargar patrulla para EnemyAIBookHead y EnemyAIController
+        // Pre-cargar patrulla para EnemyAIBookHead y BookHeadAIController
         if (bookHeadA != null)
         {
             bookHeadA.PreloadPatrol(validPts.ToArray(), playerTarget);

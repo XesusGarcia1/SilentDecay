@@ -425,7 +425,7 @@ public class HideUnderBed : MonoBehaviour
 
         bool triggerBedInspection = (Random.value < 0.40f);
 
-        EnemyAIController[] b1s = FindObjectsOfType<EnemyAIController>(true);
+        BookHeadAIController[] b1s = FindObjectsOfType<BookHeadAIController>(true);
         foreach (var b in b1s)
         {
             if (b != null && b.gameObject.activeInHierarchy)
@@ -451,7 +451,7 @@ public class HideUnderBed : MonoBehaviour
         }
     }
 
-    private System.Collections.IEnumerator BedInspectionRoutine(EnemyAIController monster, Bed bed)
+    private System.Collections.IEnumerator BedInspectionRoutine(BookHeadAIController monster, Bed bed)
     {
         if (monster == null || bed == null) yield break;
 
