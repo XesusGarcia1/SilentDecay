@@ -2,18 +2,18 @@ using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 
-public class EnemyAttackState : IEnemyState
+public class BookHeadAttackState : IEnemyState
 {
-    private EnemyAIController enemy;
+    private BookHeadAIController enemy;
     private NavMeshAgent agent;
-    private EnemyAnimation anim;
+    private BookHeadAnimation anim;
     private Transform player;
     private float attackRange = 2f;  // Rango del ataque
 
     private bool isAttacking = false;
     private Coroutine attackCoroutine;
 
-    public EnemyAttackState(EnemyAIController enemy, NavMeshAgent agent, EnemyAnimation anim, Transform player)
+    public BookHeadAttackState(BookHeadAIController enemy, NavMeshAgent agent, BookHeadAnimation anim, Transform player)
     {
         this.enemy = enemy;
         this.agent = agent;
@@ -95,6 +95,6 @@ public class EnemyAttackState : IEnemyState
         yield return new WaitForSeconds(0.2f);
         
         isAttacking = false;
-        enemy.ChangeState(new EnemyChaseState(enemy, agent, anim, player));
+        enemy.ChangeState(new BookHeadChaseState(enemy, agent, anim, player));
     }
 }

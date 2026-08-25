@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
-public class EnemyCrouchInspectState : IEnemyState
+public class BookHeadCrouchInspectState : IEnemyState
 {
-    private EnemyAIController enemy;
+    private BookHeadAIController enemy;
     private NavMeshAgent agent;
-    private EnemyAnimation anim;
+    private BookHeadAnimation anim;
     private Bed targetBed;
 
     private float timer = 0f;
@@ -24,7 +24,7 @@ public class EnemyCrouchInspectState : IEnemyState
     private Quaternion originalModelLocalRotation;
     private Vector3 targetWalkPosition;
 
-    public EnemyCrouchInspectState(EnemyAIController enemy, NavMeshAgent agent, EnemyAnimation anim, Bed bed)
+    public BookHeadCrouchInspectState(BookHeadAIController enemy, NavMeshAgent agent, BookHeadAnimation anim, Bed bed)
     {
         this.enemy = enemy;
         this.agent = agent;
@@ -181,7 +181,7 @@ public class EnemyCrouchInspectState : IEnemyState
                         Debug.LogWarning("[InspectState] ¡El monstruo te descubrió bajo la cama!");
                         hideScript.ToggleHide(targetBed);
                         
-                        enemy.ChangeState(new EnemyAttackState(enemy, agent, anim, enemy.player));
+                        enemy.ChangeState(new BookHeadAttackState(enemy, agent, anim, enemy.player));
                         return;
                     }
                     else
@@ -204,7 +204,7 @@ public class EnemyCrouchInspectState : IEnemyState
 
             if (t >= 1f)
             {
-                enemy.ChangeState(new EnemyPatrolState(enemy, agent, anim, enemy.patrolPoints));
+                enemy.ChangeState(new BookHeadPatrolState(enemy, agent, anim, enemy.patrolPoints));
             }
         }
     }

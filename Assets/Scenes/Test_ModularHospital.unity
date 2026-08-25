@@ -4362,6 +4362,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8534986053236133539, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
+      propertyPath: m_Name
+      value: NotaCode
+      objectReference: {fileID: 0}
     - target: {fileID: 8543944059779338765, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_IsActive
       value: 1
@@ -5597,6 +5601,10 @@ PrefabInstance:
     - target: {fileID: 8532814364063690665, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534986053236133539, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
+      propertyPath: m_Name
+      value: NotaCode
       objectReference: {fileID: 0}
     - target: {fileID: 8543944059779338765, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_IsActive
@@ -7868,6 +7876,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8534986053236133539, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
+      propertyPath: m_Name
+      value: NotaCode
+      objectReference: {fileID: 0}
     - target: {fileID: 8543944059779338765, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_IsActive
       value: 1
@@ -9284,6 +9296,10 @@ PrefabInstance:
     - target: {fileID: 8532814364063690665, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534986053236133539, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
+      propertyPath: m_Name
+      value: NotaCode
       objectReference: {fileID: 0}
     - target: {fileID: 8543944059779338765, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_IsActive
@@ -11591,6 +11607,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8534986053236133539, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
+      propertyPath: m_Name
+      value: NotaCode
+      objectReference: {fileID: 0}
     - target: {fileID: 8543944059779338765, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_IsActive
       value: 1
@@ -12025,6 +12045,7 @@ MonoBehaviour:
   silentRepositionTime: 20
   repositionMaxRadius: 20
   repositionMinRadius: 8
+  currentDifficulty: NORMAL
   audioSource: {fileID: 998392588}
   monsterSoundClip: {fileID: 8300000, guid: 61cc9b784b46dc84b8126ee55a78be9f, type: 3}
   footstepAudioSource: {fileID: 998392588}
@@ -16310,6 +16331,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8534986053236133539, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
+      propertyPath: m_Name
+      value: NotaCode
+      objectReference: {fileID: 0}
     - target: {fileID: 8543944059779338765, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_IsActive
       value: 1
@@ -18372,6 +18397,10 @@ PrefabInstance:
     - target: {fileID: 8532814364063690665, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534986053236133539, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
+      propertyPath: m_Name
+      value: NotaCode
       objectReference: {fileID: 0}
     - target: {fileID: 8720199456713749417, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
@@ -21457,6 +21486,10 @@ PrefabInstance:
     - target: {fileID: 8532814364063690665, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534986053236133539, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
+      propertyPath: m_Name
+      value: NotaCode
       objectReference: {fileID: 0}
     - target: {fileID: 8543944059779338765, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_IsActive
@@ -25005,6 +25038,10 @@ PrefabInstance:
     - target: {fileID: 8532814364063690665, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534986053236133539, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
+      propertyPath: m_Name
+      value: NotaCode
       objectReference: {fileID: 0}
     - target: {fileID: 8543944059779338765, guid: c15d63b5e89d8f84eb9c42a180f895bb, type: 3}
       propertyPath: m_IsActive

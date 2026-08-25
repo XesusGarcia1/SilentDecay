@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using System.Collections.Generic;
 
-public class EnemyAIController : MonoBehaviour
+public class BookHeadAIController : MonoBehaviour
 {
     public Transform GetTransform()
     {
@@ -19,7 +19,7 @@ public class EnemyAIController : MonoBehaviour
         if (UnityEngine.AI.NavMesh.SamplePosition(farPos, out hit, 60f, UnityEngine.AI.NavMesh.AllAreas))
         {
             agent.Warp(hit.position);
-            Debug.Log("[EnemyAIController] Relocalizado lejos del jugador en el respawn a: " + hit.position);
+            Debug.Log("[BookHeadAIController] Relocalizado lejos del jugador en el respawn a: " + hit.position);
         }
         else
         {
@@ -30,7 +30,7 @@ public class EnemyAIController : MonoBehaviour
         }
         
         agent.ResetPath();
-        ChangeState(new EnemyPatrolState(this, agent, anim, (patrolPoints != null && patrolPoints.Length > 0) ? patrolPoints : new Transform[0]));
+        ChangeState(new BookHeadPatrolState(this, agent, anim, (patrolPoints != null && patrolPoints.Length > 0) ? patrolPoints : new Transform[0]));
     }
 
     public Transform player;
@@ -48,6 +48,86 @@ public class EnemyAIController : MonoBehaviour
     [Tooltip("Radio minimo de aparicion")]
     public float repositionMinRadius = 18f;
 
+    [HideInInspector] public string currentDifficulty = "NORMAL";
+
+    public void ApplyDifficultySettings()
+    {
+        currentDifficulty = PlayerPrefs.GetString("SelectedDifficulty", "NORMAL").ToUpper();
+
+        if (currentDifficulty == "FACIL" || currentDifficulty == "EASY")
+        {
+            walkSpeed = 3.0f;
+            runSpeed = 5.2f;
+            detectionRange = 7.0f;
+            silentRepositionTime = 40f;
+            repositionMinRadius = 16f;
+            repositionMaxRadius = 24f;
+        }
+        else if (currentDifficulty == "DIFICIL" || currentDifficulty == "HARD")
+        {
+            walkSpeed = 4.3f;
+            runSpeed = 7.5f; // MÁS RÁPIDO QUE EL JUGADOR CORRIENDO (~6.5m/s)
+            detectionRange = 12.0f;
+            silentRepositionTime = 12f; // Acecha muy frecuentemente
+            repositionMinRadius = 8f;
+            repositionMaxRadius = 14f;
+        }
+        else // NORMAL
+        {
+            walkSpeed = 3.5f;
+            runSpeed = 6.4f; // CASI IGUALA AL JUGADOR
+            detectionRange = 9.5f;
+            silentRepositionTime = 22f;
+            repositionMinRadius = 12f;
+            repositionMaxRadius = 18f;
+        }
+
+        originalWalkSpeed = walkSpeed;
+        originalRunSpeed = runSpeed;
+        originalDetectionRange = detectionRange;
+        originalSilentRepositionTime = silentRepositionTime;
+
+        Debug.Log($"[BookHead] Dificultad configurada: {currentDifficulty} | Vel. Caminar: {walkSpeed} | Vel. Correr: {runSpeed} | Reposición: {silentRepositionTime}s");
+    }
+
+    public void AlertNoiseAtPosition(Vector3 noisePos)
+    {
+        // Únicamente reacciona a ruidos/notas SI el monstruo está activo en la escena (durante un apagón)
+        if (!gameObject.activeInHierarchy) return;
+
+        float dist = Vector3.Distance(transform.position, noisePos);
+        if (dist < 60f)
+        {
+            Debug.Log($"[BookHead] Alerta de sonido recibida en {noisePos} (distancia: {dist:F1}m). Investigando...");
+            if (agent != null && agent.isOnNavMesh)
+            {
+                agent.SetDestination(noisePos);
+                if (!(currentState is BookHeadChaseState))
+                {
+                    ChangeState(new BookHeadStalkState(this, agent, anim, player));
+                }
+            }
+        }
+    }
+
+    public void OnKeycardCollected()
+    {
+        Debug.Log("[BookHead] ¡Tarjeta del Director obtenida! Iniciando fase clímax de escape al ascensor.");
+        difficultyBoostApplied = true;
+
+        // FASE CLÍMAX EQUILIBRADA DE ESCAPE AL ASCENSOR:
+        // Reposición de acecho más frecuente (15s), ligero aumento de velocidad (+0.8m/s) y mayor audición
+        silentRepositionTime = Mathf.Min(silentRepositionTime, 15f);
+        runSpeed = originalRunSpeed + 0.8f;
+        detectionRange = originalDetectionRange + 4f;
+
+        if (gameObject.activeInHierarchy)
+        {
+            // Reubicarse sigilosamente fuera de cámara en pasillos rumbo al ascensor
+            TrySilentReposition();
+        }
+    }
+
     public AudioSource audioSource;
     public AudioClip monsterSoundClip;
     public AudioSource footstepAudioSource;
@@ -62,7 +142,7 @@ public class EnemyAIController : MonoBehaviour
     public AudioClip impactSoundClip;
 
     private NavMeshAgent agent;
-    private EnemyAnimation anim;
+    private BookHeadAnimation anim;
     private IEnemyState currentState;
     private FieldOfView fov;
     private float timeSincePlayerSeen = 0f;
@@ -91,8 +171,8 @@ public class EnemyAIController : MonoBehaviour
         Debug.Log("Start del enemigo iniciado");
         agent = GetComponent<NavMeshAgent>();
         if (agent == null) agent = GetComponentInChildren<NavMeshAgent>();
-        anim = GetComponent<EnemyAnimation>();
-        if (anim == null) anim = GetComponentInChildren<EnemyAnimation>();
+        anim = GetComponent<BookHeadAnimation>();
+        if (anim == null) anim = GetComponentInChildren<BookHeadAnimation>();
         fov = GetComponent<FieldOfView>();
         if (fov == null) fov = GetComponentInChildren<FieldOfView>();
         if (fov != null)
@@ -164,6 +244,8 @@ public class EnemyAIController : MonoBehaviour
         originalDetectionRange = detectionRange;
         originalSilentRepositionTime = silentRepositionTime;
 
+        ApplyDifficultySettings();
+
         if (audioSource == null)
         {
             audioSource = GetComponent<AudioSource>();
@@ -189,7 +271,7 @@ public class EnemyAIController : MonoBehaviour
 
         if (patrolPoints == null) patrolPoints = new Transform[0];
 
-        ChangeState(new EnemyPatrolState(this, agent, anim, patrolPoints));
+        ChangeState(new BookHeadPatrolState(this, agent, anim, patrolPoints));
 
         StartCoroutine(SilentRepositionRoutine());
         StartCoroutine(PsychologicalDoorKnockRoutine());
@@ -239,7 +321,7 @@ public class EnemyAIController : MonoBehaviour
 
         currentState?.ExitState();
         currentState = null;
-        currentState = new EnemyPatrolState(this, agent, anim, patrolPoints);
+        currentState = new BookHeadPatrolState(this, agent, anim, patrolPoints);
         currentState.EnterState();
     }
 
@@ -294,20 +376,20 @@ public class EnemyAIController : MonoBehaviour
 
         bool isDark = roomLightsManager != null && roomLightsManager.powerOutage;
 
-        if (currentState is EnemyAttackState || currentState is EnemyStalkState)
+        if (currentState is BookHeadAttackState || currentState is BookHeadStalkState)
         {
             if (agent != null && agent.enabled && agent.isOnNavMesh) agent.speed = 0f;
         }
         else if (isDark)
         {
             if (agent != null && agent.enabled && agent.isOnNavMesh)
-                agent.speed = (currentState is EnemyChaseState) ? (runSpeed + 0.4f) : (walkSpeed + 0.3f);
+                agent.speed = (currentState is BookHeadChaseState) ? (runSpeed + 0.4f) : (walkSpeed + 0.3f);
             if (fov != null) fov.viewRadius = difficultyBoostApplied ? 15f : 12f;
         }
         else
         {
             if (agent != null && agent.enabled && agent.isOnNavMesh)
-                agent.speed = (currentState is EnemyChaseState) ? runSpeed : walkSpeed;
+                agent.speed = (currentState is BookHeadChaseState) ? runSpeed : walkSpeed;
             if (fov != null) fov.viewRadius = difficultyBoostApplied ? 12f : 9f;
         }
 
@@ -371,7 +453,7 @@ public class EnemyAIController : MonoBehaviour
         {
             float dist = Vector3.Distance(transform.position, player.position);
 
-            if (currentState is EnemyChaseState)
+            if (currentState is BookHeadChaseState)
             {
                 // 1. MÚSICA DE PERSECUCIÓN DE FONDO EN LOOP (Chase.mp3)
                 if (chaseSoundClip != null)
@@ -412,7 +494,7 @@ public class EnemyAIController : MonoBehaviour
                     Debug.Log($"[BookHead] ¡Grito demoníaco lanzado a {dist:F1}m del jugador! Próximo grito en {screechCooldownTimer:F1}s.");
                 }
             }
-            else if (currentState is EnemyAttackState)
+            else if (currentState is BookHeadAttackState)
             {
                 if (screechSoundClip != null && screechCooldownTimer <= 0f)
                 {
@@ -457,7 +539,7 @@ public class EnemyAIController : MonoBehaviour
             }
         }
 
-        if (currentState is EnemyChaseState)
+        if (currentState is BookHeadChaseState)
         {
             CheckAndOpenObstacles();
         }
@@ -532,7 +614,7 @@ public class EnemyAIController : MonoBehaviour
             float distToPlayer = Vector3.Distance(transform.position, player.position);
 
             // Si BookHead está en el área cercana al jugador (10 - 25m)
-            if (distToPlayer <= 25f && (currentState is EnemyPatrolState || currentState is EnemyStalkState))
+            if (distToPlayer <= 25f && (currentState is BookHeadPatrolState || currentState is BookHeadStalkState))
             {
                 // Buscar puertas cerca del jugador para dar golpes terroríficos aleatorios
                 Collider[] nearbyDoors = Physics.OverlapSphere(player.position, 12f);
@@ -698,7 +780,7 @@ public class EnemyAIController : MonoBehaviour
         {
             currentState?.ExitState();
             currentState = null;
-            currentState = new EnemyPatrolState(this, agent, anim, patrolPoints);
+            currentState = new BookHeadPatrolState(this, agent, anim, patrolPoints);
             currentState.EnterState();
         }
     }
@@ -709,7 +791,7 @@ public class EnemyAIController : MonoBehaviour
             return;
 
         // Disparar impacto sonoro de susto instantáneo al iniciar persecución
-        if (newState is EnemyChaseState && !(currentState is EnemyChaseState) && !(currentState is EnemyAttackState))
+        if (newState is BookHeadChaseState && !(currentState is BookHeadChaseState) && !(currentState is BookHeadAttackState))
         {
             PlaySpottingImpact();
         }
@@ -732,17 +814,17 @@ public class EnemyAIController : MonoBehaviour
             float currentMapScale = 4f;
 
             bool visuallySawHide = fov != null && fov.CanSeePlayer();
-            if (currentState is EnemyChaseState && distanceToPlayer <= (5f * currentMapScale) && visuallySawHide)
+            if (currentState is BookHeadChaseState && distanceToPlayer <= (5f * currentMapScale) && visuallySawHide)
             {
-                ChangeState(new EnemyAttackState(this, agent, anim, player));
+                ChangeState(new BookHeadAttackState(this, agent, anim, player));
             }
-            else if (!(currentState is EnemyPatrolState))
+            else if (!(currentState is BookHeadPatrolState))
             {
                 if (agent != null && agent.enabled && agent.isOnNavMesh)
                 {
                     agent.ResetPath();
                 }
-                ChangeState(new EnemyPatrolState(this, agent, anim, (patrolPoints != null && patrolPoints.Length > 0) ? patrolPoints : new Transform[0]));
+                ChangeState(new BookHeadPatrolState(this, agent, anim, (patrolPoints != null && patrolPoints.Length > 0) ? patrolPoints : new Transform[0]));
             }
             return;
         }
@@ -751,28 +833,28 @@ public class EnemyAIController : MonoBehaviour
         {
             if (distanceToPlayer <= attackRange)
             {
-                ChangeState(new EnemyAttackState(this, agent, anim, player));
+                ChangeState(new BookHeadAttackState(this, agent, anim, player));
             }
             else if (distanceToPlayer <= 7.5f)
             {
-                if (!(currentState is EnemyChaseState))
+                if (!(currentState is BookHeadChaseState))
                 {
-                    ChangeState(new EnemyChaseState(this, agent, anim, player));
+                    ChangeState(new BookHeadChaseState(this, agent, anim, player));
                 }
             }
             else if (distanceToPlayer > 8.0f && distanceToPlayer <= 25.0f)
             {
-                if (!(currentState is EnemyChaseState) && !(currentState is EnemyStalkState) && !(currentState is EnemyAttackState))
+                if (!(currentState is BookHeadChaseState) && !(currentState is BookHeadStalkState) && !(currentState is BookHeadAttackState))
                 {
-                    ChangeState(new EnemyStalkState(this, agent, anim, player));
+                    ChangeState(new BookHeadStalkState(this, agent, anim, player));
                 }
             }
         }
         else
         {
-            if (!(currentState is EnemyChaseState) && !(currentState is EnemyPatrolState) && !(currentState is EnemyStalkState) && !(currentState is EnemyAttackState))
+            if (!(currentState is BookHeadChaseState) && !(currentState is BookHeadPatrolState) && !(currentState is BookHeadStalkState) && !(currentState is BookHeadAttackState))
             {
-                ChangeState(new EnemyPatrolState(this, agent, anim, (patrolPoints != null && patrolPoints.Length > 0) ? patrolPoints : new Transform[0]));
+                ChangeState(new BookHeadPatrolState(this, agent, anim, (patrolPoints != null && patrolPoints.Length > 0) ? patrolPoints : new Transform[0]));
             }
         }
     }
@@ -812,7 +894,7 @@ public class EnemyAIController : MonoBehaviour
         {
             yield return new WaitForSeconds(1f);
 
-            if (!(currentState is EnemyPatrolState))
+            if (!(currentState is BookHeadPatrolState))
             {
                 timeSincePlayerSeen = 0f;
                 continue;
@@ -880,7 +962,7 @@ public class EnemyAIController : MonoBehaviour
             if (agent != null && agent.enabled && agent.Warp(hit.position))
             {
                 Debug.Log("[Reposicion Invisible] BookHead apareció fuera de pantalla a " + Vector3.Distance(hit.position, player.position).ToString("F1") + "m. Entrando en STALK.");
-                ChangeState(new EnemyStalkState(this, agent, anim, player));
+                ChangeState(new BookHeadStalkState(this, agent, anim, player));
                 return;
             }
         }
@@ -928,7 +1010,7 @@ public class EnemyAIController : MonoBehaviour
             transform.position = bestPos;
         }
 
-        ChangeState(new EnemyPatrolState(this, agent, anim, (patrolPoints != null && patrolPoints.Length > 0) ? patrolPoints : new Transform[0]));
+        ChangeState(new BookHeadPatrolState(this, agent, anim, (patrolPoints != null && patrolPoints.Length > 0) ? patrolPoints : new Transform[0]));
         Debug.Log("[BookHead] Huyendo a pasillo distante (" + maxDist.ToString("F1") + "m del jugador).");
     }
 
@@ -940,7 +1022,7 @@ public class EnemyAIController : MonoBehaviour
 
         if (playerSanity.sanity < 60f)
         {
-            if (currentState is EnemyChaseState || currentState is EnemyAttackState)
+            if (currentState is BookHeadChaseState || currentState is BookHeadAttackState)
             {
                 timeSinceLastSeenGhost = 0f;
                 return;

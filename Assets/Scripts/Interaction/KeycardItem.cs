@@ -130,9 +130,15 @@ public class KeycardItem : MonoBehaviour
         PowerBox pBox = FindObjectOfType<PowerBox>();
         if (pBox != null)
         {
-            pBox.ShowMessage("Tarjeta de Acceso del Director recogida!", new Color(0.2f, 0.6f, 1f), 4f);
+            pBox.ShowMessage("¡Tarjeta del Director recogida! Dirígete al Ascensor de Escape.", new Color(0.2f, 0.6f, 1f), 4f);
             pBox.ForceKeycardBlackoutAndRoar();
             Debug.Log("KeycardItem: Apagón y rugido forzado dinámicamente al recoger la tarjeta.");
+        }
+
+        BookHeadAIController bh = FindFirstObjectByType<BookHeadAIController>();
+        if (bh != null)
+        {
+            bh.OnKeycardCollected();
         }
 
         AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");

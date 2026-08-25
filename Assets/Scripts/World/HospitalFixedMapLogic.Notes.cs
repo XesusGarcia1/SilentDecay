@@ -10,15 +10,14 @@ public partial class HospitalFixedMapLogic
     {
         if (t == null) return false;
         string n = t.name.Trim().ToLower();
-        if (n.Contains("papellore") || n.Contains("notalore")) return false;
-        return n.StartsWith("notacode") || n == "nota" || n.StartsWith("nota (") || n == "papel" || n.StartsWith("papel (");
+        return n.StartsWith("notacode");
     }
 
     private bool IsLoreNoteTransform(Transform t)
     {
         if (t == null) return false;
         string n = t.name.Trim().ToLower();
-        return n.StartsWith("notalore") || n.StartsWith("papellore");
+        return n.StartsWith("notalore");
     }
 
     private void SetupCodeNotes(Transform[] allTransforms)

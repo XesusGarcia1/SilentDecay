@@ -2026,7 +2026,7 @@ namespace ModularHospital
 
             UnityEngine.AI.NavMeshAgent agent = enemyObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
             EnemyAIBookHead ai = enemyObj.GetComponent<EnemyAIBookHead>();
-            EnemyAIController aiController = enemyObj.GetComponent<EnemyAIController>();
+            BookHeadAIController aiController = enemyObj.GetComponent<BookHeadAIController>();
             if (agent == null || (ai == null && aiController == null)) { enemyObj.SetActive(false); yield break; }
 
             // Configurar parámetros del agente correctamente (agentTypeID = 0 = Humanoid)

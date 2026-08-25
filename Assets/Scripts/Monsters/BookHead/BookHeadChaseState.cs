@@ -1,11 +1,11 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-public class EnemyChaseState : IEnemyState
+public class BookHeadChaseState : IEnemyState
 {
-    private EnemyAIController enemy;
+    private BookHeadAIController enemy;
     private NavMeshAgent agent;
-    private EnemyAnimation anim;
+    private BookHeadAnimation anim;
     private Transform player;
 
     private float maxChaseDistance = 25f;
@@ -16,7 +16,7 @@ public class EnemyChaseState : IEnemyState
     private Vector3 lastKnownPlayerPosition;
     private bool isRunningSoundPlaying = false;
 
-    public EnemyChaseState(EnemyAIController enemy, NavMeshAgent agent, EnemyAnimation anim, Transform player)
+    public BookHeadChaseState(BookHeadAIController enemy, NavMeshAgent agent, BookHeadAnimation anim, Transform player)
     {
         this.enemy = enemy;
         this.agent = agent;
@@ -217,7 +217,7 @@ public class EnemyChaseState : IEnemyState
                     if (nearBed != null)
                     {
                         Debug.Log("[ChaseState] Búsqueda finalizada. Inspeccionando cama cercana a " + closestBedDist + "m.");
-                        enemy.ChangeState(new EnemyCrouchInspectState(enemy, agent, anim, nearBed));
+                        enemy.ChangeState(new BookHeadCrouchInspectState(enemy, agent, anim, nearBed));
                     }
                     else
                     {

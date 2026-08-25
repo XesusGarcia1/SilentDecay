@@ -320,10 +320,10 @@ public class PlayerHealth : MonoBehaviour
             var ai = FindFirstObjectByType<PhenomenonAIController>();
             if (ai != null) monsterObj = ai.gameObject;
         }
-        // Hospital: BookHead (EnemyAIController)
+        // Hospital: BookHead (BookHeadAIController)
         if (monsterObj == null)
         {
-            var bookHead = FindFirstObjectByType<EnemyAIController>();
+            var bookHead = FindFirstObjectByType<BookHeadAIController>();
             if (bookHead != null) monsterObj = bookHead.gameObject;
         }
         // TheCreep (CrawlerAI)
@@ -738,7 +738,7 @@ public class PlayerHealth : MonoBehaviour
             }
 
             // 3. Buscar y desactivar monstruo temporalmente (funciona en Hospital Y Túneles)
-            // Hospital: BookHead (EnemyAIController) | Túneles: Phenomenon (PhenomenonAIController) | TheCreep (CrawlerAI)
+            // Hospital: BookHead (BookHeadAIController) | Túneles: Phenomenon (PhenomenonAIController) | TheCreep (CrawlerAI)
             GameObject monsterObj = GameObject.Find("ThePhenomenon");
             if (monsterObj == null)
             {
@@ -747,7 +747,7 @@ public class PlayerHealth : MonoBehaviour
             }
             if (monsterObj == null)
             {
-                var bookHead = FindFirstObjectByType<EnemyAIController>();
+                var bookHead = FindFirstObjectByType<BookHeadAIController>();
                 if (bookHead != null) monsterObj = bookHead.gameObject;
             }
             if (monsterObj == null)
@@ -794,7 +794,7 @@ public class PlayerHealth : MonoBehaviour
                 if (agentTemp2 != null) agentTemp2.enabled = true;
 
                 // Mover al monstruo lejos ahora que está activo
-                var enemyAI = monsterObj.GetComponent<EnemyAIController>();
+                var enemyAI = monsterObj.GetComponent<BookHeadAIController>();
                 if (enemyAI != null) enemyAI.ForceRelocateFarAway(transform.position);
 
                 var crawlerAI = monsterObj.GetComponent<CrawlerAI>();
@@ -816,7 +816,7 @@ public class PlayerHealth : MonoBehaviour
                     phenomenonCtrl.TriggerRespawnGracePeriod(10f);
                 }
 
-                var bookHeadCtrl2 = monsterObj.GetComponent<EnemyAIController>();
+                var bookHeadCtrl2 = monsterObj.GetComponent<BookHeadAIController>();
                 if (bookHeadCtrl2 != null)
                 {
                     bookHeadCtrl2.detectionRange = 0f;
@@ -917,7 +917,7 @@ public class PlayerHealth : MonoBehaviour
         Debug.Log("PlayerHealth: Inmunidad de reaparición desactivada.");
     }
 
-    private System.Collections.IEnumerator ActivateBookHeadGraceDelay(EnemyAIController controller, float delay)
+    private System.Collections.IEnumerator ActivateBookHeadGraceDelay(BookHeadAIController controller, float delay)
     {
         controller.detectionRange = 0f;
         yield return new WaitForSeconds(delay);
@@ -990,7 +990,7 @@ public class PlayerHealth : MonoBehaviour
         disabledCanvases.Clear();
 
         // Relocalizar enemigos lejanos para evitar campeo en el punto de respawn
-        var bookheads = FindObjectsOfType<EnemyAIController>();
+        var bookheads = FindObjectsOfType<BookHeadAIController>();
         foreach (var bh in bookheads)
         {
             bh.ForceRelocateFarAway(transform.position);

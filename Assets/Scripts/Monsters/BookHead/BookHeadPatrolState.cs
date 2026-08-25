@@ -2,11 +2,11 @@ using UnityEngine.AI;
 using UnityEngine;
 using System.Collections;
 
-public class EnemyPatrolState : IEnemyState
+public class BookHeadPatrolState : IEnemyState
 {
-    private EnemyAIController enemy;
+    private BookHeadAIController enemy;
     private NavMeshAgent agent;
-    private EnemyAnimation anim;
+    private BookHeadAnimation anim;
     private Transform[] patrolPoints;
     private int currentPatrolIndex = 0;
 
@@ -16,7 +16,7 @@ public class EnemyPatrolState : IEnemyState
     private float idleTimer = 0f;
     private float eatTimer = 0f;
 
-    public EnemyPatrolState(EnemyAIController enemy, NavMeshAgent agent, EnemyAnimation anim, Transform[] patrolPoints)
+    public BookHeadPatrolState(BookHeadAIController enemy, NavMeshAgent agent, BookHeadAnimation anim, Transform[] patrolPoints)
     {
         this.enemy = enemy;
         this.agent = agent;
@@ -138,7 +138,7 @@ public class EnemyPatrolState : IEnemyState
                             if (angleDiff < 10f || hit.collider.gameObject.name.Contains("Puerta_Panel"))
                             {
                                 procDoor.ToggleDoor();
-                                Debug.Log("EnemyPatrolState: El monstruo abrió una puerta cerrada en su camino de patrulla.");
+                                Debug.Log("BookHeadPatrolState: El monstruo abrió una puerta cerrada en su camino de patrulla.");
                             }
                         }
                     }
@@ -155,7 +155,7 @@ public class EnemyPatrolState : IEnemyState
                             {
                                 animDoor.audioSource.PlayOneShot(animDoor.doorOpenSound, 1.0f);
                             }
-                            Debug.Log("EnemyPatrolState: El monstruo abrió una puerta animada en su camino de patrulla.");
+                            Debug.Log("BookHeadPatrolState: El monstruo abrió una puerta animada en su camino de patrulla.");
                         }
                     }
                 }
@@ -290,10 +290,18 @@ public class EnemyPatrolState : IEnemyState
     /// </summary>
     private void TrySetRandomNavMeshDestination()
     {
-        for (int i = 0; i < 10; i++) // Hasta 10 intentos
+        Vector3 searchCenter = enemy.transform.position;
+
+        // Si el jugador está presente, el 65% de las veces patrullar en pasillos cercanos al área del jugador
+        if (enemy != null && enemy.player != null && Random.value < 0.65f)
+        {
+            searchCenter = enemy.player.position;
+        }
+
+        for (int i = 0; i < 15; i++)
         {
             Vector3 randomDir = Random.insideUnitSphere * 18f;
-            randomDir += enemy.transform.position;
+            randomDir += searchCenter;
             NavMeshHit hit;
             if (NavMesh.SamplePosition(randomDir, out hit, 18f, NavMesh.AllAreas))
             {
@@ -301,7 +309,6 @@ public class EnemyPatrolState : IEnemyState
                 if (agent.CalculatePath(hit.position, path) && path.status == NavMeshPathStatus.PathComplete)
                 {
                     agent.SetPath(path);
-                    Debug.Log("[Patrol] Destino aleatorio NavMesh asignado: " + hit.position);
                     return;
                 }
             }

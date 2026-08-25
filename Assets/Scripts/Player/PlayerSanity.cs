@@ -23,7 +23,7 @@ public class PlayerSanity : MonoBehaviour
         roomLightsManager = FindObjectOfType<RoomLightsManager>();
 
         // Intentar encontrar al enemigo en la escena
-        EnemyAIController enemy = FindObjectOfType<EnemyAIController>();
+        BookHeadAIController enemy = FindObjectOfType<BookHeadAIController>();
         if (enemy != null)
         {
             monsterTransform = enemy.transform;
@@ -54,7 +54,7 @@ public class PlayerSanity : MonoBehaviour
         Transform closestEnemy = null;
 
         CrawlerAI crawler = FindObjectOfType<CrawlerAI>();
-        EnemyAIController bookhead = FindObjectOfType<EnemyAIController>();
+        BookHeadAIController bookhead = FindObjectOfType<BookHeadAIController>();
 
         if (crawler != null) closestEnemy = crawler.transform;
         else if (bookhead != null) closestEnemy = bookhead.transform;

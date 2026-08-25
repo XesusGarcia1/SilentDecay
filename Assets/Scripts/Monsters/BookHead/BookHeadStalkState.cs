@@ -1,18 +1,18 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-public class EnemyStalkState : IEnemyState
+public class BookHeadStalkState : IEnemyState
 {
-    private EnemyAIController controller;
+    private BookHeadAIController controller;
     private NavMeshAgent agent;
-    private EnemyAnimation anim;
+    private BookHeadAnimation anim;
     private Transform player;
 
     private float flashlightTimer = 0f;
     private float stalkDuration = 0f;
     private Vector3 initialPosition;
 
-    public EnemyStalkState(EnemyAIController controller, NavMeshAgent agent, EnemyAnimation anim, Transform player)
+    public BookHeadStalkState(BookHeadAIController controller, NavMeshAgent agent, BookHeadAnimation anim, Transform player)
     {
         this.controller = controller;
         this.agent = agent;
@@ -60,7 +60,7 @@ public class EnemyStalkState : IEnemyState
         if (distToPlayer <= 7.5f)
         {
             Debug.Log("[BookHead] Jugador demasiado cerca durante STALK. ¡Iniciando CHASE!");
-            controller.ChangeState(new EnemyChaseState(controller, agent, anim, player));
+            controller.ChangeState(new BookHeadChaseState(controller, agent, anim, player));
             return;
         }
 
@@ -68,7 +68,7 @@ public class EnemyStalkState : IEnemyState
         if (controller.playerSprintDetector != null && controller.playerSprintDetector.IsRunning)
         {
             Debug.Log("[BookHead] Escuchó carrera continua durante STALK. ¡Iniciando CHASE!");
-            controller.ChangeState(new EnemyChaseState(controller, agent, anim, player));
+            controller.ChangeState(new BookHeadChaseState(controller, agent, anim, player));
             return;
         }
 
@@ -90,7 +90,7 @@ public class EnemyStalkState : IEnemyState
                     if (flashlightTimer >= 1.2f)
                     {
                         Debug.Log("[BookHead] Alumbrado directamente por linterna durante 1.2s. ¡Iniciando CHASE!");
-                        controller.ChangeState(new EnemyChaseState(controller, agent, anim, player));
+                        controller.ChangeState(new BookHeadChaseState(controller, agent, anim, player));
                         return;
                     }
                 }
@@ -105,7 +105,7 @@ public class EnemyStalkState : IEnemyState
         if (stalkDuration > 12f || distToPlayer > 26f)
         {
             Debug.Log("[BookHead] Fin de tiempo STALK o jugador alejado. Volviendo a patrulla.");
-            controller.ChangeState(new EnemyPatrolState(controller, agent, anim, (controller.patrolPoints != null) ? controller.patrolPoints : new Transform[0]));
+            controller.ChangeState(new BookHeadPatrolState(controller, agent, anim, (controller.patrolPoints != null) ? controller.patrolPoints : new Transform[0]));
         }
     }
 

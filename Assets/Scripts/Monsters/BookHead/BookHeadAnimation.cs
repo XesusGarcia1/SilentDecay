@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class EnemyAnimation : MonoBehaviour
+public class BookHeadAnimation : MonoBehaviour
 {
     private Animator animator;
 
@@ -9,12 +9,12 @@ public class EnemyAnimation : MonoBehaviour
         animator = GetComponent<Animator>();
         if (animator != null)
         {
-            // Evita que el monstruo flote/se deslice sin animación cuando está lejos del jugador
+            // Evita que el monstruo flote/se deslice sin animacin cuando est lejos del jugador
             animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
         }
     }
 
-    // Apaga el resto de booleanos de animación para evitar conflictos en las transiciones
+    // Apaga el resto de booleanos de animacin para evitar conflictos en las transiciones
     private void ClearAllStatesExcept(string activeParam)
     {
         if (animator == null) return;

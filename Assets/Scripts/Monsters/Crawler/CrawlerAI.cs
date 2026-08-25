@@ -285,7 +285,7 @@ public class CrawlerAI : MonoBehaviour
             if (procDoor == null) procDoor = hit.collider.GetComponent<ProceduralDoorInteract>();
             if (procDoor != null)
             {
-                if (!procDoor.isLocked && !EnemyAIController.IsDirectorOfficeDoor(procDoor.gameObject))
+                if (!procDoor.isLocked && !BookHeadAIController.IsDirectorOfficeDoor(procDoor.gameObject))
                 {
                     float angleDiff = Quaternion.Angle(procDoor.transform.localRotation, procDoor.transform.parent != null ? Quaternion.identity : transform.rotation);
                     if (angleDiff < 10f || hit.collider.gameObject.name.Contains("Puerta_Panel"))
@@ -300,7 +300,7 @@ public class CrawlerAI : MonoBehaviour
             if (animDoor == null) animDoor = hit.collider.GetComponent<OpenDoor>();
             if (animDoor != null)
             {
-                if (!animDoor.isLocked && !EnemyAIController.IsDirectorOfficeDoor(animDoor.gameObject))
+                if (!animDoor.isLocked && !BookHeadAIController.IsDirectorOfficeDoor(animDoor.gameObject))
                 {
                     if (animDoor.doorAnimator != null && !animDoor.doorAnimator.GetBool("isOpen"))
                     {
@@ -409,7 +409,7 @@ public class CrawlerAI : MonoBehaviour
 
             // SISTEMA ANTI-DOBLE PERSECUCIÓN: Si BookHead ya está cerca (menos de 8m), El Rastrero se retira al perímetro
             bool isBookHeadChasing = false;
-            EnemyAIController b1 = FindObjectOfType<EnemyAIController>();
+            BookHeadAIController b1 = FindObjectOfType<BookHeadAIController>();
             if (b1 != null && b1.gameObject.activeInHierarchy)
             {
                 float distToBook = Vector3.Distance(transform.position, b1.transform.position);
