@@ -69,14 +69,15 @@ public class FieldOfView : MonoBehaviour
     {
         if (player == null) return false;
 
-        // Radio de escucha: detecta al jugador en plano 2D (ignorando diferencias de altura de pivote)
-        if (hearingRadius > 0f)
+        Vector3 enemyPos2D = new Vector3(transform.position.x, 0f, transform.position.z);
+        Vector3 playerPos2D = new Vector3(player.position.x, 0f, player.position.z);
+        float proximityDist = Vector3.Distance(enemyPos2D, playerPos2D);
+
+        // Garantizar que si el jugador está a menos de 5.5m (o dentro del radio de audición), lo detecta SIEMPRE sin importar el ángulo
+        float effectiveHearing = Mathf.Max(5.5f, hearingRadius);
+        if (proximityDist <= effectiveHearing)
         {
-            Vector3 enemyPos2D = new Vector3(transform.position.x, 0f, transform.position.z);
-            Vector3 playerPos2D = new Vector3(player.position.x, 0f, player.position.z);
-            float proximityDist = Vector3.Distance(enemyPos2D, playerPos2D);
-            if (proximityDist <= hearingRadius)
-                return true;
+            return true;
         }
 
         // Si no esta dentro del radio de escucha, usar el cono de vision frontal

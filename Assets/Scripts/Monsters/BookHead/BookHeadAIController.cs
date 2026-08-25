@@ -130,13 +130,17 @@ public class BookHeadAIController : MonoBehaviour
 
     public AudioSource audioSource;
     public AudioClip monsterSoundClip;
+    [Header("Audios de Pasos y Ambiente")]
     public AudioSource footstepAudioSource;
     public AudioClip footstepSoundClip;
+    [Tooltip("Audio de pasos con eco y distorsión de pasillo (StepsBoockHead2.mp3)")]
+    public AudioClip footstepEchoClip;
 
     [Header("Sonidos de Terror Dinámicos de BookHead")]
     [Tooltip("Audio de persecución (Chase.mp3)")]
     public AudioClip chaseSoundClip;
-    [Tooltip("Grito aterrador a corta distancia / ataque (GritoBookHead.mp3)")]
+    [Tooltip("Audio de grito aterrador cercano y muerte (TerrifyScreamBookHead.mp3)")]
+    public AudioClip terrifyScreamClip;
     public AudioClip screechSoundClip;
     [Tooltip("Impacto de alerta cuando te detecta e inicia persecución (Terrifying_horror_Impact.mp3)")]
     public AudioClip impactSoundClip;
@@ -275,6 +279,7 @@ public class BookHeadAIController : MonoBehaviour
 
         StartCoroutine(SilentRepositionRoutine());
         StartCoroutine(PsychologicalDoorKnockRoutine());
+        StartCoroutine(PsychologicalFootstepsRoutine());
     }
 
     void OnEnable()
@@ -473,10 +478,28 @@ public class BookHeadAIController : MonoBehaviour
                     audioSource.volume = Mathf.MoveTowards(audioSource.volume, Mathf.Clamp01(chaseVol), Time.deltaTime * 3.0f);
                 }
 
-                // 2. RÁFAGAS ESPORÁDICAS DE GRITO DEMONÍACO GRAVE (<15.0m) (GritoBookHead.mp3)
-                if (screechSoundClip != null && dist <= 15.0f && screechCooldownTimer <= 0f)
+                // 2. RÁFAGAS DE GRITOS: TerrifyScreamBookHead a corta distancia (<4.5m) y GritoBookHead a media distancia (<15m)
+                if (dist <= 4.5f && screechCooldownTimer <= 0f)
                 {
-                    screechCooldownTimer = Random.Range(4.5f, 7.5f); // Cooldown entre gritos (evita repetición constante)
+                    screechCooldownTimer = 5.0f;
+                    AudioClip screamToPlay = terrifyScreamClip != null ? terrifyScreamClip : screechSoundClip;
+
+                    if (screamToPlay != null)
+                    {
+                        GameObject screechObj = new GameObject("BookHead_TerrifyScream");
+                        screechObj.transform.position = transform.position;
+                        AudioSource sSource = screechObj.AddComponent<AudioSource>();
+                        sSource.clip = screamToPlay;
+                        sSource.spatialBlend = 0.5f; // Mezcla estéreo/3D impactante
+                        sSource.volume = 1.0f;
+                        sSource.Play();
+                        Destroy(screechObj, screamToPlay.length + 0.5f);
+                        Debug.Log($"[BookHead] ¡Grito aterrador a quemarropa (TerrifyScreamBookHead) a {dist:F1}m!");
+                    }
+                }
+                else if (screechSoundClip != null && dist <= 15.0f && screechCooldownTimer <= 0f)
+                {
+                    screechCooldownTimer = Random.Range(4.5f, 7.5f);
 
                     GameObject screechObj = new GameObject("BookHead_ScreechBurst");
                     screechObj.transform.position = transform.position;
@@ -486,12 +509,11 @@ public class BookHeadAIController : MonoBehaviour
                     sSource.minDistance = 3.5f;
                     sSource.maxDistance = 28f;
                     sSource.rolloffMode = AudioRolloffMode.Logarithmic;
-                    sSource.pitch = Random.Range(0.85f, 0.90f); // PITCH GRAVE DEMONÍACO (Elimina tono agudo)
+                    sSource.pitch = Random.Range(0.85f, 0.90f);
                     sSource.volume = 0.95f;
                     sSource.Play();
                     Destroy(screechObj, screechSoundClip.length + 0.5f);
-
-                    Debug.Log($"[BookHead] ¡Grito demoníaco lanzado a {dist:F1}m del jugador! Próximo grito en {screechCooldownTimer:F1}s.");
+                    Debug.Log($"[BookHead] ¡Grito demoníaco lanzado a {dist:F1}m del jugador!");
                 }
             }
             else if (currentState is BookHeadAttackState)
@@ -547,10 +569,17 @@ public class BookHeadAIController : MonoBehaviour
 
     public void PlaySpottingImpact()
     {
-        if (impactSoundClip != null)
+        if (screechCooldownTimer > 0f) return;
+        screechCooldownTimer = 4.0f;
+
+        AudioClip clipToPlay = impactSoundClip != null ? impactSoundClip : screechSoundClip;
+        if (clipToPlay == null) clipToPlay = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/Terrifying_horror_Impact");
+
+        if (clipToPlay != null)
         {
             Vector3 pos = Camera.main != null ? Camera.main.transform.position : transform.position;
-            AudioSource.PlayClipAtPoint(impactSoundClip, pos, 0.95f);
+            AudioSource.PlayClipAtPoint(clipToPlay, pos, 1.0f);
+            Debug.Log("[BookHead] ¡Impacto sonoro de alerta reproducido al detectar al jugador!");
         }
     }
 
@@ -715,6 +744,12 @@ public class BookHeadAIController : MonoBehaviour
             if (chaseSoundClip == null) chaseSoundClip = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/Persecusion");
         }
 
+        if (terrifyScreamClip == null)
+        {
+            terrifyScreamClip = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/TerrifyScreamBookHead");
+            if (terrifyScreamClip == null) terrifyScreamClip = Resources.Load<AudioClip>("TerrifyScreamBookHead");
+        }
+
         if (screechSoundClip == null)
         {
             screechSoundClip = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/GritoBookHead");
@@ -757,8 +792,15 @@ public class BookHeadAIController : MonoBehaviour
 
         if (footstepSoundClip == null)
         {
-            footstepSoundClip = Resources.Load<AudioClip>("Pasos_Monstruo");
-            if (footstepSoundClip == null) footstepSoundClip = Resources.Load<AudioClip>("Pasos_Pisadas");
+            footstepSoundClip = Resources.Load<AudioClip>("Monsters/BookHeadMonster/URP/Animations/StepsBoockHead");
+            if (footstepSoundClip == null) footstepSoundClip = Resources.Load<AudioClip>("StepsBoockHead");
+            if (footstepSoundClip == null) footstepSoundClip = Resources.Load<AudioClip>("Pasos_Monstruo");
+        }
+
+        if (footstepEchoClip == null)
+        {
+            footstepEchoClip = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/StepsBoockHead2");
+            if (footstepEchoClip == null) footstepEchoClip = Resources.Load<AudioClip>("StepsBoockHead2");
         }
 
         if (footstepAudioSource != null)
@@ -829,30 +871,41 @@ public class BookHeadAIController : MonoBehaviour
             return;
         }
 
-        if (canSeePlayer)
+        // ─── PROXIMIDAD DIRECTA IMPLACABLE ──────────────────────────────
+        // Si el jugador está a corta distancia, ATACAR O PERSEGUIR INMEDIATAMENTE sin quedarse congelado
+        if (distanceToPlayer <= attackRange + 0.3f)
         {
-            if (distanceToPlayer <= attackRange)
+            if (!(currentState is BookHeadAttackState))
             {
                 ChangeState(new BookHeadAttackState(this, agent, anim, player));
             }
-            else if (distanceToPlayer <= 7.5f)
+            return;
+        }
+        else if (distanceToPlayer <= 7.0f)
+        {
+            if (!(currentState is BookHeadChaseState) && !(currentState is BookHeadAttackState))
             {
-                if (!(currentState is BookHeadChaseState))
-                {
-                    ChangeState(new BookHeadChaseState(this, agent, anim, player));
-                }
+                PlaySpottingImpact();
+                ChangeState(new BookHeadChaseState(this, agent, anim, player));
             }
-            else if (distanceToPlayer > 8.0f && distanceToPlayer <= 25.0f)
+            return;
+        }
+
+        if (canSeePlayer)
+        {
+            if (distanceToPlayer > 7.0f && distanceToPlayer <= 22.0f)
             {
                 if (!(currentState is BookHeadChaseState) && !(currentState is BookHeadStalkState) && !(currentState is BookHeadAttackState))
                 {
+                    PlaySpottingImpact();
                     ChangeState(new BookHeadStalkState(this, agent, anim, player));
                 }
             }
         }
         else
         {
-            if (!(currentState is BookHeadChaseState) && !(currentState is BookHeadPatrolState) && !(currentState is BookHeadStalkState) && !(currentState is BookHeadAttackState))
+            // Si el enemigo no puede detectar al jugador y no está persiguiendo ni atacando ni acechando, volver a patrullar
+            if (!(currentState is BookHeadChaseState) && !(currentState is BookHeadPatrolState) && !(currentState is BookHeadAttackState))
             {
                 ChangeState(new BookHeadPatrolState(this, agent, anim, (patrolPoints != null && patrolPoints.Length > 0) ? patrolPoints : new Transform[0]));
             }
@@ -861,15 +914,30 @@ public class BookHeadAIController : MonoBehaviour
 
     private void HandleFootsteps()
     {
-        if (footstepAudioSource == null || footstepSoundClip == null || agent == null || !agent.enabled || !agent.isOnNavMesh) return;
+        if (footstepAudioSource == null || agent == null || !agent.enabled || !agent.isOnNavMesh) return;
 
         if (agent.velocity.magnitude > 0.1f && !agent.isStopped)
         {
+            float distToPlayer = player != null ? Vector3.Distance(transform.position, player.position) : 0f;
+            
+            // Alternar con audio de distorsión/eco (StepsBoockHead2) cuando está a distancia en el pasillo o al azar
+            AudioClip clipToPlay = footstepSoundClip;
+            if (footstepEchoClip != null && (distToPlayer > 8f || Random.value < 0.4f))
+            {
+                clipToPlay = footstepEchoClip;
+            }
+            if (clipToPlay == null) clipToPlay = footstepSoundClip;
+
+            if (clipToPlay != null && footstepAudioSource.clip != clipToPlay)
+            {
+                footstepAudioSource.clip = clipToPlay;
+            }
+
             if (agent.speed > walkSpeed)
             {
                 if (!footstepAudioSource.isPlaying)
                 {
-                    footstepAudioSource.pitch = 1.5f;
+                    footstepAudioSource.pitch = 1.25f;
                     footstepAudioSource.Play();
                 }
             }
@@ -877,7 +945,7 @@ public class BookHeadAIController : MonoBehaviour
             {
                 if (!footstepAudioSource.isPlaying)
                 {
-                    footstepAudioSource.pitch = 1f;
+                    footstepAudioSource.pitch = 1.0f;
                     footstepAudioSource.Play();
                 }
             }
@@ -1032,6 +1100,63 @@ public class BookHeadAIController : MonoBehaviour
             if (timeSinceLastSeenGhost >= 35f)
             {
                 timeSinceLastSeenGhost = 0f;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Evento psicológico de ilusión sonora: Genera una secuencia de 5 a 8 pisadas fantasma con eco
+    /// (StepsBoockHead2) en un pasillo lejano (12-22m del jugador) para mantener al jugador en alerta e incertidumbre.
+    /// </summary>
+    private System.Collections.IEnumerator PsychologicalFootstepsRoutine()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(UnityEngine.Random.Range(10f, 18f));
+
+            if (player == null) continue;
+
+            // No reproducir ilusión durante persecución o ataque activo
+            if (currentState is BookHeadChaseState || currentState is BookHeadAttackState) continue;
+
+            // Buscar un punto aleatorio en los pasillos en un radio de 8m a 16m alrededor del jugador
+            Vector3 randomDir = UnityEngine.Random.insideUnitSphere * UnityEngine.Random.Range(8f, 16f);
+            randomDir += player.position;
+
+            UnityEngine.AI.NavMeshHit hit;
+            if (UnityEngine.AI.NavMesh.SamplePosition(randomDir, out hit, 15f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                Vector3 echoPos = hit.position;
+                AudioClip echoClip = footstepEchoClip != null ? footstepEchoClip : footstepSoundClip;
+
+                if (echoClip != null)
+                {
+                    Debug.Log($"[BookHead Evento Ilusión] Secuencia de pasos fantasma (echo) sonando a {Vector3.Distance(echoPos, player.position):F1}m del jugador.");
+
+                    int stepCount = UnityEngine.Random.Range(5, 9);
+                    for (int i = 0; i < stepCount; i++)
+                    {
+                        GameObject echoObj = new GameObject("BookHead_IllusionStep");
+                        Vector3 stepPos = echoPos + (player.position - echoPos).normalized * (i * 0.75f);
+                        echoObj.transform.position = stepPos;
+
+                        AudioSource aSrc = echoObj.AddComponent<AudioSource>();
+                        aSrc.clip = echoClip;
+                        aSrc.spatialBlend = 0.85f; // Sonido tridimensional claro en pasillos
+                        aSrc.minDistance = 4.5f;
+                        aSrc.maxDistance = 32.0f;
+                        aSrc.rolloffMode = AudioRolloffMode.Logarithmic;
+                        aSrc.volume = 0.95f;
+                        aSrc.pitch = UnityEngine.Random.Range(0.92f, 1.05f);
+                        aSrc.Play();
+
+                        Destroy(echoObj, echoClip.length + 0.5f);
+
+                        yield return new WaitForSeconds(0.50f);
+
+                        if (currentState is BookHeadChaseState || currentState is BookHeadAttackState) break;
+                    }
+                }
             }
         }
     }
