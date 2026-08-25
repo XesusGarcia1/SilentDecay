@@ -101,11 +101,20 @@ public class BookHeadStalkState : IEnemyState
             }
         }
 
-        // 4. Si han pasado más de 12 segundos o si el jugador se alejó a más de 26 metros -> Retirarse a patrulla silenciosa
-        if (stalkDuration > 12f || distToPlayer > 26f)
+        // 4. Si han pasado más de 4 segundos de acecho estático
+        if (stalkDuration >= 4.0f)
         {
-            Debug.Log("[BookHead] Fin de tiempo STALK o jugador alejado. Volviendo a patrulla.");
-            controller.ChangeState(new BookHeadPatrolState(controller, agent, anim, (controller.patrolPoints != null) ? controller.patrolPoints : new Transform[0]));
+            if (distToPlayer <= 14f)
+            {
+                Debug.Log("[BookHead] Fin de acecho (4s). ¡Atacando/persiguiendo al jugador!");
+                controller.PlaySpottingImpact();
+                controller.ChangeState(new BookHeadChaseState(controller, agent, anim, player));
+            }
+            else
+            {
+                Debug.Log("[BookHead] Fin de acecho (4s). Reanudando patrulla por el pasillo.");
+                controller.ChangeState(new BookHeadPatrolState(controller, agent, anim, (controller.patrolPoints != null) ? controller.patrolPoints : new Transform[0]));
+            }
         }
     }
 

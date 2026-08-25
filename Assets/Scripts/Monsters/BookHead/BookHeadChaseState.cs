@@ -26,12 +26,21 @@ public class BookHeadChaseState : IEnemyState
 
     public void EnterState()
     {
-        Debug.Log("Enemigo detecta jugador - inicia persecucion.");
+        Debug.Log("[BookHead] Enemigo detecta al jugador - Inicia persecución implacable.");
 
         playerLost = false;
         searchTimer = 0f;
         isRunningSoundPlaying = false;
         lastKnownPlayerPosition = player.position;
+
+        // Disparar impacto sonoro de susto instantáneo al iniciar persecución
+        enemy?.PlaySpottingImpact();
+
+        // Ajustar tiempo de persecución implacable según la dificultad
+        string diff = enemy != null ? enemy.currentDifficulty : "NORMAL";
+        if (diff == "DIFICIL" || diff == "HARD") searchDuration = 25f;
+        else if (diff == "FACIL" || diff == "EASY") searchDuration = 12f;
+        else searchDuration = 18f;
 
         anim?.SetIdle(false);
         anim?.SetWalking(false);

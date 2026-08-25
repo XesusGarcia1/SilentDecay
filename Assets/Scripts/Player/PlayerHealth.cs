@@ -107,12 +107,13 @@ public class PlayerHealth : MonoBehaviour
         if (currentScene == "TunnelsMap")
         {
             screamerSound = Resources.Load<AudioClip>("Audio/Compartido/Screamer");
-            if (screamerSound == null) screamerSound = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/Monstruo_Alerta");
+            if (screamerSound == null) screamerSound = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/TerrifyScreamBookHead");
         }
         else
         {
-            // Hospital (SampleScene)
-            screamerSound = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/Monstruo_Alerta");
+            // Hospital (SampleScene / Test_ModularHospital)
+            screamerSound = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/TerrifyScreamBookHead");
+            if (screamerSound == null) screamerSound = Resources.Load<AudioClip>("Audio/Monstruos/BookHead/Monstruo_Alerta");
         }
 
         // Cargar clip secundario de Jumpscare (agregado por el usuario)
