@@ -243,7 +243,7 @@ public class MainMenuManager : MonoBehaviour
             GUILayout.Label(gameTitle, styles.Title, GUILayout.Height(65));
         }
         
-        GUILayout.Label("• REC  00:00:01  |  VHS  |  OCT.24 1997", styles.SubTitle, GUILayout.Height(22));
+        GUILayout.Label("• REC  00:00:01  |  VHS  |  BACKROOMS  |  OCT.24 1997", styles.SubTitle, GUILayout.Height(22));
         GUILayout.EndArea();
 
         // El contenido siempre arranca debajo del logo+VHS, sin importar el estado
