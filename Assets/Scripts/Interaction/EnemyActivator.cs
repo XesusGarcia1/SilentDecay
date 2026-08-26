@@ -10,12 +10,12 @@ public class EnemyActivator : MonoBehaviour
 
     private void Start()
     {
-        // Buscar el enemigo automaticamente si no esta asignado
+        // Buscar el enemigo automáticamente (The Amalgam) si no está asignado
         if (enemyToActivate == null)
         {
-            BookHeadAIController controller = FindObjectOfType<BookHeadAIController>();
-            if (controller != null)
-                enemyToActivate = controller.gameObject;
+            Monsters.Amalgam.AmalgamAIController amalgam = FindFirstObjectByType<Monsters.Amalgam.AmalgamAIController>(FindObjectsInactive.Include);
+            if (amalgam != null)
+                enemyToActivate = amalgam.gameObject;
         }
 
         if (enemyToActivate == null)

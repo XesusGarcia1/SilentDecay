@@ -408,45 +408,37 @@ public class PowerBox : MonoBehaviour
             GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
             Vector3 playerPos = playerObj != null ? playerObj.transform.position : transform.position;
 
-            // ─── AMBIENTACIÓN Y EVENTO DE TERROR ALEATORIO DE APAGÓN ─────────────
-            float blackoutRoll = UnityEngine.Random.value;
-
+            // ─── ACTIVACIÓN DE THE AMALGAM Y EVENTO DE APAGÓN ─────────────
+            // [LEGACY BOOKHEAD DESACTIVADO]
+            /*
             BookHeadAIController enemyController = FindFirstObjectByType<BookHeadAIController>(FindObjectsInactive.Include);
             if (enemyController != null)
             {
                 if (blackoutRoll < 0.20f)
                 {
-                    // 20% Apagón Tipo A: Silencio total / Falsa alarma
                     RelocateEnemyFarFromPlayer(enemyController.gameObject, playerPos, 45f);
                     enemyController.gameObject.SetActive(false);
-                    Debug.Log("[PowerBox] Apagón Tipo A: Silencio total (Falsa Alarma).");
                 }
                 else if (blackoutRoll < 0.50f)
                 {
-                    // 30% Apagón Tipo B: Evento STALK (Aparece a 18-25m en el pasillo mirando en silencio)
                     RelocateEnemyModerateDistance(enemyController.gameObject, playerPos, 18f, 25f);
                     enemyController.gameObject.SetActive(true);
-                    UnityEngine.AI.NavMeshAgent ag = enemyController.GetComponent<UnityEngine.AI.NavMeshAgent>();
-                    BookHeadAnimation an = enemyController.GetComponent<BookHeadAnimation>();
-                    enemyController.ChangeState(new BookHeadStalkState(enemyController, ag, an, enemyController.player));
-                    Debug.Log("[PowerBox] Apagón Tipo B: Evento STALK (BookHead observando a distancia).");
                 }
                 else
                 {
-                    // 50% Apagón Tipo C: Persecución activa de BookHead
                     RelocateEnemyModerateDistance(enemyController.gameObject, playerPos, 10f, 15f);
                     enemyController.gameObject.SetActive(true);
-                    enemyController.detectionRange = 10.0f;
-                    enemyController.runSpeed = 5.6f;
-                    Debug.Log("[PowerBox] Apagón Tipo C: Persecución activa de BookHead.");
                 }
             }
+            */
 
-            EnemyAIBookHead bookHead = FindFirstObjectByType<EnemyAIBookHead>(FindObjectsInactive.Include);
-            if (bookHead != null)
+            // ACTIVACIÓN DE THE AMALGAM EN EL APAGÓN
+            Monsters.Amalgam.AmalgamAIController amalgam = FindFirstObjectByType<Monsters.Amalgam.AmalgamAIController>(FindObjectsInactive.Include);
+            if (amalgam != null)
             {
-                RelocateEnemyModerateDistance(bookHead.gameObject, playerPos, 12f, 18f);
-                bookHead.gameObject.SetActive(true);
+                amalgam.gameObject.SetActive(true);
+                amalgam.TriggerBlackoutEvent();
+                Debug.Log("[PowerBox] ¡Apagón detectado! The Amalgam activado con fenómeno de lamentos.");
             }
 
             // Reproducir sonido impactante de chispazo y cortocircuito directo en 2D en los oídos del jugador
@@ -487,22 +479,21 @@ public class PowerBox : MonoBehaviour
         }
         else
         {
-            // AL RESTABLECER LA ENERGÍA / LUZ: EL MONSTRUO SE REPLIEGA Y SE DESACTIVA DE LA ESCENA
-            EnemyAIBookHead bookHead = FindFirstObjectByType<EnemyAIBookHead>(FindObjectsInactive.Include);
-            if (bookHead != null)
+            // AL RESTABLECER LA ENERGÍA / LUZ: THE AMALGAM SE DESACTIVA DE LA ESCENA
+            Monsters.Amalgam.AmalgamAIController amalgam = FindFirstObjectByType<Monsters.Amalgam.AmalgamAIController>(FindObjectsInactive.Include);
+            if (amalgam != null)
             {
-                bookHead.detectionRange = 7.5f;
-                bookHead.gameObject.SetActive(false);
-                Debug.Log("PowerBox: Monstruo BookHead desactivado al restablecer las luces.");
+                amalgam.gameObject.SetActive(false);
+                Debug.Log("[PowerBox] Energía restablecida: The Amalgam desactivado.");
             }
 
+            /* [LEGACY BOOKHEAD DESACTIVADO]
             BookHeadAIController enemyController = FindFirstObjectByType<BookHeadAIController>(FindObjectsInactive.Include);
             if (enemyController != null)
             {
-                enemyController.detectionRange = 7.5f;
                 enemyController.gameObject.SetActive(false);
-                Debug.Log("PowerBox: Monstruo BookHeadAIController desactivado al restablecer las luces.");
             }
+            */
 
                 float curGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
                 RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;

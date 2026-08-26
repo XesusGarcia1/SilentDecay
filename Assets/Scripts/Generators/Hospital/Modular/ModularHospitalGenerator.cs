@@ -2418,38 +2418,36 @@ namespace ModularHospital
                     allRooms[r] = tmp;
                 }
 
-                // Textos de lore
+                // Textos de lore oficiales para The Amalgam
                 string[] loreTitles = new string[]
                 {
-                    "Diario del Bibliotecario (BookHead)",
-                    "Informe de Psiquiatría (TheCreep)",
-                    "Memorándum de Evacuación"
+                    "Registro del Dr. Vance (The Amalgam)",
+                    "Bitácora de Seguridad (Fenómeno de Oscuridad)",
+                    "Memorándum de Evacuación Médica"
                 };
                 string[] loreBodies = new string[]
                 {
-                    "<b>REGISTRO DEL DIARIO - 18 DE OCTUBRE:</b>\n\n" +
-                    "Ese maldito monstruo... la criatura con cabeza de libro que merodea la biblioteca principal.\n" +
-                    "Confirmado: <i>NO TIENE OJOS</i>. Es completamente ciego.\n" +
-                    "Sin embargo, su oído es increíblemente agudo.\n" +
-                    "Si caminas despacio, te ignorará por completo. Pero si entras en pánico y corres <b>(sprint)</b>,\n" +
-                    "sabrá exactamente dónde estás al instante y te perseguirá.\n" +
-                    "Guarda silencio si quieres conservar la cabeza.",
+                    "<b>EXPEDIENTE MÉDICO #104 - ALA DE CUARENTENA:</b>\n\n" +
+                    "No es un solo sujeto... es el resultado de la fusión de múltiples cuerpos. Lo llamamos <i>The Amalgam</i>.\n" +
+                    "Sus extremidades son deformes y alargadas, y emite un llanto lúgubre constante en la penumbra.\n" +
+                    "Ha desarrollado una agresividad extrema en la oscuridad.\n" +
+                    "Cuando las luces se apagan y entra en persecución, su velocidad es implacable.\n" +
+                    "No intentes huir en línea recta: busca una habitación o métete bajo la cama antes de que te vea cara a cara.",
 
-                    "<b>EXPEDIENTE ANÓMALO #09-B:</b>\n\n" +
-                    "Los pacientes del Pabellón Este reportan avistamientos de un ser deforme en el suelo.\n" +
-                    "Se arrastra como un insecto y lo llaman 'TheCreep' (El Rastrero).\n" +
-                    "El personal reporta que prefiere quedarse en las esquinas más oscuras del hospital.\n" +
-                    "Es extremadamente agresivo. Si te encuentra, intentará acorralarte y atacarte.\n" +
-                    "Para escapar de él, debes correr hacia el spawn o buscar zonas iluminadas.\n" +
-                    "Nunca te quedes quieto en los callejones oscuros.",
+                    "<b>BITÁCORA DE SEGURIDAD - 24 DE OCTUBRE:</b>\n\n" +
+                    "El apagón inicial de 25 segundos no fue una falla común... fue ÉL.\n" +
+                    "Cada vez que el sistema eléctrico colapsa, los lamentos de la criatura retumban por el hospital.\n" +
+                    "Y lo peor son los espejismos... a medida que la tensión aumenta, el hospital juega con tu mente.\n" +
+                    "Verás siluetas sombrías de The Amalgam en los pasillos alternativos.\n" +
+                    "<i>¡NO TE ACERQUES A ELLAS!</i> Si te aproximas a una de sus sombras, el ser real se materializará ahí y arrancará a correr.",
 
                     "<b>ORDEN DE EVACUACIÓN INTERNA:</b>\n\n" +
-                    "A todo el personal administrativo:\n" +
-                    "La fuga biológica ha alcanzado los niveles subterráneos del ala oeste.\n" +
+                    "A todo el personal administrativo y sobrevivientes:\n" +
+                    "La entidad 'The Amalgam' ha tomado el control del ala principal del hospital.\n" +
                     "El ascensor de escape principal de la oficina del director ha sido bloqueado por el protocolo de cuarentena.\n" +
                     "Se requiere una contraseña cifrada de 7 dígitos para restablecerlo.\n" +
-                    "Las hojas de códigos de seguridad se han esparcido por las habitaciones para evitar que los sujetos de prueba las encuentren.\n" +
-                    "Busca los 7 dígitos y evacua inmediatamente."
+                    "Las hojas de códigos de seguridad se han esparcido por las habitaciones para evitar que los sujetos las encuentren.\n" +
+                    "Busca los 7 dígitos, mantén encendidos los subgeneradores para calmar la oscuridad y evacua inmediatamente."
                 };
 
                 int loreSpawned = 0;

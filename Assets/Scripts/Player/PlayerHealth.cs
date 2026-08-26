@@ -321,6 +321,12 @@ public class PlayerHealth : MonoBehaviour
             var ai = FindFirstObjectByType<PhenomenonAIController>();
             if (ai != null) monsterObj = ai.gameObject;
         }
+        // Hospital: The Amalgam (AmalgamAIController)
+        if (monsterObj == null)
+        {
+            var amalgam = FindFirstObjectByType<Monsters.Amalgam.AmalgamAIController>();
+            if (amalgam != null) monsterObj = amalgam.gameObject;
+        }
         // Hospital: BookHead (BookHeadAIController)
         if (monsterObj == null)
         {
@@ -340,6 +346,8 @@ public class PlayerHealth : MonoBehaviour
             if (replica != null) monsterObj = replica.gameObject;
         }
         
+        if (monsterObj == null) monsterObj = GameObject.Find("The_Amalgam");
+        if (monsterObj == null) monsterObj = GameObject.Find("TheAmalgam");
         if (monsterObj == null) monsterObj = GameObject.Find("BookHead");
         if (monsterObj == null) monsterObj = GameObject.Find("BookHeadMonster");
         if (monsterObj == null) monsterObj = GameObject.Find("TheCreep");
@@ -348,9 +356,33 @@ public class PlayerHealth : MonoBehaviour
         monsterTransform = monsterObj != null ? monsterObj.transform : null;
 
         bool playDefaultScream = true;
-        // Cargar imagen de screamer específica si morimos por La Réplica (TheRebuttal)
         customScreamerTex = null;
-        if (monsterObj != null && (monsterObj.name.Contains("TheRebuttal") || monsterObj.GetComponent<ReplicaAIController>() != null))
+
+        // 1. Cargar screamer para The Amalgam
+        if (monsterObj != null && (monsterObj.name.Contains("Amalgam") || monsterObj.GetComponent<Monsters.Amalgam.AmalgamAIController>() != null))
+        {
+            playDefaultScream = true;
+            Debug.Log("[PlayerHealth]: 😱 Cargando imagen screamer 'The_AmalgamScream'...");
+            customScreamerTex = Resources.Load<Texture2D>("HospitalMap/The_Amalgam/The_AmalgamScream");
+            if (customScreamerTex == null) customScreamerTex = Resources.Load<Texture2D>("Audio/Monstruos/The_Amalgam/The_AmalgamScream");
+            if (customScreamerTex == null) customScreamerTex = Resources.Load<Texture2D>("The_AmalgamScream");
+
+            if (customScreamerTex == null)
+            {
+                Texture2D[] allTexs = Resources.LoadAll<Texture2D>("");
+                foreach (Texture2D t in allTexs)
+                {
+                    if (t != null && t.name.ToLower().Contains("amalgamscream"))
+                    {
+                        customScreamerTex = t;
+                        Debug.Log("[PlayerHealth]: Screamer de Amalgam encontrado por escaneo: " + t.name);
+                        break;
+                    }
+                }
+            }
+        }
+        // 2. Cargar imagen de screamer específica si morimos por La Réplica (TheRebuttal)
+        else if (monsterObj != null && (monsterObj.name.Contains("TheRebuttal") || monsterObj.GetComponent<ReplicaAIController>() != null))
         {
             playDefaultScream = false;
             Debug.Log("[PlayerHealth]: Cargando screamer para La Réplica...");
@@ -358,7 +390,6 @@ public class PlayerHealth : MonoBehaviour
             if (customScreamerTex == null) customScreamerTex = Resources.Load<Texture2D>("DepositoIndustrial/La Replica/LaReplicaScream");
             if (customScreamerTex == null) customScreamerTex = Resources.Load<Texture2D>("LaReplicaScream");
 
-            // Fallback ultra-robusto: buscar recursivamente cualquier Texture2D con nombre lareplicascream
             if (customScreamerTex == null)
             {
                 Debug.Log("[PlayerHealth]: Intentando búsqueda por escaneo en Resources...");
@@ -372,11 +403,6 @@ public class PlayerHealth : MonoBehaviour
                         break;
                     }
                 }
-            }
-
-            if (customScreamerTex == null)
-            {
-                Debug.LogError("[PlayerHealth]: No se pudo encontrar la textura 'LaReplicaScream' en Resources mediante ningún método.");
             }
         }
 
@@ -817,6 +843,12 @@ public class PlayerHealth : MonoBehaviour
                     phenomenonCtrl.TriggerRespawnGracePeriod(10f);
                 }
 
+                var amalgamCtrl = monsterObj.GetComponent<Monsters.Amalgam.AmalgamAIController>();
+                if (amalgamCtrl != null)
+                {
+                    amalgamCtrl.TriggerRespawnGracePeriod(28.0f);
+                }
+
                 var bookHeadCtrl2 = monsterObj.GetComponent<BookHeadAIController>();
                 if (bookHeadCtrl2 != null)
                 {
@@ -851,21 +883,27 @@ public class PlayerHealth : MonoBehaviour
             if (cc == null) cc = GetComponentInParent<CharacterController>();
             if (cc != null) cc.enabled = true;
 
+            FirstPersonController fpController = GetComponent<FirstPersonController>();
+            if (fpController == null) fpController = GetComponentInParent<FirstPersonController>();
+            if (fpController != null)
+            {
+                fpController.ResetCameraRotation(transform.eulerAngles.y);
+                fpController.enabled = true;
+            }
+
             if (Camera.main != null)
             {
-                Camera.main.transform.SetParent(null); // Cinemachine usa la cámara en la raíz
-                Camera.main.transform.position = transform.position + Vector3.up * 1.5f; // Posición aproximada de la cabeza en el nuevo spawn
+                Camera.main.transform.SetParent(null);
+                Camera.main.transform.position = transform.position + Vector3.up * 1.5f;
+                Camera.main.transform.rotation = transform.rotation;
+
                 Cinemachine.CinemachineBrain brain = Camera.main.GetComponent<Cinemachine.CinemachineBrain>();
                 if (brain != null) 
                 {
                     brain.enabled = true;
-                    brain.ManualUpdate(); // Forzar actualización inmediata para evitar transiciones lentas desde el pasillo
+                    brain.ManualUpdate(); // Forzar actualización inmediata sin giros ni lerp de cámara
                 }
             }
-
-            FirstPersonController fpController = GetComponent<FirstPersonController>();
-            if (fpController == null) fpController = GetComponentInParent<FirstPersonController>();
-            if (fpController != null) fpController.enabled = true;
 
             StarterAssetsInputs fpInput = GetComponent<StarterAssetsInputs>();
             if (fpInput == null) fpInput = GetComponentInParent<StarterAssetsInputs>();

@@ -123,35 +123,33 @@ public partial class HospitalFixedMapLogic
 
         string[] loreTitles = new string[]
         {
-            "Diario del Bibliotecario (BookHead)",
-            "Informe de Psiquiatria (TheCreep)",
-            "Memorandum de Evacuacion"
+            "Registro del Dr. Vance (The Amalgam)",
+            "Bitácora de Seguridad (Fenómeno de Oscuridad)",
+            "Memorándum de Evacuación Médica"
         };
         string[] loreBodies = new string[]
         {
-            "<b>REGISTRO DEL DIARIO - 18 DE OCTUBRE:</b>\n\n" +
-            "Ese maldito monstruo... la criatura con cabeza de libro que merodea la biblioteca principal.\n" +
-            "Confirmado: <i>NO TIENE OJOS</i>. Es completamente ciego.\n" +
-            "Sin embargo, su oido es increiblemente agudo.\n" +
-            "Si caminas despacio, te ignorara por completo. Pero si entras en panico y corres <b>(sprint)</b>,\n" +
-            "sabra exactamente donde estas al instante y te perseguira.\n" +
-            "Guarda silencio si quieres conservar la cabeza.",
+            "<b>EXPEDIENTE MÉDICO #104 - ALA DE CUARENTENA:</b>\n\n" +
+            "No es un solo sujeto... es el resultado de la fusión de múltiples cuerpos. Lo llamamos <i>The Amalgam</i>.\n" +
+            "Sus extremidades son deformes y alargadas, y emite un llanto lúgubre constante en la penumbra.\n" +
+            "Ha desarrollado una agresividad extrema en la oscuridad.\n" +
+            "Cuando las luces se apagan y entra en persecución, su velocidad es implacable.\n" +
+            "No intentes huir en línea recta: busca una habitación o métete bajo la cama antes de que te vea cara a cara.",
 
-            "<b>EXPEDIENTE ANOMALO #09-B:</b>\n\n" +
-            "Los pacientes del Pabellon Este reportan avistamientos de un ser deforme en el suelo.\n" +
-            "Se arrastra como un insecto y lo llaman 'TheCreep' (El Rastrero).\n" +
-            "El personal reporta que prefiere quedarse en las esquinas mas oscuras del hospital.\n" +
-            "Es extremadamente agresivo. Si te encuentra, intentara acorralarte y atacarte.\n" +
-            "Para escapar de el, debes correr hacia el spawn o buscar zonas iluminadas.\n" +
-            "Nunca te quedes quieto en los callejones oscuros.",
+            "<b>BITÁCORA DE SEGURIDAD - 24 DE OCTUBRE:</b>\n\n" +
+            "El apagón inicial de 25 segundos no fue una falla común... fue ÉL.\n" +
+            "Cada vez que el sistema eléctrico colapsa, los lamentos de la criatura retumban por el hospital.\n" +
+            "Y lo peor son los espejismos... a medida que la tensión aumenta, el hospital juega con tu mente.\n" +
+            "Verás siluetas sombrías de The Amalgam en los pasillos alternativos.\n" +
+            "<i>¡NO TE ACERQUES A ELLAS!</i> Si te aproximas a una de sus sombras, el ser real se materializará ahí y arrancará a correr.",
 
-            "<b>ORDEN DE EVACUACION INTERNA:</b>\n\n" +
-            "A todo el personal administrativo:\n" +
-            "La fuga biologica ha alcanzado los niveles subterraneos del ala oeste.\n" +
+            "<b>ORDEN DE EVACUACIÓN INTERNA:</b>\n\n" +
+            "A todo el personal administrativo y sobrevivientes:\n" +
+            "La entidad 'The Amalgam' ha tomado el control del ala principal del hospital.\n" +
             "El ascensor de escape principal de la oficina del director ha sido bloqueado por el protocolo de cuarentena.\n" +
-            "Se requiere una contrasena cifrada de 7 digitos para restablecerlo.\n" +
-            "Las hojas de codigos de seguridad se han esparcido por las habitaciones para evitar que los sujetos de prueba las encuentren.\n" +
-            "Busca los 7 digitos y evacua inmediatamente."
+            "Se requiere una contraseña cifrada de 7 dígitos para restablecerlo.\n" +
+            "Las hojas de códigos de seguridad se han esparcido por las habitaciones para evitar que los sujetos las encuentren.\n" +
+            "Busca los 7 dígitos, mantén encendidos los subgeneradores para calmar la oscuridad y evacua inmediatamente."
         };
 
         // PASO 4: Seleccionar EXACTAMENTE 3 para lore y activarlas

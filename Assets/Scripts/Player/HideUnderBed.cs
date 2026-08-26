@@ -449,6 +449,12 @@ public class HideUnderBed : MonoBehaviour
                 b.FleeFarFromPlayer();
             }
         }
+
+        Monsters.Amalgam.AmalgamAIController amalgam = FindFirstObjectByType<Monsters.Amalgam.AmalgamAIController>();
+        if (amalgam != null && amalgam.gameObject.activeInHierarchy)
+        {
+            amalgam.OnPlayerHid(targetBed);
+        }
     }
 
     private System.Collections.IEnumerator BedInspectionRoutine(BookHeadAIController monster, Bed bed)

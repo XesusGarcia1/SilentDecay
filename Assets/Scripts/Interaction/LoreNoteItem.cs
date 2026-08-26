@@ -195,6 +195,12 @@ public class LoreNoteItem : MonoBehaviour
 
         NotepadUIManager.RegisterLoreNote(loreId, finalTitle, finalBody);
 
+        Monsters.Amalgam.AmalgamAIController amalgam = FindFirstObjectByType<Monsters.Amalgam.AmalgamAIController>();
+        if (amalgam != null)
+        {
+            amalgam.NotifyNoteCollected();
+        }
+
         // Gatillo narrativo: Primera nota de lore
         if (loreId == 1 && LocalizationManager.Instance != null)
         {

@@ -331,6 +331,24 @@ namespace StarterAssets
             transform.Rotate(Vector3.up * _rotationVelocity);
         }
 
+        public void ResetCameraRotation(float targetYaw)
+        {
+            _cinemachineTargetPitch = 0f;
+            _smoothedPitchVelocity = 0f;
+            _smoothedYawVelocity = 0f;
+
+            transform.rotation = Quaternion.Euler(0f, targetYaw, 0f);
+            if (CinemachineCameraTarget != null)
+            {
+                CinemachineCameraTarget.transform.localRotation = Quaternion.identity;
+            }
+
+            if (Camera.main != null)
+            {
+                Camera.main.transform.rotation = Quaternion.Euler(0f, targetYaw, 0f);
+            }
+        }
+
         private void Move()
         {
             // Lógica de Stamina
