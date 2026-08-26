@@ -24,7 +24,7 @@ namespace Monsters.Amalgam
         [Header("Configuración de Movimiento")]
         public float walkSpeed = 3.2f;
         public float runSpeed = 6.4f;
-        public float attackRange = 1.8f;
+        public float attackRange = 2.5f;
 
         [Header("Distancias de Alerta y Comportamiento Sonoro")]
         [Tooltip("Distancia a la que el jugador comienza a escuchar crujidos ocasionales (Ej: 18m)")]
@@ -122,9 +122,14 @@ namespace Monsters.Amalgam
             SetupAudioSources();
         }
 
+        [HideInInspector] public string currentDifficulty = "NORMAL";
+        [HideInInspector] public float silentRepositionInterval = 16.0f;
+        [HideInInspector] public float illusionSpawnChance = 0.45f;
+
         private void Start()
         {
             FindPlayerReference();
+            ApplyDifficultySettings();
             SetupNavMeshAgent();
             EnsureGrounded();
 
@@ -137,9 +142,58 @@ namespace Monsters.Amalgam
 
         private void OnEnable()
         {
+            ApplyDifficultySettings();
             SetupNavMeshAgent();
             EnsureGrounded();
         }
+
+        public void ApplyDifficultySettings()
+        {
+            currentDifficulty = PlayerPrefs.GetString("SelectedDifficulty", "NORMAL").ToUpper();
+
+            if (currentDifficulty == "FACIL" || currentDifficulty == "EASY")
+            {
+                walkSpeed = 3.8f;
+                runSpeed = 7.0f; // El jugador corre a 5.0m/s -> El monstruo le saca clara ventaja
+                chaseDistance = 6.0f;
+                warningDistance = 11.0f;
+                mediumWarningDistance = 8.0f;
+                intensityLevel = 0.7f;
+                silentRepositionInterval = 24.0f;
+                illusionSpawnChance = 0.20f;
+            }
+            else if (currentDifficulty == "DIFICIL" || currentDifficulty == "HARD")
+            {
+                walkSpeed = 5.2f;
+                runSpeed = 9.8f; // Ráfaga feroz e implacable
+                chaseDistance = 9.0f;
+                warningDistance = 15.0f;
+                mediumWarningDistance = 12.0f;
+                intensityLevel = 1.5f;
+                silentRepositionInterval = 10.0f;
+                illusionSpawnChance = 0.70f;
+            }
+            else // NORMAL
+            {
+                walkSpeed = 4.4f;
+                runSpeed = 8.4f; // Velocidad rápida que acorta distancia en 2 segundos
+                chaseDistance = 7.5f;
+                warningDistance = 13.0f;
+                mediumWarningDistance = 10.0f;
+                intensityLevel = 1.0f;
+                silentRepositionInterval = 16.0f;
+                illusionSpawnChance = 0.45f;
+            }
+
+            if (agent != null && agent.enabled && agent.isOnNavMesh)
+            {
+                agent.speed = (currentState is AmalgamChaseState) ? runSpeed : walkSpeed;
+            }
+
+            Debug.Log($"[The Amalgam] 💀 Dificultad configurada: {currentDifficulty} | Vel. Caminar: {walkSpeed} | Vel. Carrera: {runSpeed} | Dist. Chase: {chaseDistance}m | Reposición: {silentRepositionInterval}s");
+        }
+
+        [HideInInspector] public float chaseCooldownTimer = 0f;
 
         private void Update()
         {
@@ -153,11 +207,108 @@ namespace Monsters.Amalgam
             EnsureGrounded();
             HandleFootsteps();
             
+            // Decrementar tiempo de respiro/cooldown tras persecuciones
+            if (chaseCooldownTimer > 0f)
+            {
+                chaseCooldownTimer -= Time.deltaTime;
+            }
+
             // Incrementar intensidad gradualmente con el tiempo de juego (ritmo acelerado)
             intensityLevel += Time.deltaTime * 0.038f;
 
             currentState?.UpdateState();
         }
+
+        #region Mecánica de Escondite y Visión Directa
+
+        public void OnPlayerHid(Bed bed)
+        {
+            float distToPlayer = playerTransform != null ? Vector3.Distance(transform.position, playerTransform.position) : 999f;
+            bool playerInLOS = HasLineOfSightToPlayer();
+
+            // ¿Estaba persiguiéndolo a corta distancia (<=11m) y con visión directa cuando el jugador intentó esconderse?
+            if ((currentState is AmalgamChaseState) && distToPlayer <= 11.0f && playerInLOS)
+            {
+                Debug.Log("[The Amalgam] 👁️ ¡VIÓ AL JUGADOR ESCONDERSE! Asalto directo a la cama...");
+                StartCoroutine(ExecuteHidingSpotAssaultRoutine(bed));
+            }
+            else
+            {
+                Debug.Log("[The Amalgam] 🛌 El jugador se escondió sin ser visto. Dando tiempo de respiro y calma.");
+                StopChaseAudio();
+                chaseCooldownTimer = Random.Range(12.0f, 18.0f); // Calma y tiempo de respiro
+                TrySilentRelocate();
+                ChangeState(new AmalgamIdleCryingState(this, agent, anim));
+            }
+        }
+
+        public bool HasLineOfSightToPlayer()
+        {
+            if (playerTransform == null) return false;
+
+            Vector3 origin = transform.position + Vector3.up * 1.5f;
+            Vector3 target = playerTransform.position + Vector3.up * 1.0f;
+            Vector3 dir = (target - origin);
+            float dist = dir.magnitude;
+
+            if (Physics.Raycast(origin, dir.normalized, out RaycastHit hit, dist, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (hit.transform == playerTransform || hit.transform.IsChildOf(playerTransform))
+                {
+                    return true;
+                }
+                return false;
+            }
+            return true;
+        }
+
+        private IEnumerator ExecuteHidingSpotAssaultRoutine(Bed bed)
+        {
+            ChangeState(new AmalgamChaseState(this, agent, anim));
+
+            Vector3 bedPos = bed != null ? bed.transform.position : (playerTransform != null ? playerTransform.position : transform.position);
+
+            if (agent != null)
+            {
+                if (!agent.enabled) agent.enabled = true;
+                agent.isStopped = false;
+                agent.speed = runSpeed;
+                agent.SetDestination(bedPos);
+            }
+
+            float timer = 0f;
+            while (Vector3.Distance(transform.position, bedPos) > 1.8f && timer < 7.0f)
+            {
+                timer += Time.deltaTime;
+                CheckAndOpenDoorsInPath();
+                yield return null;
+            }
+
+            if (agent != null) agent.isStopped = true;
+
+            Vector3 lookDir = (bedPos - transform.position).normalized;
+            lookDir.y = 0f;
+            if (lookDir != Vector3.zero) transform.rotation = Quaternion.LookRotation(lookDir);
+
+            PlayTerrifyScreamAudio();
+            if (anim != null) anim.TriggerAttack();
+
+            yield return new WaitForSeconds(0.4f);
+
+            HideUnderBed hbed = FindFirstObjectByType<HideUnderBed>();
+            if (hbed != null && hbed.isHiding)
+            {
+                hbed.ToggleHide(null);
+            }
+
+            var health = FindFirstObjectByType<PlayerHealth>();
+            if (health != null)
+            {
+                health.TakeDamage(9999f);
+            }
+        }
+
+        #endregion
 
         public void ChangeState(IEnemyState newState)
         {
@@ -210,6 +361,27 @@ namespace Monsters.Amalgam
             if (unityAnim != null && unityAnim.applyRootMotion)
             {
                 unityAnim.applyRootMotion = false;
+            }
+
+            // CORRECCIÓN ANTI-TECHO / ROOF: Si por algún desfase el monstruo queda flotando en el techo (Y > 2m respecto al jugador), forzar bajada al suelo del mapa.
+            if (playerTransform != null && Mathf.Abs(transform.position.y - playerTransform.position.y) > 1.8f)
+            {
+                Vector3 groundCheckPos = transform.position;
+                groundCheckPos.y = playerTransform.position.y;
+
+                NavMeshHit groundHit;
+                if (NavMesh.SamplePosition(groundCheckPos, out groundHit, 4.0f, NavMesh.AllAreas))
+                {
+                    if (agent != null && agent.enabled)
+                    {
+                        agent.Warp(groundHit.position);
+                    }
+                    else
+                    {
+                        transform.position = groundHit.position;
+                    }
+                    Debug.Log($"[The Amalgam] 🧱 Corregida posición flotante en el techo. Bajado al suelo: {groundHit.position}");
+                }
             }
 
             if (modelYOffset != 0f)
@@ -280,9 +452,9 @@ namespace Monsters.Amalgam
 
             if (footstepAudioSource != null)
             {
-                footstepAudioSource.spatialBlend = 0.8f;
-                footstepAudioSource.minDistance = 2.5f;
-                footstepAudioSource.maxDistance = 24.0f;
+                footstepAudioSource.spatialBlend = 0.35f; // Mezcla 2D/3D para resonar fuerte y presente en audífonos
+                footstepAudioSource.minDistance = 6.0f;  // Volumen máximo constante hasta los 6 metros
+                footstepAudioSource.maxDistance = 35.0f; // Audible en todos los pasillos
                 footstepAudioSource.rolloffMode = AudioRolloffMode.Logarithmic;
             }
 
@@ -332,8 +504,8 @@ namespace Monsters.Amalgam
                 if (footstepTimer >= stepInterval)
                 {
                     footstepTimer = 0f;
-                    footstepAudioSource.pitch = Random.Range(0.88f, 1.12f);
-                    float stepVol = isRunning ? 0.95f : 0.65f;
+                    footstepAudioSource.pitch = Random.Range(0.85f, 1.02f); // Tono ligeramente más grave e imponente
+                    float stepVol = isRunning ? 1.0f : 0.85f;
                     footstepAudioSource.PlayOneShot(footstepSoundClip, stepVol);
                 }
             }
@@ -535,15 +707,16 @@ namespace Monsters.Amalgam
         {
             while (true)
             {
-                float waitTime = Random.Range(14f, 22f) / Mathf.Max(0.8f, intensityLevel * 0.7f);
+                float baseInterval = silentRepositionInterval;
+                float waitTime = Random.Range(baseInterval * 0.8f, baseInterval * 1.3f) / Mathf.Max(0.7f, intensityLevel * 0.65f);
                 yield return new WaitForSeconds(waitTime);
 
                 if (currentState is AmalgamIdleCryingState || currentState is AmalgamWarningState)
                 {
                     if (playerTransform != null)
                     {
-                        // ¿Generar espejismo/ilusión psicológica en el pasillo alternativo?
-                        if (intensityLevel >= 2.0f && Random.value < 0.50f)
+                        // ¿Generar espejismo/ilusión psicológica en el pasillo alternativo según dificultad?
+                        if (intensityLevel >= 1.6f && Random.value < illusionSpawnChance)
                         {
                             SpawnCorridorIllusion();
                         }
@@ -559,27 +732,46 @@ namespace Monsters.Amalgam
         {
             if (playerTransform == null) return;
 
+            // Limpiar ilusiones nulas o destruidas
+            activeIllusions.RemoveAll(item => item == null);
+
+            // MÁXIMO 2 ILUSIONES ACTIVAS SIMULTÁNEAMENTE (evita acumulación de clones)
+            if (activeIllusions.Count >= 2) return;
+
             float sideAngle = Random.value < 0.5f ? 55f : -55f;
             Vector3 illusionDir = Quaternion.Euler(0, sideAngle, 0) * playerTransform.forward;
             illusionDir.y = 0f;
 
-            Vector3 targetPos = playerTransform.position + illusionDir.normalized * Random.Range(8f, 14f);
+            Vector3 targetPos = playerTransform.position + illusionDir.normalized * Random.Range(10f, 16f);
             targetPos.y = playerTransform.position.y;
 
             NavMeshHit hit;
             if (NavMesh.SamplePosition(targetPos, out hit, 6f, NavMesh.AllAreas))
             {
-                if (IsPositionClearOfWalls(hit.position))
+                if (Mathf.Abs(hit.position.y - playerTransform.position.y) <= 1.8f && IsPositionClearOfWalls(hit.position))
                 {
                     GameObject illusionObj = Instantiate(gameObject, hit.position, Quaternion.identity);
-                    Destroy(illusionObj.GetComponent<AmalgamAIController>());
-                    Destroy(illusionObj.GetComponent<NavMeshAgent>());
 
+                    // 1. ELIMINAR TODOS LOS AUDIOSOURCES DEL CLON (SILENCIO 100% ABSOLUTO)
+                    AudioSource[] cloneAudios = illusionObj.GetComponentsInChildren<AudioSource>();
+                    foreach (var a in cloneAudios)
+                    {
+                        if (a != null) DestroyImmediate(a);
+                    }
+
+                    // 2. ELIMINAR CONTROLADOR IA PRIMERO Y LUEGO NAVEGACIÓN (evita error de dependencia)
+                    AmalgamAIController cloneCtrl = illusionObj.GetComponent<AmalgamAIController>();
+                    if (cloneCtrl != null) DestroyImmediate(cloneCtrl);
+
+                    NavMeshAgent cloneAgent = illusionObj.GetComponent<NavMeshAgent>();
+                    if (cloneAgent != null) DestroyImmediate(cloneAgent);
+
+                    // 3. ASIGNAR COMPONENTE DE ILUSIÓN PURAMENTE VISUAL
                     AmalgamIllusion illusionComp = illusionObj.AddComponent<AmalgamIllusion>();
                     illusionComp.Initialize(this, playerTransform);
                     activeIllusions.Add(illusionComp);
 
-                    Debug.Log($"[The Amalgam] 👻 Ilusión/Espejismo psicológico creado en el pasillo: {hit.position}");
+                    Debug.Log($"[The Amalgam] 👻 Ilusión puramente visual creada en silencio: {hit.position}");
                 }
             }
         }
@@ -617,7 +809,7 @@ namespace Monsters.Amalgam
         public void NotifyNoteCollected()
         {
             intensityLevel += 0.75f;
-            runSpeed = Mathf.Min(6.4f + (intensityLevel * 0.45f), 8.6f);
+            runSpeed = Mathf.Min(7.2f + (intensityLevel * 0.55f), 10.2f);
             chaseDistance = Mathf.Min(8.0f + (intensityLevel * 1.8f), 22.0f);
             Debug.Log($"[The Amalgam] 📜 Nota recogida. Intensidad aumentada a: {intensityLevel:F2} | Vel. Carrera: {runSpeed:F1}m/s");
 
@@ -634,7 +826,7 @@ namespace Monsters.Amalgam
         public void NotifyGeneratorActivated(Vector3 genPos)
         {
             intensityLevel += 1.30f;
-            runSpeed = Mathf.Min(6.4f + (intensityLevel * 0.45f), 8.6f);
+            runSpeed = Mathf.Min(7.5f + (intensityLevel * 0.60f), 10.8f);
             chaseDistance = Mathf.Min(8.0f + (intensityLevel * 1.8f), 22.0f);
             Debug.Log($"[The Amalgam] ⚡ Generador activado. Intensidad escalada a: {intensityLevel:F2} | Vel. Carrera: {runSpeed:F1}m/s");
 
@@ -650,7 +842,7 @@ namespace Monsters.Amalgam
         public void TriggerBlackoutEvent()
         {
             intensityLevel += 1.50f;
-            runSpeed = Mathf.Min(6.4f + (intensityLevel * 0.45f), 8.6f);
+            runSpeed = Mathf.Min(7.8f + (intensityLevel * 0.65f), 10.8f);
             chaseDistance = Mathf.Min(8.0f + (intensityLevel * 2.0f), 24.0f);
 
             Debug.Log($"[The Amalgam] 💡 APAGÓN Y CRESCENDO TERRORÍFICO. Intensidad: {intensityLevel:F1} | Vel: {runSpeed:F1}m/s");
@@ -697,48 +889,94 @@ namespace Monsters.Amalgam
 
             PlayBoneCrackAudio();
 
-            Debug.Log("[The Amalgam] ⚡ ¡APARICIÓN A QUEMARROPA! Arranca carrera inmediata.");
-            TrySilentRelocateClose(5f, 8f);
-            ChangeState(new AmalgamChaseState(this, agent, anim));
+            HideUnderBed hBed = FindFirstObjectByType<HideUnderBed>();
+            bool isPlayerHiding = hBed != null && hBed.isHiding;
+            chaseCooldownTimer = 15.0f; // Asignar tiempo de respiro durante el apagón para evitar carreras inmediatas
+
+            if (isPlayerHiding)
+            {
+                Debug.Log("[The Amalgam] 💡 Apagón activado mientras el jugador está escondido. Reposicionamiento lejanía en estado Idle.");
+                TrySilentRelocate();
+                ChangeState(new AmalgamIdleCryingState(this, agent, anim));
+            }
+            else
+            {
+                bool hasLOS = HasLineOfSightToPlayer();
+
+                if (hasLOS)
+                {
+                    Debug.Log("[The Amalgam] ⚡ Apagón en visión directa: ¡Emboscada y carrera inmediata!");
+                    TrySilentRelocateClose(6f, 9f);
+                    ChangeState(new AmalgamChaseState(this, agent, anim));
+                }
+                else
+                {
+                    Debug.Log("[The Amalgam] 💡 Apagón sin visión directa (jugador resguardado AFK en habitación). Acecho exterior en pasillo en estado de advertencia.");
+                    TrySilentRelocateClose(10f, 16f);
+                    ChangeState(new AmalgamWarningState(this, agent, anim));
+                }
+            }
         }
 
         public void TrySilentRelocateClose(float minDist, float maxDist)
         {
             if (agent == null || playerTransform == null) return;
 
-            float intensityFactor = Mathf.Clamp(intensityLevel * 0.75f, 0.75f, 2.2f);
-            float scaledMin = Mathf.Max(4.5f, minDist / intensityFactor);
-            float scaledMax = Mathf.Max(7.5f, maxDist / intensityFactor);
+            // Mantener distancia mínima de 11.5m para NUNCA teletransportarse dentro de la habitación del jugador
+            float scaledMin = Mathf.Max(11.5f, minDist);
+            float scaledMax = Mathf.Max(17.5f, maxDist);
 
-            Vector3 randomDir = Random.insideUnitSphere;
-            randomDir.y = 0f;
-            if (randomDir == Vector3.zero) randomDir = playerTransform.forward;
-
-            Vector3 targetPos = playerTransform.position + randomDir.normalized * Random.Range(scaledMin, scaledMax);
-            targetPos.y = playerTransform.position.y;
-
-            NavMeshHit hit;
-            if (NavMesh.SamplePosition(targetPos, out hit, 8f, NavMesh.AllAreas))
+            for (int attempts = 0; attempts < 12; attempts++)
             {
-                Vector3 finalPos = hit.position;
-                if (!IsPositionClearOfWalls(finalPos))
+                Vector3 randomDir = Random.insideUnitSphere;
+                randomDir.y = 0f;
+                if (randomDir == Vector3.zero) randomDir = -playerTransform.forward;
+
+                Vector3 targetPos = playerTransform.position + randomDir.normalized * Random.Range(scaledMin, scaledMax);
+                targetPos.y = playerTransform.position.y;
+
+                NavMeshHit hit;
+                if (NavMesh.SamplePosition(targetPos, out hit, 8f, NavMesh.AllAreas))
                 {
-                    finalPos += (playerTransform.position - finalPos).normalized * 0.65f;
-                }
+                    Vector3 finalPos = hit.position;
 
-                if (!agent.enabled) agent.enabled = true;
-                agent.Warp(finalPos);
-                agent.isStopped = false;
+                    // COMPROBACIÓN ANTI-TECHO: Descartar si la posición cae en el tejado o cubierta (Y desfasado > 1.8m)
+                    if (Mathf.Abs(finalPos.y - playerTransform.position.y) > 1.8f)
+                    {
+                        continue;
+                    }
+
+                    // COMPROBACIÓN ANTI-HABITACIÓN:
+                    // Si un Raycast desde la posición destino hacia el jugador NO choca con ningún muro o puerta,
+                    // significa que la posición elegida está DENTRO de la misma habitación. ¡Rechazar e intentar otro ángulo en el pasillo!
+                    Vector3 dirToPlayer = (playerTransform.position + Vector3.up * 1.0f) - (finalPos + Vector3.up * 1.0f);
+                    float distToPlayer = dirToPlayer.magnitude;
+
+                    if (Physics.Raycast(finalPos + Vector3.up * 1.0f, dirToPlayer.normalized, out RaycastHit wallHit, distToPlayer, ~0, QueryTriggerInteraction.Ignore))
+                    {
+                        if (wallHit.transform == playerTransform || wallHit.transform.IsChildOf(playerTransform))
+                        {
+                            // Está dentro de la misma habitación sin muros -> RECHAZAR Y REINTENTAR
+                            continue;
+                        }
+                    }
+
+                    if (!IsPositionClearOfWalls(finalPos))
+                    {
+                        finalPos += (playerTransform.position - finalPos).normalized * 0.65f;
+                    }
+
+                    if (!agent.enabled) agent.enabled = true;
+                    agent.Warp(finalPos);
+                    agent.isStopped = false;
+                    EnsureGrounded();
+                    Debug.Log($"[The Amalgam] 🚪 Reposicionado de forma segura afuera en el pasillo: {finalPos}");
+                    return;
+                }
             }
-            else
-            {
-                Vector3 fallbackPos = playerTransform.position + playerTransform.forward * scaledMin;
-                fallbackPos.y = playerTransform.position.y;
-                if (!agent.enabled) agent.enabled = true;
-                agent.Warp(fallbackPos);
-                agent.isStopped = false;
-            }
-            EnsureGrounded();
+
+            // Fallback seguro en spawn point distante si todos los intentos fallaron
+            TrySilentRelocate();
         }
 
         public void TrySilentRelocate()
@@ -790,11 +1028,48 @@ namespace Monsters.Amalgam
                         finalPos += (playerTransform.position - finalPos).normalized * 0.65f;
                     }
 
-                    if (Mathf.Abs(finalPos.y - playerTransform.position.y) <= 2.0f)
+                    if (Mathf.Abs(finalPos.y - playerTransform.position.y) <= 1.8f)
                     {
                         agent.Warp(finalPos);
                         EnsureGrounded();
                         Debug.Log($"[The Amalgam] Reposicionado silenciosamente en NavMesh: {finalPos}");
+                    }
+                }
+            }
+            EnsureGrounded();
+        }
+
+        public void TriggerRespawnGracePeriod(float duration = 28.0f)
+        {
+            chaseCooldownTimer = duration;
+            StopChaseAudio();
+            ForceRelocateFarAway(playerTransform != null ? playerTransform.position : transform.position);
+            ChangeState(new AmalgamIdleCryingState(this, agent, anim));
+            Debug.Log($"[The Amalgam] 🕊️ Período de calma tras reaparición activado por {duration} segundos.");
+        }
+
+        public void ForceRelocateFarAway(Vector3 playerPos)
+        {
+            ClearAllIllusions();
+            if (agent == null) return;
+
+            for (int attempts = 0; attempts < 10; attempts++)
+            {
+                Vector3 randomDirection = Random.insideUnitSphere;
+                randomDirection.y = 0f;
+                Vector3 targetPosition = playerPos + randomDirection.normalized * Random.Range(25f, 42f);
+                targetPosition.y = playerPos.y;
+
+                NavMeshHit hit;
+                if (NavMesh.SamplePosition(targetPosition, out hit, 8f, NavMesh.AllAreas))
+                {
+                    if (Mathf.Abs(hit.position.y - playerPos.y) <= 1.8f)
+                    {
+                        if (!agent.enabled) agent.enabled = true;
+                        agent.Warp(hit.position);
+                        agent.isStopped = false;
+                        EnsureGrounded();
+                        return;
                     }
                 }
             }

@@ -112,6 +112,7 @@ namespace Monsters.Amalgam
             if (chaseTimer >= targetChaseDuration)
             {
                 Debug.Log($"[The Amalgam] Ráfaga de persecución ({targetChaseDuration:F1}s) concluida. Monstruo se desvanece/relocaliza...");
+                controller.chaseCooldownTimer = Random.Range(10.0f, 15.0f); // Respiro de calma tras persecución
                 controller.StopChaseAudio();
                 controller.TrySilentRelocate();
                 controller.ChangeState(new AmalgamIdleCryingState(controller, agent, anim));
@@ -125,6 +126,7 @@ namespace Monsters.Amalgam
                 if (losePlayerTimer >= 3.0f)
                 {
                     Debug.Log("[The Amalgam] El jugador logró escapar a gran distancia. Relocalizando...");
+                    controller.chaseCooldownTimer = Random.Range(12.0f, 18.0f);
                     controller.StopChaseAudio();
                     controller.TrySilentRelocate();
                     controller.ChangeState(new AmalgamIdleCryingState(controller, agent, anim));

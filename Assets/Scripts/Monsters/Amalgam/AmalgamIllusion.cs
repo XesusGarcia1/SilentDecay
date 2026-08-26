@@ -41,6 +41,19 @@ namespace Monsters.Amalgam
                 }
             }
 
+            // GARANTIZAR SILENCIO 100% ABSOLUTO EN LAS ILUSIONES
+            AudioSource[] sources = GetComponentsInChildren<AudioSource>();
+            foreach (var s in sources)
+            {
+                if (s != null) DestroyImmediate(s);
+            }
+
+            Light[] lights = GetComponentsInChildren<Light>();
+            foreach (var l in lights)
+            {
+                if (l != null) DestroyImmediate(l);
+            }
+
             StartCoroutine(DissolveTimerRoutine());
         }
 

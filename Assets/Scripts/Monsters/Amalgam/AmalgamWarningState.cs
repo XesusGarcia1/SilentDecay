@@ -5,11 +5,9 @@ namespace Monsters.Amalgam
 {
     /// <summary>
     /// Estado de Advertencia (Crujido de huesos).
-    /// Maneja intervalos aleatorios de crujidos según la distancia al jugador:
-    /// - 10m - 6m: Crujidos ocasionales.
-    /// - 6m - 3m: Crujidos frecuentes y postura amenazante.
-    /// - < 3m: Transición a Persecución.
-    /// - > 11m: Regresa a Llanto tenue.
+    /// Maneja intervalos aleatorios de crujidos según la distancia al jugador.
+    /// EXIGE LÍNEA DE VISIÓN DIRECTA (LINE OF SIGHT) PARA INICIAR LA PERSECUCIÓN.
+    /// Si el jugador está resguardado tras paredes o puertas cerradas, NO arranca en chase.
     /// </summary>
     public class AmalgamWarningState : IEnemyState
     {
@@ -48,7 +46,7 @@ namespace Monsters.Amalgam
 
             float distanceToPlayer = Vector3.Distance(controller.transform.position, controller.PlayerTransform.position);
 
-            // Orientarse lentamente hacia el jugador durante el aviso
+            // Orientarse lentamente hacia la dirección del jugador
             Vector3 lookDirection = (controller.PlayerTransform.position - controller.transform.position).normalized;
             lookDirection.y = 0f;
             if (lookDirection != Vector3.zero)
@@ -57,22 +55,32 @@ namespace Monsters.Amalgam
                 controller.transform.rotation = Quaternion.Slerp(controller.transform.rotation, targetRot, Time.deltaTime * 3.5f);
             }
 
-            // 1. Si se aleja > 11m -> Regresar a Idle (Llanto tenue)
+            // 1. Si se aleja > warningDistance -> Regresar a Idle (Llanto tenue)
             if (distanceToPlayer > controller.warningDistance + 1.0f)
             {
                 controller.ChangeState(new AmalgamIdleCryingState(controller, agent, anim));
                 return;
             }
 
-            // 2. Si se acerca a < 3m -> Persecución inmediata
+            // 2. Transición a Persecución (¡SOLO SI TIENE VISIÓN DIRECTA AL JUGADOR SIN PAREDES DE POR MEDIO!)
             if (distanceToPlayer <= controller.chaseDistance)
             {
-                controller.ChangeState(new AmalgamChaseState(controller, agent, anim));
-                return;
+                // Verificar si hay línea de visión limpia (sin paredes ni puertas cerradas)
+                bool hasLineOfSight = controller.HasLineOfSightToPlayer();
+
+                if (hasLineOfSight)
+                {
+                    // Si el controlador está en tiempo de respiro/cooldown, solo perseguirá si el jugador se le acerca a quemarropa (<= 3.0m)
+                    if (controller.chaseCooldownTimer <= 0f || distanceToPlayer <= 3.0f)
+                    {
+                        controller.ChangeState(new AmalgamChaseState(controller, agent, anim));
+                        return;
+                    }
+                }
             }
 
-            // 3. Manejo de crujidos de huesos e intensidad según rango (6m - 3m vs 10m - 6m)
-            bool isCloseRange = distanceToPlayer <= controller.mediumWarningDistance; // <= 6m
+            // 3. Manejo de crujidos de huesos e intensidad según rango
+            bool isCloseRange = distanceToPlayer <= controller.mediumWarningDistance;
 
             if (isCloseRange && !postureTriggered)
             {
@@ -87,11 +95,11 @@ namespace Monsters.Amalgam
 
                 if (isCloseRange)
                 {
-                    ScheduleNextCrack(1.2f, 2.2f); // Crujidos frecuentes
+                    ScheduleNextCrack(1.2f, 2.2f);
                 }
                 else
                 {
-                    ScheduleNextCrack(3.5f, 5.5f); // Crujidos ocasionales
+                    ScheduleNextCrack(3.5f, 5.5f);
                 }
             }
         }
