@@ -166,6 +166,12 @@ public class SubGenerator : MonoBehaviour
             bh.AlertNoiseAtPosition(transform.position);
         }
 
+        Monsters.Amalgam.AmalgamAIController amalgam = FindFirstObjectByType<Monsters.Amalgam.AmalgamAIController>();
+        if (amalgam != null)
+        {
+            amalgam.NotifyGeneratorActivated(transform.position);
+        }
+
         UpdateVisuals();
 
         // Buscar caja de fusibles central para notificar y comprobar si ya se activaron ambos
