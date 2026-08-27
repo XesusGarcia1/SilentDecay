@@ -219,7 +219,8 @@ public class HideUnderBed : MonoBehaviour
 
         if (isHiding)
         {
-            if (MobileInput.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
+            // Solo salir con tecla E o botón interactivo virtual (se descarta Input.GetMouseButtonDown(0) para permitir swipe táctil de cámara)
+            if (MobileInput.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.E))
             {
                 MobileInput.ePressedDown = false;
                 ToggleHide(null);
@@ -359,10 +360,11 @@ public class HideUnderBed : MonoBehaviour
 
         if (isHiding)
         {
-            GUIStyle style = new GUIStyle();
-            style.fontSize = 22;
-            style.alignment = TextAnchor.MiddleCenter;
-            style.fontStyle = FontStyle.Bold;
+            GUIStyle btnStyle = new GUIStyle(GUI.skin.button);
+            btnStyle.fontSize = 22;
+            btnStyle.alignment = TextAnchor.MiddleCenter;
+            btnStyle.fontStyle = FontStyle.Bold;
+            btnStyle.normal.textColor = new Color(0.1f, 0.85f, 0.1f);
 
             Rect rect = new Rect(Screen.width / 2 - 260, Screen.height - 120, 520, 50);
 
@@ -370,11 +372,12 @@ public class HideUnderBed : MonoBehaviour
             GUI.DrawTexture(new Rect(rect.x - 10, rect.y - 5, rect.width + 20, rect.height + 10), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            style.normal.textColor = Color.black;
-            GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), "[E] o Click  Salir del Escondite", style);
-
-            style.normal.textColor = new Color(0.1f, 0.85f, 0.1f);
-            GUI.Label(rect, "[E] o Click  Salir del Escondite", style);
+            string exitText = "[E]  Salir del Escondite";
+            if (GUI.Button(rect, exitText, btnStyle))
+            {
+                MobileInput.ePressedDown = false;
+                ToggleHide(null);
+            }
         }
         else
         {

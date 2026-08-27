@@ -1,5 +1,12 @@
 fileFormatVersion: 2
 guid: efb3f1e9df15fc34d82fd632fb94d875
+AssetOrigin:
+  serializedVersion: 1
+  productId: 80117
+  packageName: PBR - Hospital Horror Pack. Free
+  packageVersion: 1.2
+  assetPath: Assets/Dnk_Dev/HospitalHorrorPack/Models/SM_Bed_01.FBX
+  uploadId: 725137
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
@@ -34,7 +41,7 @@ ModelImporter:
   meshes:
     lODScreenPercentages: []
     globalScale: 1
-    meshCompression: 0
+    meshCompression: 2
     addColliders: 0
     useSRGBMaterialColor: 1
     sortHierarchyByName: 1
@@ -105,10 +112,3 @@ ModelImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 80117
-  packageName: PBR - Hospital Horror Pack. Free
-  packageVersion: 1.2
-  assetPath: Assets/Dnk_Dev/HospitalHorrorPack/Models/SM_Bed_01.FBX
-  uploadId: 725137

@@ -252,6 +252,18 @@ public class NotepadUIManager : MonoBehaviour
         }
     }
 
+    public static float GetNotebookBottomY()
+    {
+        int numGens = 0;
+        SubGenerator[] subGens = FindObjectsOfType<SubGenerator>();
+        if (subGens != null && subGens.Length > 0)
+        {
+            numGens = subGens.Length;
+        }
+        float yPos = (numGens > 0) ? (98f + 65f + 8f) : 98f;
+        return yPos + 50f;
+    }
+
     void OnGUI()
     {
         if (isReadingFullscreen)

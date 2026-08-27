@@ -19,6 +19,9 @@ namespace SilentDecay.Core
         [Tooltip("Si está activo, usará automáticamente los IDs de prueba oficiales de Google para evitar sanciones en Editor/Dev Builds.")]
         public bool useTestAdsInEditor = true;
 
+        [Tooltip("Si está activo, usará los IDs de prueba en la APK de Android para verificar que los anuncios funcionan en tu celular antes de publicar la app en Google Play Store.")]
+        public bool useTestAdsInBuild = true;
+
         [Header("IDs Reales de AdMob (Android)")]
         [Tooltip("ID del bloque de anuncio Recompensado para Revivir")]
         public string rewardedReviveAdUnitId = "ca-app-pub-5970961731703173/8187700485";
@@ -90,11 +93,18 @@ namespace SilentDecay.Core
             });
         }
 
+        private bool ShouldUseTestAds()
+        {
+            if (Application.isEditor && useTestAdsInEditor) return true;
+            if (!Application.isEditor && useTestAdsInBuild) return true;
+            return false;
+        }
+
         #region --- 1. ANUNCIO RECOMPENSADO: REVIVIR ---
 
         private string GetReviveAdUnitId()
         {
-            if ((useTestAdsInEditor && Application.isEditor) || string.IsNullOrEmpty(rewardedReviveAdUnitId))
+            if (ShouldUseTestAds() || string.IsNullOrEmpty(rewardedReviveAdUnitId))
             {
                 return TEST_REWARDED_ID;
             }
@@ -170,7 +180,7 @@ namespace SilentDecay.Core
 
         private string GetBatteryAdUnitId()
         {
-            if ((useTestAdsInEditor && Application.isEditor) || string.IsNullOrEmpty(rewardedBatteryAdUnitId))
+            if (ShouldUseTestAds() || string.IsNullOrEmpty(rewardedBatteryAdUnitId))
             {
                 return TEST_REWARDED_ID;
             }
@@ -246,7 +256,7 @@ namespace SilentDecay.Core
 
         private string GetInterstitialAdUnitId()
         {
-            if ((useTestAdsInEditor && Application.isEditor) || string.IsNullOrEmpty(interstitialAdUnitId))
+            if (ShouldUseTestAds() || string.IsNullOrEmpty(interstitialAdUnitId))
             {
                 return TEST_INTERSTITIAL_ID;
             }
