@@ -264,6 +264,17 @@ public partial class TunnelsGenerator : MonoBehaviour
 		if (waterMat == null) waterMat = Resources.Load<Material>("Mat_Agua_Tuneles");
 		if (waterMat == null) waterMat = waterPuddleMaterial;
 
+		// Fallback procedural de emergencia si el material no se encuentra en Resources
+		if (waterMat == null)
+		{
+			Shader urpLit = Shader.Find("Universal Render Pipeline/Lit");
+			if (urpLit == null) urpLit = Shader.Find("Standard");
+			if (urpLit != null)
+			{
+				waterMat = new Material(urpLit);
+			}
+		}
+
 		Renderer rend = globalWaterPlaneObj.GetComponent<Renderer>();
 		if (rend != null && waterMat != null)
 		{
@@ -280,8 +291,8 @@ public partial class TunnelsGenerator : MonoBehaviour
 				matInstance.SetColor("_BaseColor", waterColor);
 			}
 			matInstance.color = waterColor;
-			matInstance.SetFloat("_Smoothness", 0.82f);
-			matInstance.SetFloat("_Metallic", 0.02f);
+			if (matInstance.HasProperty("_Smoothness")) matInstance.SetFloat("_Smoothness", 0.82f);
+			if (matInstance.HasProperty("_Metallic")) matInstance.SetFloat("_Metallic", 0.02f);
 
 			// Tiling óptimo suave para evitar ruido de moiré y destellos
 			Vector2 scaleTiling = new Vector2(mapWorldWidth * 0.08f, mapWorldHeight * 0.08f);
