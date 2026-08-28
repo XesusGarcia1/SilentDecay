@@ -765,8 +765,14 @@ public class PlayerHealth : MonoBehaviour
             }
 
             // 3. Buscar y desactivar monstruo temporalmente (funciona en Hospital Y Túneles)
-            // Hospital: BookHead (BookHeadAIController) | Túneles: Phenomenon (PhenomenonAIController) | TheCreep (CrawlerAI)
-            GameObject monsterObj = GameObject.Find("ThePhenomenon");
+            // Hospital: The Amalgam (AmalgamAIController) | BookHead | Túneles: Phenomenon | TheCreep
+            GameObject monsterObj = GameObject.Find("The_Amalgam");
+            if (monsterObj == null) monsterObj = GameObject.Find("TheAmalgam");
+            if (monsterObj == null)
+            {
+                var amalgam = UnityEngine.Object.FindFirstObjectByType<Monsters.Amalgam.AmalgamAIController>();
+                if (amalgam != null) monsterObj = amalgam.gameObject;
+            }
             if (monsterObj == null)
             {
                 var phenomenon = FindFirstObjectByType<PhenomenonAIController>();

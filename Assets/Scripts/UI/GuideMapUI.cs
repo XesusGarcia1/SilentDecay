@@ -57,9 +57,10 @@ public class GuideMapUI : MonoBehaviour
     {
         if (mapTexture != null) return;
 
-        mapTexture = Resources.Load<Texture2D>("DepositoIndustrial/Texturas/GuieMap");
-        if (mapTexture == null) mapTexture = Resources.Load<Texture2D>("Texturas/GuieMap");
+        mapTexture = Resources.Load<Texture2D>("UI/GuieMap");
         if (mapTexture == null) mapTexture = Resources.Load<Texture2D>("GuieMap");
+        if (mapTexture == null) mapTexture = Resources.Load<Texture2D>("DepositoIndustrial/Texturas/GuieMap");
+        if (mapTexture == null) mapTexture = Resources.Load<Texture2D>("Texturas/GuieMap");
     }
 
     private Texture2D GetMapIconTexture()

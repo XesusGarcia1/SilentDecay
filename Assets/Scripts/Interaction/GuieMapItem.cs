@@ -44,7 +44,8 @@ public class GuieMapItem : MonoBehaviour
 
         if (rend != null && rend.material != null)
         {
-            rend.material.color = new Color(0.85f, 0.72f, 0.48f, 1.0f);
+            rend.material.mainTexture = ProceduralPaperTexture.GetPaperTexture();
+            rend.material.color = new Color(0.92f, 0.82f, 0.65f, 1.0f);
         }
     }
 
