@@ -83,8 +83,11 @@ public class IndustrialDepotGameLogic : MonoBehaviour
 
                 GameObject mapObj = null;
 
-                // Intentar cargar prefab NoteItem si existe
-                GameObject notePrefab = Resources.Load<GameObject>("Prefabs/NoteItem");
+                // Intentar cargar prefab de NotaLore de las distintas rutas posibles de Resources
+                GameObject notePrefab = Resources.Load<GameObject>("Prefabs/NotaLore");
+                if (notePrefab == null) notePrefab = Resources.Load<GameObject>("NotaLore");
+                if (notePrefab == null) notePrefab = Resources.Load<GameObject>("Prefabs/NoteItem");
+
                 if (notePrefab != null)
                 {
                     mapObj = Instantiate(notePrefab, spawnPos, spawnRot);

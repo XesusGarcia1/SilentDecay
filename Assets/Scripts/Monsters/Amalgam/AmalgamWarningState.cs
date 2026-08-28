@@ -28,6 +28,7 @@ namespace Monsters.Amalgam
         public void EnterState()
         {
             Debug.Log("[The Amalgam] Entrando en estado: Warning (Crujido de Huesos)");
+            if (controller != null) controller.StopChaseAudio();
             if (anim != null) anim.SetWarning(true);
 
             if (agent != null && agent.isOnNavMesh)

@@ -134,13 +134,14 @@ public class CamcorderOverlay : MonoBehaviour
     private void DrawBatteryIndicator()
     {
         GUIStyle style = new GUIStyle();
-        style.fontSize = fontSize - 2;
+        style.fontSize = fontSize - 4;
         style.fontStyle = FontStyle.Bold;
         style.normal.textColor = Color.white;
         style.alignment = TextAnchor.MiddleRight;
 
-        float startX = Screen.width - 190f;
-        float startY = Screen.height - 85f;
+        // Posicionado con margen perfecto entre el botón táctil de sprint y el marco L de la cámara
+        float startX = Screen.width - 152f;
+        float startY = Screen.height - 52f;
 
         // Obtener porcentaje de bateria
         float batPct = 1f;
@@ -159,13 +160,13 @@ public class CamcorderOverlay : MonoBehaviour
 
         // Texto de porcentaje
         style.normal.textColor = Color.black;
-        GUI.Label(new Rect(startX + 1, startY + 1, 80, 25), pctInt + "%", style);
+        GUI.Label(new Rect(startX + 1, startY + 1, 45, 20), pctInt + "%", style);
         style.normal.textColor = Color.white;
-        GUI.Label(new Rect(startX, startY, 80, 25), pctInt + "%", style);
+        GUI.Label(new Rect(startX, startY, 45, 20), pctInt + "%", style);
 
-        // Contenedor de la bateria
-        Rect batBox = new Rect(Screen.width - 100f, startY + 4f, 38f, 18f);
-        Rect batTip = new Rect(batBox.x + batBox.width, batBox.y + 4f, 3f, 10f);
+        // Contenedor de la bateria alineado con margen limpio antes de la esquina blanca del visor
+        Rect batBox = new Rect(Screen.width - 102f, startY + 2f, 28f, 14f);
+        Rect batTip = new Rect(batBox.x + batBox.width, batBox.y + 3f, 3f, 8f);
 
         // Dibujar borde de bateria y tip
         GUI.color = hudColor;
@@ -186,7 +187,7 @@ public class CamcorderOverlay : MonoBehaviour
         
         for (int i = 0; i < bars; i++)
         {
-            Rect barRect = new Rect(batBox.x + 4f + (i * 10f), batBox.y + 4f, 8f, 10f);
+            Rect barRect = new Rect(batBox.x + 3f + (i * 7f), batBox.y + 3f, 5f, 8f);
             GUI.DrawTexture(barRect, whiteTex);
         }
 

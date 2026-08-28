@@ -145,6 +145,10 @@ namespace Monsters.Amalgam
             ApplyDifficultySettings();
             SetupNavMeshAgent();
             EnsureGrounded();
+            StopChaseAudio();
+            StopCryingAudio();
+            if (screamAudioSource != null) screamAudioSource.Stop();
+            if (chaseAudioSource != null) chaseAudioSource.Stop();
         }
 
         public void ApplyDifficultySettings()
@@ -1039,11 +1043,23 @@ namespace Monsters.Amalgam
             EnsureGrounded();
         }
 
+
         public void TriggerRespawnGracePeriod(float duration = 28.0f)
         {
             chaseCooldownTimer = duration;
             StopChaseAudio();
-            ForceRelocateFarAway(playerTransform != null ? playerTransform.position : transform.position);
+            StopCryingAudio();
+            if (screamAudioSource != null) screamAudioSource.Stop();
+
+            if (anim != null)
+            {
+                anim.ResetAllStateBools();
+                anim.SetRunning(false);
+                anim.SetCrying(true);
+            }
+
+            Vector3 refPos = playerTransform != null ? playerTransform.position : transform.position;
+            ForceRelocateFarAway(refPos);
             ChangeState(new AmalgamIdleCryingState(this, agent, anim));
             Debug.Log($"[The Amalgam] 🕊️ Período de calma tras reaparición activado por {duration} segundos.");
         }
@@ -1053,26 +1069,57 @@ namespace Monsters.Amalgam
             ClearAllIllusions();
             if (agent == null) return;
 
-            for (int attempts = 0; attempts < 10; attempts++)
+            for (int attempts = 0; attempts < 35; attempts++)
             {
                 Vector3 randomDirection = Random.insideUnitSphere;
                 randomDirection.y = 0f;
-                Vector3 targetPosition = playerPos + randomDirection.normalized * Random.Range(25f, 42f);
+                Vector3 targetPosition = playerPos + randomDirection.normalized * Random.Range(28f, 48f);
                 targetPosition.y = playerPos.y;
 
                 NavMeshHit hit;
-                if (NavMesh.SamplePosition(targetPosition, out hit, 8f, NavMesh.AllAreas))
+                if (NavMesh.SamplePosition(targetPosition, out hit, 10f, NavMesh.AllAreas))
                 {
                     if (Mathf.Abs(hit.position.y - playerPos.y) <= 1.8f)
                     {
                         if (!agent.enabled) agent.enabled = true;
                         agent.Warp(hit.position);
-                        agent.isStopped = false;
+                        agent.isStopped = true;
+                        agent.velocity = Vector3.zero;
                         EnsureGrounded();
+                        Debug.Log($"[The Amalgam] 🕊️ Relocalizado con éxito lejos del jugador en {hit.position}");
                         return;
                     }
                 }
             }
+
+            // Fallback a SpawnPoints distantes si los intentos aleatorios fallaron
+            if (spawnPoints != null && spawnPoints.Length > 0)
+            {
+                Transform furthest = null;
+                float bestDist = 0f;
+                foreach (var sp in spawnPoints)
+                {
+                    if (sp == null) continue;
+                    float d = Vector3.Distance(sp.position, playerPos);
+                    if (d > bestDist)
+                    {
+                        bestDist = d;
+                        furthest = sp;
+                    }
+                }
+
+                if (furthest != null)
+                {
+                    if (!agent.enabled) agent.enabled = true;
+                    agent.Warp(furthest.position);
+                    agent.isStopped = true;
+                    agent.velocity = Vector3.zero;
+                    EnsureGrounded();
+                    Debug.Log($"[The Amalgam] 🕊️ Relocalizado en SpawnPoint distante '{furthest.name}'");
+                    return;
+                }
+            }
+
             EnsureGrounded();
         }
 

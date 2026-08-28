@@ -24,6 +24,7 @@ namespace Monsters.Amalgam
         public void EnterState()
         {
             Debug.Log("[The Amalgam] Entrando en estado: Idle Crying (HOMBRELLORANDO)");
+            if (controller != null) controller.StopChaseAudio();
             if (anim != null) anim.SetCrying(true);
 
             if (agent != null && agent.isOnNavMesh)

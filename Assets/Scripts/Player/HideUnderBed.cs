@@ -360,11 +360,10 @@ public class HideUnderBed : MonoBehaviour
 
         if (isHiding)
         {
-            GUIStyle btnStyle = new GUIStyle(GUI.skin.button);
-            btnStyle.fontSize = 22;
-            btnStyle.alignment = TextAnchor.MiddleCenter;
-            btnStyle.fontStyle = FontStyle.Bold;
-            btnStyle.normal.textColor = new Color(0.1f, 0.85f, 0.1f);
+            GUIStyle style = new GUIStyle();
+            style.fontSize = 22;
+            style.alignment = TextAnchor.MiddleCenter;
+            style.fontStyle = FontStyle.Bold;
 
             Rect rect = new Rect(Screen.width / 2 - 260, Screen.height - 120, 520, 50);
 
@@ -373,7 +372,17 @@ public class HideUnderBed : MonoBehaviour
             GUI.color = Color.white;
 
             string exitText = "[E]  Salir del Escondite";
-            if (GUI.Button(rect, exitText, btnStyle))
+
+            // Sombra negra para legibilidad
+            style.normal.textColor = Color.black;
+            GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), exitText, style);
+
+            // Texto verde distintivo
+            style.normal.textColor = new Color(0.1f, 0.95f, 0.2f);
+            GUI.Label(rect, exitText, style);
+
+            // Botón transparente interactivo para clics o taps táctiles
+            if (GUI.Button(rect, "", GUIStyle.none))
             {
                 MobileInput.ePressedDown = false;
                 ToggleHide(null);
