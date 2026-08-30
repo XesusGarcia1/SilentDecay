@@ -9,6 +9,7 @@ public class PlayerHealth : MonoBehaviour
 
     [Header("Pantalla de Muerte / Game Over")]
     private bool isDead = false;
+    public bool IsDead => isDead;
     private float deathTimer = 0f;
     private float blackFadeAlpha = 0f;
     private float initialAudioListenerVolume = 1f;
@@ -376,6 +377,27 @@ public class PlayerHealth : MonoBehaviour
                     {
                         customScreamerTex = t;
                         Debug.Log("[PlayerHealth]: Screamer de Amalgam encontrado por escaneo: " + t.name);
+                        break;
+                    }
+                }
+            }
+        }
+                // 3. Cargar imagen de screamer específica si morimos por Phenomenon
+        else if (monsterObj != null && (monsterObj.name.Contains("Phenomenon") || monsterObj.GetComponent<PhenomenonAIController>() != null))
+        {
+            playDefaultScream = true;
+            Debug.Log("[PlayerHealth]: Cargando screamer para Phenomenon...");
+            customScreamerTex = Resources.Load<Texture2D>("PhenomenonScream");
+
+            if (customScreamerTex == null)
+            {
+                Texture2D[] allTexs = Resources.LoadAll<Texture2D>("");
+                foreach (Texture2D t in allTexs)
+                {
+                    if (t != null && t.name.ToLower().Contains("phenomenonscream"))
+                    {
+                        customScreamerTex = t;
+                        Debug.Log("[PlayerHealth]: Screamer de Phenomenon encontrado por escaneo: " + t.name);
                         break;
                     }
                 }
@@ -1045,6 +1067,13 @@ public class PlayerHealth : MonoBehaviour
         foreach (var cr in crawlers)
         {
             cr.ForceRelocateFarAway(transform.position);
+        }
+
+        // Dar período de gracia al Phenomenon si está en el mapa de túneles
+        var phenomena = FindObjectsOfType<PhenomenonAIController>();
+        foreach (var ph in phenomena)
+        {
+            ph.TriggerRespawnGracePeriod(20f); // 20 segundos de gracia para evitar spawnkill
         }
 
         // Bloquear cursor nuevamente para retomar control de la cámara en 1ª persona

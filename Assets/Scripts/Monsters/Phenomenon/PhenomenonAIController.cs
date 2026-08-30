@@ -96,11 +96,12 @@ public class PhenomenonAIController : MonoBehaviour
     private float scratchScareTimer = 0f;
     private float nextScratchScareDelay = 45f; // Primer evento a los 45 segundos
     private bool wasPlayerLookingLastFrame = false;
+    private float antiStuckTimer = 0f;
     private float difficultySpeedMultiplier = 1.0f;
     private float activeWarpChance = 0.40f;
     private float activeLookDamageRate = 8.0f;
     private float grabAttackDamage = 50f;
-    private float darknessInstantKillDamage = 9999f;
+    private float darknessInstantKillDamage = 50f;
     private float timeSinceLastVisualContact = 20f; // Inicializado en 20s para que la primera vez funcione
     private float spectralTimer = 0f;
     private bool isSpectrallyInvisible = false;
@@ -280,8 +281,8 @@ public class PhenomenonAIController : MonoBehaviour
             activeWarpChance = 0.15f;
             activeLookDamageRate = 4.0f;
             nextScratchScareDelay = Random.Range(55f, 90f);
-            grabAttackDamage = 25f;
-            darknessInstantKillDamage = 100f;
+            grabAttackDamage = 50f;
+            darknessInstantKillDamage = 50f;
         }
         else if (savedDifficulty == "DIFICIL")
         {
@@ -293,7 +294,7 @@ public class PhenomenonAIController : MonoBehaviour
             activeLookDamageRate = 12.0f;
             nextScratchScareDelay = Random.Range(20f, 40f);
             grabAttackDamage = 50f;
-            darknessInstantKillDamage = 9999f;
+            darknessInstantKillDamage = 50f;
         }
         else // NORMAL
         {
@@ -304,12 +305,19 @@ public class PhenomenonAIController : MonoBehaviour
             activeWarpChance = 0.30f;
             activeLookDamageRate = 8.0f;
             nextScratchScareDelay = Random.Range(35f, 65f);
-            grabAttackDamage = 35f;
-            darknessInstantKillDamage = 9999f;
+            grabAttackDamage = 50f;
+            darknessInstantKillDamage = 50f;
         }
 
-        // Iniciar patrulla
+        // Iniciar patrulla y configurar el período de gracia inicial físicamente
         ChangeState(PhenomenonState.Patrol);
+
+        if (graceActive)
+        {
+            transform.position = new Vector3(0f, -500f, 0f);
+            if (agent != null) agent.enabled = false;
+            SetMonsterVisible(false);
+        }
     }
 
     private void OnEnable()
@@ -317,6 +325,16 @@ public class PhenomenonAIController : MonoBehaviour
         // Limpiar estados de invisibilidad residual
         isSpectrallyInvisible = false;
         isCurrentlyVisible = true;
+
+        if (graceActive)
+        {
+            // Si el período de gracia está activo, mantener al monstruo oculto y el agente apagado
+            SetMonsterVisible(false);
+            if (agent == null) agent = GetComponent<NavMeshAgent>();
+            if (agent == null) agent = GetComponentInChildren<NavMeshAgent>();
+            if (agent != null) agent.enabled = false;
+            return;
+        }
 
         // CRÍTICO: Resetear posición y re-vincular el Animator para resincronizar los huesos del modelo con la raíz
         Animator childAnim = cachedChildAnimator != null ? cachedChildAnimator : GetComponentInChildren<Animator>();
@@ -381,12 +399,123 @@ public class PhenomenonAIController : MonoBehaviour
             }
             childAnim.applyRootMotion = false;
         }
+
+        // --- ROTAR INSTANTÁNEAMENTE AL MONSTRUO HACIA EL JUGADOR TRAS EL WARP ---
+        // Esto previene que tras teletransportarse aparezca dándole la espalda al jugador.
+        if (player != null)
+        {
+            Vector3 direction = (player.position - transform.position).normalized;
+            direction.y = 0f;
+            if (direction != Vector3.zero)
+            {
+                transform.rotation = Quaternion.LookRotation(direction);
+            }
+        }
     }
+
+    public bool IsPlayerInSafeZone()
+    {
+        // Confiar solo en el trigger event (OnTriggerEnter/Exit) de SafeZoneTrigger
+        return SafeZoneTrigger.isPlayerSafe;
+    }
+
+    // --- PERÍODO DE GRACIA INICIAL ---
+    // El monstruo está completamente inactivo y oculto durante este tiempo al inicio de partida.
+    // Esto reemplaza el sistema de Zona Segura que causaba bugs.
+    [Header("Período de Gracia Inicial")]
+    public float gracePeriodDuration = 25f; // Segundos de calma al inicio (ajustable en Inspector)
+    private float graceTimer = 0f;
+    private bool graceActive = true;
+
+    // Chase agresivo: timer para teletransportes frecuentes durante la cacería
+    private float chaseWarpTimer = 0f;
+    private float nextChaseWarpInterval = 3.5f; // Warp cada ~3.5s si no es visible
 
     private float lightCheckTimer = 0f;
     void Update()
     {
         if (player == null || agent == null) return;
+
+        // ═══════════════════════════════════════════════
+        // PERÍODO DE GRACIA INICIAL
+        // El monstruo está oculto e inactivo al inicio.
+        // Reemplaza el sistema de Zona Segura que daba bugs.
+        // ═══════════════════════════════════════════════
+        if (graceActive)
+        {
+            graceTimer += Time.deltaTime;
+
+            // Ocultar el monstruo completamente durante la gracia
+            SetMonsterVisible(false);
+            if (agent != null) agent.enabled = false;
+
+            if (graceTimer >= gracePeriodDuration)
+            {
+                graceActive = false;
+                if (agent != null) agent.enabled = true;
+                SetMonsterVisible(true);
+                detectionRange = 40f;
+                isPanicEventActive = true;
+                ChangeState(PhenomenonState.Chase);
+                ForceWarpNearPlayer(12f);
+                Debug.Log("[PhenomenonAIController] ⚠️ ¡Período de gracia terminado! El Phenomenon ha despertado.");
+            }
+            return; // No ejecutar nada más mientras está en gracia
+        }
+
+        // ═══════════════════════════════════════════════
+        // CONTROL DE DETECCIÓN Y CACERÍA DINÁMICA
+        // ═══════════════════════════════════════════════
+        // En calma el rango es de 20m para poder evadirlo; en cacería sube a 40m.
+        detectionRange = isPanicEventActive ? 40f : 20f;
+
+        // Distancia al jugador — necesaria aquí y más abajo
+        float distToMonster = (player != null) ? Vector3.Distance(transform.position, player.position) : 999f;
+
+        // Teletransportes agresivos (Slenderman) SOLO activos durante la fase de pánico (cacería/apagón)
+        if (isPanicEventActive && currentState == PhenomenonState.Chase)
+        {
+            chaseWarpTimer += Time.deltaTime;
+            bool playerCanSeeMonster = CheckIfPlayerIsLookingAtMonster() && distToMonster <= 30f;
+
+            // 1. Warp inmediato Slenderman: El jugador estaba mirando y apartó la mirada.
+            // Cooldown de 7.0s para evitar spam, y a distancia de 12.0m para dar aire.
+            if (wasPlayerLookingLastFrame && !playerCanSeeMonster && chaseWarpTimer >= 7.0f)
+            {
+                chaseWarpTimer = 0f;
+                nextChaseWarpInterval = Random.Range(9.0f, 14.0f);
+                ForceWarpNearPlayer(12.0f); 
+                Debug.Log("[PhenomenonAIController] 👁️ ¡Jugador apartó la mirada! Warp instantáneo al frente (12m).");
+            }
+            // 2. Warp periódico si el jugador sigue sin mirar al monstruo
+            else if (!playerCanSeeMonster && chaseWarpTimer >= nextChaseWarpInterval)
+            {
+                chaseWarpTimer = 0f;
+                nextChaseWarpInterval = Random.Range(9.0f, 14.0f);
+                ForceWarpNearPlayer(12.0f);
+                Debug.Log("[PhenomenonAIController] 👁️ Warp periódico en Chase (12m).");
+            }
+        }
+        else
+        {
+            chaseWarpTimer = 0f;
+        }
+
+        // Anti-stuck para NavMesh
+        antiStuckTimer += Time.deltaTime;
+        if (antiStuckTimer >= 1.5f)
+        {
+            antiStuckTimer = 0f;
+            if (agent != null && player != null)
+            {
+                bool isStuck = !agent.isOnNavMesh || agent.pathStatus == NavMeshPathStatus.PathInvalid || (agent.pathStatus == NavMeshPathStatus.PathPartial && Vector3.Distance(transform.position, player.position) > 15f);
+                if (isStuck)
+                {
+                    Debug.LogWarning("[PhenomenonAIController] 🚨 Monstruo atascado. Recuperando.");
+                    RecoverToPlayerCorridor();
+                }
+            }
+        }
 
         // Seguro anti-drift: Asegurar que el root motion del hijo visual NUNCA se active (Usando cache)
         if (cachedChildAnimator == null) cachedChildAnimator = GetComponentInChildren<Animator>();
@@ -443,14 +572,14 @@ public class PhenomenonAIController : MonoBehaviour
             }
         }
 
-        // Comprobar si el jugador está mirando cara a cara al monstruo real (dentro de 40m de distancia para evitar falsos positivos)
-        float distToMonster = (player != null) ? Vector3.Distance(transform.position, player.position) : 999f;
+        // Comprobar si el jugador está mirando cara a cara al monstruo (dentro de 40m)
         bool isPlayerLookingNow = (distToMonster <= 40f) && CheckIfPlayerIsLookingAtMonster();
 
         if (isPlayerLookingNow)
         {
-            // Reproducir susto si lleva al menos 12 segundos sin ver al monstruo O si está a menos de 8 metros de frente/costado
-            if ((timeSinceLastVisualContact >= 12f || distToMonster <= 8.0f) && !wasPlayerLookingLastFrame)
+            // Susto si el monstruo está a una distancia media/cercana (≤13m).
+            // Esto incluye las distancias de teletransporte (que son a ~8.5m - 12m).
+            if (distToMonster <= 13.0f && !wasPlayerLookingLastFrame)
             {
                 TriggerVisualImpactSound();
             }
@@ -609,6 +738,10 @@ public class PhenomenonAIController : MonoBehaviour
                 anim.SetWalking(false);
                 anim.SetAlert(false);
                 anim.SetAttacking(false);
+                if (player != null && Vector3.Distance(transform.position, player.position) < 20f)
+                {
+                    TeleportToDistantPatrolPoint();
+                }
                 break;
 
             case PhenomenonState.Alert:
@@ -781,25 +914,9 @@ public class PhenomenonAIController : MonoBehaviour
                 // Perseguir
                 SetAgentDestination(player.position);
 
-                // 1. Velocidad dinámica según si el jugador lo ve en la oscuridad (Reverse Weeping Angel)
-                bool isPlayerLooking = false;
-                if (playerCamera != null)
-                {
-                    Vector3 dirToMonster = (transform.position + Vector3.up * 1f - playerCamera.position).normalized;
-                    float angle = Vector3.Angle(playerCamera.forward, dirToMonster);
-                    if (angle <= 65f)
-                    {
-                        RaycastHit hit;
-                        if (!Physics.Linecast(playerCamera.position, transform.position + Vector3.up * 1f, out hit, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
-                        {
-                            isPlayerLooking = true;
-                        }
-                        else if (hit.transform.root == transform.root)
-                        {
-                            isPlayerLooking = true;
-                        }
-                    }
-                }
+                // 1. Velocidad dinámica según si el jugador lo ve (Reverse Weeping Angel)
+                // Usamos CheckIfPlayerIsLookingAtMonster() que implementa el Linecast correcto saltándose el cuerpo del jugador.
+                bool isPlayerLooking = CheckIfPlayerIsLookingAtMonster();
 
                 // 2. Chequear salto de sombras (Shadow-Warp) si el jugador corre de espaldas
                 if (!isPlayerLooking && shadowWarpCooldownTimer <= 0f)
@@ -811,8 +928,22 @@ public class PhenomenonAIController : MonoBehaviour
                     }
                 }
 
-                // 3. Mecánica de la Estatua (Weeping Angel): Si el jugador lo está mirando directamente, se PETRIFICA por completo y no se mueve
-                if (isPlayerLooking)
+                // 3. Ataque por cercanía prioritaria
+                float activeAttackRange = attackRange;
+                if (TunnelsPowerOutageManager.isGlobalPowerOutage)
+                {
+                    activeAttackRange = attackRange * 1.5f;
+                }
+
+                if (distanceToPlayer <= activeAttackRange)
+                {
+                    ChangeState(PhenomenonState.Attack);
+                    return;
+                }
+
+                // 4. Mecánica de la Estatua: Se congela completamente si el jugador lo mira directamente (a más del rango de ataque)
+                // Eliminamos la necesidad de la linterna (IsShinedByFlashlight()) para que funcione consistentemente tipo Slenderman
+                if (isPlayerLooking && distanceToPlayer > activeAttackRange)
                 {
                     SetAgentStopped(true);
                     agent.velocity = Vector3.zero;
@@ -830,14 +961,14 @@ public class PhenomenonAIController : MonoBehaviour
 
                 if (isPanicEventActive)
                 {
-                    // Cacería y NO lo mira: Velocidad de acecho (10.5 m/s)
+                    // Cacería: Velocidad de acecho (10.5 m/s)
                     baseSpeed = 10.5f;
                     walkAnimSpeed = 3.2f;
                     if (dragAudioSource != null) dragAudioSource.volume = 1.0f;
                 }
                 else
                 {
-                    // Modo normal y NO lo mira: Carrera rápida (5.5 m/s)
+                    // Modo normal: Carrera rápida (5.5 m/s)
                     baseSpeed = 5.5f;
                     walkAnimSpeed = 2.0f;
                     if (dragAudioSource != null) dragAudioSource.volume = 0.9f;
@@ -860,18 +991,6 @@ public class PhenomenonAIController : MonoBehaviour
 
                 agent.speed = baseSpeed * speedMultiplier * difficultySpeedMultiplier;
                 anim.SetWalkSpeed(walkAnimSpeed * speedMultiplier);
-
-                // Ataque por cercanía (rango ampliado a 3.3m durante apagones para mayor agresividad)
-                float activeAttackRange = attackRange;
-                if (TunnelsPowerOutageManager.isGlobalPowerOutage)
-                {
-                    activeAttackRange = attackRange * 1.5f;
-                }
-
-                if (distanceToPlayer <= activeAttackRange)
-                {
-                    ChangeState(PhenomenonState.Attack);
-                }
                 break;
 
             case PhenomenonState.ObservingLight:
@@ -929,22 +1048,84 @@ public class PhenomenonAIController : MonoBehaviour
         }
     }
 
-    private bool IsPlayerInLight()
+    /// <summary>
+    /// Muestra u oculta completamente el monstruo (renderers + luces).
+    /// Usado durante el período de gracia inicial.
+    /// </summary>
+    private void SetMonsterVisible(bool visible)
     {
-        if (playerSanity != null)
+        Renderer[] rends = cachedRenderers != null ? cachedRenderers : GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer r in rends)
         {
-            return playerSanity.IsInLight();
+            if (r != null) r.enabled = visible;
         }
-
-        // Fallback de cálculo manual de luz
-        if (roomLightsManager != null && roomLightsManager.powerOutage) return false;
-        Light[] lights = FindObjectsOfType<Light>();
+        Light[] lights = cachedLights != null ? cachedLights : GetComponentsInChildren<Light>(true);
         foreach (Light l in lights)
         {
-            if (l != null && l.enabled && l.type != LightType.Directional && l.gameObject.name != "Player_Flashlight")
+            if (l != null) l.enabled = visible;
+        }
+        // También silenciar audios mientras está en gracia
+        if (!visible)
+        {
+            if (heartbeatAudio != null && heartbeatAudio.isPlaying) heartbeatAudio.Stop();
+            if (dragAudioSource != null && dragAudioSource.isPlaying) dragAudioSource.Stop();
+            if (dragShortAudioSource != null && dragShortAudioSource.isPlaying) dragShortAudioSource.Stop();
+        }
+    }
+
+    private bool IsPositionInNarrowSpace(Vector3 pos)
+    {
+        float maxMeasure = 5.0f;
+        float limitWidth = 2.0f; // Ancho mínimo del pasillo para permitir spawn
+        int layerMask = Physics.DefaultRaycastLayers;
+
+        float distN = GetDistanceToWall(pos + Vector3.up * 1f, Vector3.forward, maxMeasure, layerMask);
+        float distS = GetDistanceToWall(pos + Vector3.up * 1f, Vector3.back, maxMeasure, layerMask);
+        float distE = GetDistanceToWall(pos + Vector3.up * 1f, Vector3.right, maxMeasure, layerMask);
+        float distW = GetDistanceToWall(pos + Vector3.up * 1f, Vector3.left, maxMeasure, layerMask);
+
+        float widthNS = distN + distS;
+        float widthEW = distE + distW;
+
+        if (widthNS < limitWidth || widthEW < limitWidth)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private float GetDistanceToWall(Vector3 origin, Vector3 direction, float maxDistance, int layerMask)
+    {
+        RaycastHit hit;
+        if (Physics.Raycast(origin, direction, out hit, maxDistance, layerMask, QueryTriggerInteraction.Ignore))
+        {
+            if (player != null && hit.transform.root == player.transform.root)
             {
-                float dist = Vector3.Distance(player.position, l.transform.position);
-                if (dist <= l.range) return true;
+                return maxDistance;
+            }
+            if (hit.transform.root == transform.root)
+            {
+                return maxDistance;
+            }
+            return hit.distance;
+        }
+        return maxDistance;
+    }
+
+    private bool IsPlayerInLight()
+    {
+        // Nunca protege si hay apagón global
+        if (TunnelsPowerOutageManager.isGlobalPowerOutage) return false;
+
+        // Protege solo si el jugador está a 5m o menos de una lámpara de pasillo activa (TunnelLightFlicker)
+        // Las luces de ambiente, generadores y subgeneradores NO cuentan.
+        TunnelLightFlicker closest = GetClosestLightToPlayer();
+        if (closest != null && !closest.isForcedOff)
+        {
+            float dist = Vector3.Distance(player.position, closest.transform.position);
+            if (dist <= 5.0f)
+            {
+                return true;
             }
         }
         return false;
@@ -968,6 +1149,8 @@ public class PhenomenonAIController : MonoBehaviour
             for (int i = 0; i < patrolPoints.Length; i++)
             {
                 if (patrolPoints[i] == null) continue;
+                if (SafeZoneTrigger.IsPositionInSafeZone(patrolPoints[i].position)) continue;
+
                 float distToPlayer = Vector3.Distance(player.position, patrolPoints[i].position);
                 float distToMonster = Vector3.Distance(transform.position, patrolPoints[i].position);
                 
@@ -992,6 +1175,8 @@ public class PhenomenonAIController : MonoBehaviour
             for (int i = 0; i < patrolPoints.Length; i++)
             {
                 if (patrolPoints[i] == null) continue;
+                if (SafeZoneTrigger.IsPositionInSafeZone(patrolPoints[i].position)) continue;
+
                 float dist = Vector3.Distance(transform.position, patrolPoints[i].position);
                 // Evitar elegir el mismo punto en el que ya está parado
                 if (dist > 3f && dist <= 65f)
@@ -1006,6 +1191,8 @@ public class PhenomenonAIController : MonoBehaviour
                 for (int i = 0; i < patrolPoints.Length; i++)
                 {
                     if (patrolPoints[i] == null) continue;
+                    if (SafeZoneTrigger.IsPositionInSafeZone(patrolPoints[i].position)) continue;
+
                     float dist = Vector3.Distance(transform.position, patrolPoints[i].position);
                     if (dist > 3f && dist <= 130f)
                     {
@@ -1614,13 +1801,21 @@ public class PhenomenonAIController : MonoBehaviour
         float minDist = TunnelsPowerOutageManager.isGlobalPowerOutage ? 10f : 13f;
         float maxDist = TunnelsPowerOutageManager.isGlobalPowerOutage ? 16f : 25f;
 
+        // Override de seguridad si el jugador está en la luz
+        bool inLight = IsPlayerInLight();
+        if (inLight)
+        {
+            minDist = 22f; // Forzar lejanía para respetar la zona segura de luz
+            maxDist = 35f;
+        }
+
         // Override de seguridad si el jugador está en la zona de la escotilla de escape
         bool isNearHatch = (TunnelsGenerator.escapeState == TunnelsGenerator.EscapeState.Ready) 
             || (Vector3.Distance(player.position, TunnelsGenerator.worldExitPointPos) < 25f);
         if (isNearHatch)
         {
-            minDist = 18f; // Forzar lejanía para no aparecer encima del jugador en la escotilla
-            maxDist = 32f;
+            minDist = Mathf.Max(minDist, 18f); // Forzar lejanía para no aparecer encima del jugador en la escotilla
+            maxDist = Mathf.Max(maxDist, 32f);
         }
 
         foreach (var p in patrolPoints)
@@ -1637,6 +1832,20 @@ public class PhenomenonAIController : MonoBehaviour
 
             if (distToPlayer >= minDist && distToPlayer <= maxDist)
             {
+                    if (IsPositionInNarrowSpace(p.position))
+                {
+                    continue; // Evitar pasillos muy reducidos
+                }
+                // Asegurarse de que el spawn point en sí mismo NO esté iluminado
+                TunnelLightFlicker lightAtPoint = GetClosestLightToPosition(p.position);
+                if (lightAtPoint != null && !lightAtPoint.isForcedOff && !TunnelsPowerOutageManager.isGlobalPowerOutage)
+                {
+                    if (Vector3.Distance(p.position, lightAtPoint.transform.position) <= 6.0f)
+                    {
+                        continue; // Descartar punto iluminado
+                    }
+                }
+
                 if (IsPositionHiddenFromPlayer(p.position))
                 {
                     candidates.Add(p.position);
@@ -1667,6 +1876,19 @@ public class PhenomenonAIController : MonoBehaviour
 
                 if (distToPlayer >= minDist && distToPlayer <= fallbackMaxDist)
                 {
+                    if (IsPositionInNarrowSpace(p.position))
+                    {
+                        continue; // Evitar pasillos muy reducidos
+                    }
+                    TunnelLightFlicker lightAtPoint = GetClosestLightToPosition(p.position);
+                    if (lightAtPoint != null && !lightAtPoint.isForcedOff && !TunnelsPowerOutageManager.isGlobalPowerOutage)
+                    {
+                        if (Vector3.Distance(p.position, lightAtPoint.transform.position) <= 6.0f)
+                        {
+                            continue;
+                        }
+                    }
+
                     targetPos = p.position;
                     break;
                 }
@@ -1812,7 +2034,7 @@ public class PhenomenonAIController : MonoBehaviour
                     maxDist = 16f;
                 }
 
-                Vector3 warpTarget = player.position - player.forward * Random.Range(minDist, maxDist);
+                Vector3 warpTarget = player.position + player.forward * Random.Range(minDist, maxDist);
                 NavMeshHit warpHit;
                 if (NavMesh.SamplePosition(warpTarget, out warpHit, 6f, NavMesh.AllAreas))
                 {
@@ -1921,12 +2143,36 @@ public class PhenomenonAIController : MonoBehaviour
 
         // Buscar celdas de patrulla cerca del jugador (distancia entre 15 y 28 metros)
         System.Collections.Generic.List<Vector3> candidates = new System.Collections.Generic.List<Vector3>();
+        
+        float minDist = 15f;
+        float maxDist = 28f;
+        if (IsPlayerInLight())
+        {
+            minDist = 22f;
+            maxDist = 35f;
+        }
+
         foreach (var p in patrolPoints)
         {
             if (p == null) continue;
             float distToPlayer = Vector3.Distance(player.position, p.position);
-            if (distToPlayer >= 15f && distToPlayer <= 28f)
+            
+            if (distToPlayer >= minDist && distToPlayer <= maxDist)
             {
+                    if (IsPositionInNarrowSpace(p.position))
+                {
+                    continue; // Evitar pasillos muy reducidos
+                }
+                // Asegurarse de que el spawn point en sí mismo NO esté iluminado
+                TunnelLightFlicker lightAtPoint = GetClosestLightToPosition(p.position);
+                if (lightAtPoint != null && !lightAtPoint.isForcedOff && !TunnelsPowerOutageManager.isGlobalPowerOutage)
+                {
+                    if (Vector3.Distance(p.position, lightAtPoint.transform.position) <= 6.0f)
+                    {
+                        continue; // Descartar punto iluminado
+                    }
+                }
+
                 if (IsPositionHiddenFromPlayer(p.position))
                 {
                     candidates.Add(p.position);
@@ -1986,6 +2232,19 @@ public class PhenomenonAIController : MonoBehaviour
                 // pero a una distancia segura para no matarlo instantáneamente (entre 12 y 22 metros)
                 if (dToPlayer >= 12f && dToPlayer < currentDistToPlayer - 6f && dToPlayer <= 22f)
                 {
+                    if (IsPositionInNarrowSpace(p.position))
+                    {
+                        continue; // Evitar pasillos muy reducidos
+                    }
+                    TunnelLightFlicker lightAtPoint = GetClosestLightToPosition(p.position);
+                    if (lightAtPoint != null && !lightAtPoint.isForcedOff && !TunnelsPowerOutageManager.isGlobalPowerOutage)
+                    {
+                        if (Vector3.Distance(p.position, lightAtPoint.transform.position) <= 6.0f)
+                        {
+                            continue;
+                        }
+                    }
+
                     if (IsPositionBehindPlayer(p.position))
                     {
                         candidates.Add(p.position);
@@ -2180,6 +2439,12 @@ public class PhenomenonAIController : MonoBehaviour
 
         // Cooldown de 1.2s para evitar superposición acelerada
         if (Time.time - lastJumpscareStingTime < 1.2f) return;
+
+        // El susto solo suena si el monstruo está relativamente cerca del jugador (≤14m).
+        // Como Slenderman: si aparece lejos no asusta con sonido, solo cuando está cerca o se teletransporta.
+        float currentDist = Vector3.Distance(transform.position, player.position);
+        if (currentDist > 14.0f) return;
+
         lastJumpscareStingTime = Time.time;
 
         // FORZAR VOLUMEN MÁXIMO DE SUSTO EN TODO MOMENTO (1.0f)
@@ -2379,9 +2644,9 @@ public class PhenomenonAIController : MonoBehaviour
                     agent.speed = chaseSpeed;
                 }
 
-                // 2. Teletransportes súper agresivos cada 3.5 segundos si no lo vemos directamente durante la cacería
+                // 2. Teletransportes balanceados cada 12.0 segundos si no lo vemos directamente durante la cacería
                 panicWarpTimer += Time.deltaTime;
-                if (panicWarpTimer >= 3.5f)
+                if (panicWarpTimer >= 12.0f)
                 {
                     panicWarpTimer = 0f;
                     if (!isCurrentlyVisible)
@@ -2398,19 +2663,44 @@ public class PhenomenonAIController : MonoBehaviour
         if (player == null || agent == null || !agent.isOnNavMesh) return;
 
         float distToPlayer = Vector3.Distance(transform.position, player.position);
-        float minDistanceToWarp = isHunting ? 9f : 20f; // Teletransportar si está a más de 9m durante cacería
+        float minDistanceToWarp = isHunting ? 12f : 20f; // Teletransportar si está a más de 12m durante cacería
         
         if (distToPlayer > minDistanceToWarp)
         {
             System.Collections.Generic.List<Vector3> candidates = new System.Collections.Generic.List<Vector3>();
             System.Collections.Generic.List<Vector3> backupCandidates = new System.Collections.Generic.List<Vector3>();
             
-            float minRange = isHunting ? 4f : 12f;
-            float maxRange = isHunting ? 10f : 22f;
+            float minRange = isHunting ? 10f : 15f;
+            float maxRange = isHunting ? 16f : 25f;
 
             foreach (var p in patrolPoints)
             {
                 if (p == null) continue;
+
+                // Evitar aparecer cerca de la escotilla de escape
+                if (TunnelsFixedMapLogic.worldExitPointPos != Vector3.zero && Vector3.Distance(p.position, TunnelsFixedMapLogic.worldExitPointPos) < 18f)
+                {
+                    continue;
+                }
+                if (TunnelsGenerator.worldExitPointPos != Vector3.zero && Vector3.Distance(p.position, TunnelsGenerator.worldExitPointPos) < 18f)
+                {
+                    continue;
+                }
+
+                if (IsPositionInNarrowSpace(p.position))
+                {
+                    continue; // Evitar pasillos muy reducidos
+                }
+                // Evitar aparecer directamente en una zona iluminada
+                TunnelLightFlicker lightAtPoint = GetClosestLightToPosition(p.position);
+                if (lightAtPoint != null && !lightAtPoint.isForcedOff && !TunnelsPowerOutageManager.isGlobalPowerOutage)
+                {
+                    if (Vector3.Distance(p.position, lightAtPoint.transform.position) <= 6.0f)
+                    {
+                        continue;
+                    }
+                }
+
                 float d = Vector3.Distance(player.position, p.position);
                 if (d >= minRange && d <= maxRange)
                 {
@@ -2465,75 +2755,314 @@ public class PhenomenonAIController : MonoBehaviour
     /// </summary>
     public void TriggerRespawnGracePeriod(float duration)
     {
-        StartCoroutine(RespawnGraceRoutine(duration));
-    }
+        graceActive = true;
+        graceTimer = 0f;
+        gracePeriodDuration = duration;
 
-    private IEnumerator RespawnGraceRoutine(float duration)
-    {
-        currentState = PhenomenonState.Patrol;
+        // Reposicionar al monstruo físicamente en el subsuelo inmediatamente
+        transform.position = new Vector3(0f, -500f, 0f);
+        if (agent != null)
+        {
+            if (agent.isOnNavMesh) agent.ResetPath();
+            agent.enabled = false;
+        }
+
+        SetMonsterVisible(false);
+        ChangeState(PhenomenonState.Patrol);
         detectionRange = 0f;
-
-        // Desactivar FOV para evitar detección visual
         if (fov != null) fov.enabled = false;
 
-        // Reposicionar al punto de patrulla más alejado del jugador
-        Vector3 farPos = transform.position;
-        if (patrolPoints != null && patrolPoints.Length > 0 && player != null)
+        Debug.Log($"[PhenomenonAIController] TriggerRespawnGracePeriod: Monstruo desactivado y enviado al subsuelo. Gracia activa por {duration} segundos.");
+    }
+
+    public bool IsValidWalkablePositionForPlayer(Vector3 testPos, out Vector3 validPos)
+    {
+        validPos = testPos;
+        if (player == null) return false;
+
+        // Evitar aparecer cerca de la escotilla de escape
+        if (TunnelsFixedMapLogic.worldExitPointPos != Vector3.zero && Vector3.Distance(testPos, TunnelsFixedMapLogic.worldExitPointPos) < 18f)
         {
-            Transform bestPoint = patrolPoints[0];
-            float maxDist = 0f;
+            return false;
+        }
+        if (TunnelsGenerator.worldExitPointPos != Vector3.zero && Vector3.Distance(testPos, TunnelsGenerator.worldExitPointPos) < 18f)
+        {
+            return false;
+        }
+
+        if (SafeZoneTrigger.IsPositionInSafeZone(testPos)) return false;
+
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(testPos, out hit, 3.5f, NavMesh.AllAreas))
+        {
+            if (SafeZoneTrigger.IsPositionInSafeZone(hit.position)) return false;
+
+            NavMeshPath path = new NavMeshPath();
+            if (NavMesh.CalculatePath(hit.position, player.position, NavMesh.AllAreas, path))
+            {
+                if (path.status == NavMeshPathStatus.PathComplete)
+                {
+                    validPos = hit.position;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public void RecoverToPlayerCorridor()
+    {
+        if (player == null || agent == null) return;
+
+        Vector3 target = player.position + player.forward * 6.0f;
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(target, out hit, 6.0f, NavMesh.AllAreas))
+        {
+            if (agent.isOnNavMesh)
+            {
+                agent.Warp(hit.position);
+            }
+            else
+            {
+                transform.position = hit.position;
+                agent.enabled = false;
+                agent.enabled = true;
+                agent.Warp(hit.position);
+            }
+            ResetVisualChildTransform();
+            ResetAgentPath();
+            SetAgentDestination(player.position);
+            Debug.Log("[PhenomenonAIController] 🚑 Monstruo rescatado al pasillo AL FRENTE del jugador.");
+        }
+        else
+        {
+            ForceWarpNearPlayer(8f);
+        }
+    }
+
+    private void SetRenderersState(bool state)
+    {
+        Renderer[] rends = cachedRenderers != null ? cachedRenderers : GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer r in rends)
+        {
+            if (r != null && r.gameObject != gameObject && !r.gameObject.name.Contains("Light"))
+            {
+                r.enabled = state;
+            }
+        }
+        Light[] lights = cachedLights != null ? cachedLights : GetComponentsInChildren<Light>(true);
+        foreach (Light l in lights)
+        {
+            if (l != null) l.enabled = state;
+        }
+    }
+
+    public void ForceRelocateFarAway()
+    {
+        if (player == null) return;
+
+        Vector3 targetPos = Vector3.zero;
+
+        if (patrolPoints != null && patrolPoints.Length > 0)
+        {
+            Transform bestPoint = null;
+            float maxDist = -1f;
             foreach (Transform pt in patrolPoints)
             {
-                if (pt != null)
+                if (pt == null) continue;
+
+                Vector3 validP;
+                if (IsValidWalkablePositionForPlayer(pt.position, out validP))
                 {
-                    float d = Vector3.Distance(player.position, pt.position);
-                    if (d > maxDist)
+                    float d = Vector3.Distance(player.position, validP);
+                    if (d >= 20f && d > maxDist)
                     {
                         maxDist = d;
                         bestPoint = pt;
+                        targetPos = validP;
                     }
                 }
             }
-            farPos = bestPoint.position;
         }
 
-        // Mover físicamente usando Warp en el NavMesh
+        if (targetPos == Vector3.zero)
+        {
+            Vector3[] dirs = new Vector3[] { -player.forward, player.right, -player.right, player.forward };
+            foreach (Vector3 d in dirs)
+            {
+                for (float dist = 55f; dist >= 25f; dist -= 10f)
+                {
+                    Vector3 testP = player.position + d * dist;
+                    Vector3 validP;
+                    if (IsValidWalkablePositionForPlayer(testP, out validP))
+                    {
+                        targetPos = validP;
+                        break;
+                    }
+                }
+                if (targetPos != Vector3.zero) break;
+            }
+        }
+
+        // Si NO hay ninguna posición caminable lejos de la Zona Segura, ocultar al monstruo fuera de la escena
+        if (targetPos == Vector3.zero || SafeZoneTrigger.IsPositionInSafeZone(targetPos))
+        {
+            Vector3 offscreenPos = player.position - player.forward * 80f;
+            offscreenPos.y = -500f;
+
+            if (agent != null)
+            {
+                if (agent.isOnNavMesh) agent.ResetPath();
+                agent.enabled = false;
+            }
+            transform.position = offscreenPos;
+            SetRenderersState(false);
+            Debug.Log("[PhenomenonAIController] 🛡️ No hay espacio lejano en NavMesh. Monstruo ocultado bajo el mapa mientras el jugador está a salvo.");
+            return;
+        }
+
+        SetRenderersState(true);
         if (agent != null)
         {
-            NavMeshHit hit;
-            if (NavMesh.SamplePosition(farPos, out hit, 40f, NavMesh.AllAreas))
+            agent.enabled = true;
+            if (agent.isOnNavMesh)
             {
-                farPos = hit.position;
+                agent.Warp(targetPos);
+                ResetVisualChildTransform();
+                ResetAgentPath();
             }
-            agent.Warp(farPos);
+            else
+            {
+                transform.position = targetPos;
+            }
+        }
+    }
+
+    public void ForceWarpNearPlayer(float dist = 11f)
+    {
+        if (player == null) return;
+
+        SetRenderersState(true);
+        if (agent != null && !agent.enabled)
+        {
+            agent.enabled = true;
+        }
+
+        // Priorizar teletransporte AL FRENTE (en el pasillo que mira el jugador) o a los lados, NUNCA a las espaldas
+        Vector3[] offsets = new Vector3[]
+        {
+            player.forward * dist,
+            player.forward * (dist * 0.75f),
+            player.right * (dist * 0.85f),
+            -player.right * (dist * 0.85f),
+            player.forward * (dist * 1.3f)
+        };
+
+        Vector3 chosenWarp = Vector3.zero;
+        foreach (Vector3 off in offsets)
+        {
+            Vector3 testPos = player.position + off;
+            Vector3 validPos;
+            if (IsValidWalkablePositionForPlayer(testPos, out validPos))
+            {
+                chosenWarp = validPos;
+                break;
+            }
+        }
+
+        if (chosenWarp == Vector3.zero)
+        {
+            Vector3 fallback = player.position + player.forward * 6.0f;
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(fallback, out hit, 6.0f, NavMesh.AllAreas))
+            {
+                chosenWarp = hit.position;
+            }
+        }
+
+        if (chosenWarp != Vector3.zero && agent != null)
+        {
+            if (agent.isOnNavMesh)
+            {
+                agent.Warp(chosenWarp);
+            }
+            else
+            {
+                transform.position = chosenWarp;
+                agent.enabled = true;
+                agent.Warp(chosenWarp);
+            }
             ResetVisualChildTransform();
             ResetAgentPath();
+            SetAgentDestination(player.position);
+            PlayJumpscareSting(1.0f);
+            Debug.Log($"[PhenomenonAIController] 👁️ Monster spawned IN FRONT OF PLAYER at {chosenWarp}");
         }
+    }
 
-        // Resincronizar Animator en la nueva posición
-        Animator childAnim = GetComponentInChildren<Animator>();
-        if (childAnim != null)
+    private void TeleportToDistantPatrolPoint()
+    {
+        if (patrolPoints == null || patrolPoints.Length == 0 || player == null) return;
+
+        // Buscar puntos de patrulla lejanos al jugador (más de 30 metros de distancia)
+        System.Collections.Generic.List<Vector3> farPoints = new System.Collections.Generic.List<Vector3>();
+        foreach (Transform pt in patrolPoints)
         {
-            childAnim.applyRootMotion = false;
-            
-            // Forzar las posiciones locales originales exactas almacenadas
-            if (childAnim.transform != transform && hasStoredInitialTransforms)
+            if (pt == null) continue;
+            if (SafeZoneTrigger.IsPositionInSafeZone(pt.position)) continue;
+
+            float dist = Vector3.Distance(player.position, pt.position);
+            if (dist > 30f)
             {
-                childAnim.transform.localPosition = initialChildLocalPosition;
-                childAnim.transform.localRotation = initialChildLocalRotation;
+                farPoints.Add(pt.position);
             }
-            
-            childAnim.Rebind();
-            childAnim.Update(0f);
         }
 
-        Debug.Log($"[PhenomenonAIController] Reposicionamiento de respawn completado en {farPos}. Gracia activa por {duration} segundos.");
+        Vector3 targetWarp = Vector3.zero;
+        if (farPoints.Count > 0)
+        {
+            targetWarp = farPoints[Random.Range(0, farPoints.Count)];
+        }
+        else
+        {
+            // Fallback: elegir el punto de patrulla más lejano
+            float maxDist = -1f;
+            foreach (Transform pt in patrolPoints)
+            {
+                if (pt == null) continue;
+                float dist = Vector3.Distance(player.position, pt.position);
+                if (dist > maxDist)
+                {
+                    maxDist = dist;
+                    targetWarp = pt.position;
+                }
+            }
+        }
 
-        yield return new WaitForSeconds(duration);
+        if (targetWarp != Vector3.zero)
+        {
+            if (agent != null)
+            {
+                if (agent.isOnNavMesh)
+                {
+                    agent.Warp(targetWarp);
+                }
+                else
+                {
+                    transform.position = targetWarp;
+                    agent.enabled = true;
+                    agent.Warp(targetWarp);
+                }
+            }
+            else
+            {
+                transform.position = targetWarp;
+            }
 
-        // Restaurar detección
-        detectionRange = 18f;
-        if (fov != null) fov.enabled = true;
-        Debug.Log("[PhenomenonAIController] Período de gracia finalizado. Detección y FOV reactivados.");
+            ResetVisualChildTransform();
+            ResetAgentPath();
+            MoveToNextPatrolPoint(); // Asignar nuevo destino inmediatamente
+            Debug.Log($"[PhenomenonAIController] 🌌 Teletransportado a patrulla lejana ({Vector3.Distance(player.position, targetWarp):F1}m) para evitar campeo.");
+        }
     }
 }

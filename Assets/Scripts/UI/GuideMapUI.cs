@@ -4,7 +4,7 @@ public class GuideMapUI : MonoBehaviour
 {
     public static GuideMapUI Instance { get; private set; }
 
-    public static bool hasGuideMap = false;
+    public static bool hasGuideMap = true;
     public static bool isOpen = false;
     private static float openTime = 0f;
 
@@ -17,7 +17,7 @@ public class GuideMapUI : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
-        hasGuideMap = false;
+        hasGuideMap = true;
         isOpen = false;
         openTime = 0f;
     }
@@ -285,51 +285,6 @@ public class GuideMapUI : MonoBehaviour
             }
 
             return;
-        }
-
-        // Si el jugador TIENE la guía pero no la tiene abierta, mostrar botón flotante compacto en el HUD
-        if (hasGuideMap && !isOpen)
-        {
-            float hudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
-            Matrix4x4 oldHudMat = GUI.matrix;
-            if (hudScale != 1.0f)
-            {
-                Vector2 pivot = new Vector2(25, 25);
-                GUIUtility.ScaleAroundPivot(new Vector2(hudScale, hudScale), pivot);
-            }
-
-            // Ubicar botón de la Guía en la esquina superior izquierda, al lado del botón de libreta/opciones
-            float btnSize = 46f;
-            Rect iconRect = new Rect(25f, 170f, btnSize, btnSize);
-
-            // Fondo semitransparente oscuro
-            GUI.color = new Color(0f, 0f, 0f, 0.65f);
-            GUI.DrawTexture(iconRect, Texture2D.whiteTexture);
-            GUI.color = Color.white;
-
-            GUIStyle iconBtnStyle = new GUIStyle(GUI.skin.button);
-            iconBtnStyle.normal.background = null;
-
-            if (GUI.Button(iconRect, GUIContent.none, iconBtnStyle))
-            {
-                OpenMap();
-            }
-
-            Texture2D iconTex = GetMapIconTexture();
-            if (iconTex != null)
-            {
-                GUI.DrawTexture(new Rect(iconRect.x + 3, iconRect.y + 3, iconRect.width - 6, iconRect.height - 6), iconTex, ScaleMode.ScaleToFit, true);
-            }
-
-            // Pequeña etiqueta "GUÍA" debajo
-            GUIStyle labelStyle = new GUIStyle(GUI.skin.label);
-            labelStyle.fontSize = 10;
-            labelStyle.fontStyle = FontStyle.Bold;
-            labelStyle.alignment = TextAnchor.MiddleCenter;
-            labelStyle.normal.textColor = new Color(0.9f, 0.8f, 0.4f);
-            GUI.Label(new Rect(iconRect.x - 5, iconRect.y + iconRect.height, iconRect.width + 10, 16), "GUÍA (M)", labelStyle);
-
-            GUI.matrix = oldHudMat;
         }
     }
 }

@@ -884,12 +884,119 @@ public class NotepadUIManager : MonoBehaviour
         }
     }
 
+    private static bool[,] GetFallbackTunnelsGridMatrix()
+    {
+        bool[,] grid = new bool[9, 9];
+        for (int x = 0; x < 9; x++)
+        {
+            for (int z = 0; z < 9; z++)
+            {
+                if (x == 0 || x == 8 || z == 0 || z == 8)
+                {
+                    grid[x, z] = false;
+                }
+                else
+                {
+                    grid[x, z] = (x % 2 == 0 || z % 2 == 0 || x == 4 || z == 4 || (x >= 2 && x <= 6 && z >= 2 && z <= 6));
+                }
+            }
+        }
+        return grid;
+    }
+
+    private bool IsTunnelsGridPath(bool[,] grid, int x, int z, int maxW, int maxH)
+    {
+        if (grid == null) return false;
+        int gW = grid.GetLength(0);
+        int gH = grid.GetLength(1);
+        if (x < 0 || x >= gW || z < 0 || z >= gH) return false;
+        if (x >= maxW || z >= maxH) return false;
+        return grid[x, z];
+    }
+
+    private static bool[,] cachedNavMeshGrid;
+    private static int cachedNavMeshSize = 10;
+    private static float lastNavMeshScanTime = -10f;
+    private static Vector3 navMeshBoundsCenter = Vector3.zero;
+    private static float navMeshBoundsRadius = 60f;
+
+    private static bool[,] GetDynamicNavMeshGrid(int gridSize = 10)
+    {
+        if (cachedNavMeshGrid != null && cachedNavMeshSize == gridSize && Time.time < lastNavMeshScanTime + 4.0f)
+        {
+            return cachedNavMeshGrid;
+        }
+
+        bool[,] grid = new bool[gridSize, gridSize];
+        cachedNavMeshSize = gridSize;
+        lastNavMeshScanTime = Time.time;
+
+        Vector3 center = Vector3.zero;
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player == null) player = GameObject.Find("PlayerMale");
+        if (player == null) player = GameObject.Find("PlayerFemale");
+
+        GameObject mapRoot = GameObject.Find("MapTunnels");
+        if (mapRoot == null) mapRoot = GameObject.Find("TunnelsMap");
+
+        if (mapRoot != null)
+        {
+            center = mapRoot.transform.position;
+        }
+        else if (player != null)
+        {
+            center = player.transform.position;
+        }
+
+        float radius = 75f;
+        navMeshBoundsCenter = center;
+        navMeshBoundsRadius = radius;
+
+        float stepX = (radius * 2f) / gridSize;
+        float stepZ = (radius * 2f) / gridSize;
+
+        float startX = center.x - radius + (stepX / 2f);
+        float startZ = center.z - radius + (stepZ / 2f);
+
+        for (int x = 0; x < gridSize; x++)
+        {
+            for (int z = 0; z < gridSize; z++)
+            {
+                Vector3 testPos = new Vector3(startX + x * stepX, center.y + 0.5f, startZ + z * stepZ);
+
+                UnityEngine.AI.NavMeshHit hit;
+                bool isWalkable = UnityEngine.AI.NavMesh.SamplePosition(testPos, out hit, stepX * 0.75f, UnityEngine.AI.NavMesh.AllAreas);
+
+                grid[x, z] = isWalkable;
+            }
+        }
+
+        cachedNavMeshGrid = grid;
+        return grid;
+    }
+
     private void RenderTunnelsMapTab(Rect padRect, TunnelsGenerator tunnelsGen)
     {
-        if (tunnelsGen == null || tunnelsGen.grid == null) return;
+        bool[,] effectiveGrid = null;
+        int sX = 10;
+        int sZ = 10;
 
-        int sX = tunnelsGen.width;
-        int sZ = tunnelsGen.height;
+        if (tunnelsGen != null && tunnelsGen.grid != null)
+        {
+            int gridW = tunnelsGen.grid.GetLength(0);
+            int gridH = tunnelsGen.grid.GetLength(1);
+            sX = Mathf.Min(tunnelsGen.width, gridW);
+            sZ = Mathf.Min(tunnelsGen.height, gridH);
+            effectiveGrid = tunnelsGen.grid;
+        }
+        else
+        {
+            effectiveGrid = GetDynamicNavMeshGrid(10);
+            sX = 10;
+            sZ = 10;
+        }
+
+        if (effectiveGrid == null || sX <= 0 || sZ <= 0) return;
 
         float mapBoxSize = 255f;
         float cellW = mapBoxSize / sX;
@@ -899,31 +1006,7 @@ public class NotepadUIManager : MonoBehaviour
 
         if (playerTransform == null) FindPlayer();
 
-        int pGX = -1;
-        int pGZ = -1;
-        if (playerTransform != null)
-        {
-            float segLen = tunnelsGen.segmentLength * tunnelsGen.mapScale;
-            Vector3 pLocal = playerTransform.position - tunnelsGen.transform.position;
-            pGX = Mathf.Clamp(Mathf.RoundToInt(pLocal.x / segLen), 0, sX - 1);
-            pGZ = Mathf.Clamp(Mathf.RoundToInt(pLocal.z / segLen), 0, sZ - 1);
-
-            // Revelar celdas al explorar por proximidad (Radio 1 casilla)
-            for (int dx = -1; dx <= 1; dx++)
-            {
-                for (int dz = -1; dz <= 1; dz++)
-                {
-                    int cx = pGX + dx;
-                    int cz = pGZ + dz;
-                    if (cx >= 0 && cx < sX && cz >= 0 && cz < sZ)
-                    {
-                        discoveredRooms.Add(new Vector2Int(cx, cz));
-                    }
-                }
-            }
-        }
-
-        // ROSA DE LOS VIENTOS
+        // 1. ROSA DE LOS VIENTOS
         Rect compassRect = new Rect(padRect.x + padRect.width - 45f, padRect.y + 60f, 32f, 32f);
         GUI.color = new Color(0.94f, 0.93f, 0.85f, 0.95f);
         GUI.DrawTexture(compassRect, Texture2D.whiteTexture);
@@ -948,7 +1031,7 @@ public class NotepadUIManager : MonoBehaviour
         GUI.Label(new Rect(compassRect.x + 1, compassRect.y + 10, 10, 11), "O", dirStyle);
         GUI.color = Color.white;
 
-        // MARCO DEL PLANO (ESTILO PERGAMINO HOSPITAL)
+        // 2. MARCO DEL PLANO
         Rect mapBgRect = new Rect(startMapX - 4, startMapY - 4, mapBoxSize + 8, mapBoxSize + 8);
         GUI.color = new Color(0.93f, 0.92f, 0.85f, 1f);
         GUI.DrawTexture(mapBgRect, Texture2D.whiteTexture);
@@ -956,17 +1039,16 @@ public class NotepadUIManager : MonoBehaviour
         GUI.Box(mapBgRect, "");
         GUI.color = Color.white;
 
-        // PASTILLAS DE COORDENADAS EJE X (NÚMEROS 01 A 09)
-        int numPillsX = 9;
-        float pillW_X = mapBoxSize / numPillsX;
+        // 3. PASTILLAS DE COORDENADAS EJE X (NÚMEROS 01 A 10)
+        float pillW_X = mapBoxSize / sX;
 
         GUIStyle coordPillStyle = new GUIStyle();
-        coordPillStyle.fontSize = 9;
+        coordPillStyle.fontSize = 8;
         coordPillStyle.fontStyle = FontStyle.Bold;
         coordPillStyle.alignment = TextAnchor.MiddleCenter;
         coordPillStyle.normal.textColor = new Color(0.15f, 0.15f, 0.15f, 0.95f);
 
-        for (int i = 0; i < numPillsX; i++)
+        for (int i = 0; i < sX; i++)
         {
             float cx = startMapX + i * pillW_X;
             Rect pillRect = new Rect(cx + 0.5f, startMapY - 18f, pillW_X - 1f, 15f);
@@ -981,13 +1063,12 @@ public class NotepadUIManager : MonoBehaviour
             GUI.Label(pillRect, numStr, coordPillStyle);
         }
 
-        // PASTILLAS DE COORDENADAS EJE Z (NÚMEROS 01 A 09 IZQUIERDA)
-        int numPillsZ = 9;
-        float pillH_Z = mapBoxSize / numPillsZ;
+        // PASTILLAS DE COORDENADAS EJE Z (NÚMEROS 01 A 10 IZQUIERDA)
+        float pillH_Z = mapBoxSize / sZ;
 
-        for (int i = 0; i < numPillsZ; i++)
+        for (int i = 0; i < sZ; i++)
         {
-            float ry = startMapY + (numPillsZ - 1 - i) * pillH_Z;
+            float ry = startMapY + (sZ - 1 - i) * pillH_Z;
             Rect pillRect = new Rect(startMapX - 22f, ry + 0.5f, 18f, pillH_Z - 1f);
             GUI.color = new Color(0.88f, 0.87f, 0.78f, 0.95f);
             GUI.DrawTexture(pillRect, Texture2D.whiteTexture);
@@ -1000,102 +1081,138 @@ public class NotepadUIManager : MonoBehaviour
             GUI.Label(pillRect, numStr, coordPillStyle);
         }
 
-        // LÍNEAS DE CUADRÍCULA DEL PLANO
-        GUI.color = new Color(0.3f, 0.3f, 0.3f, 0.18f);
-        for (int x = 1; x < sX; x++)
-        {
-            float lx = startMapX + x * cellW;
-            GUI.DrawTexture(new Rect(lx, startMapY, 1f, mapBoxSize), Texture2D.whiteTexture);
-        }
-        for (int z = 1; z < sZ; z++)
-        {
-            float ly = startMapY + z * cellH;
-            GUI.DrawTexture(new Rect(startMapX, ly, mapBoxSize, 1f), Texture2D.whiteTexture);
-        }
-        GUI.color = Color.white;
-
-        // MATRIZ DE MUROS Y PASILLOS (ESTILO LIMPIO MAPA HOSPITAL)
+        // 4. DIBUJAR LA MATRIZ DE NAVMESH DEDUCIDA (PASILLOS VS MUROS)
         for (int x = 0; x < sX; x++)
         {
             for (int z = 0; z < sZ; z++)
             {
-                bool isPath = tunnelsGen.grid[x, z];
+                bool isPath = IsTunnelsGridPath(effectiveGrid, x, z, sX, sZ);
                 float rx = startMapX + x * cellW;
                 float ry = startMapY + (sZ - 1 - z) * cellH;
                 Rect cellRect = new Rect(rx, ry, cellW, cellH);
 
-                bool isDiscovered = discoveredRooms.Contains(new Vector2Int(x, z));
-
-                if (!isPath) // Muro macizo (Bloque oscuro suave sin bisel pesado)
+                if (!isPath) // Muro macizo / Sin NavMesh
                 {
-                    GUI.color = new Color(0.24f, 0.25f, 0.27f, 0.95f);
+                    GUI.color = new Color(0.22f, 0.23f, 0.25f, 0.95f);
                     GUI.DrawTexture(cellRect, Texture2D.whiteTexture);
                 }
-                else // Pasillo de túnel
+                else // Pasillo de túnel con NavMesh caminable
                 {
-                    if (isDiscovered)
-                    {
-                        // Pasillo descubierto (Papel pergamino claro idéntico al hospital)
-                        GUI.color = new Color(0.92f, 0.89f, 0.80f, 0.95f);
-                        GUI.DrawTexture(cellRect, Texture2D.whiteTexture);
-                    }
-                    else
-                    {
-                        // Pasillo sin descubrir (Tono de niebla)
-                        GUI.color = new Color(0.65f, 0.62f, 0.55f, 0.75f);
-                        GUI.DrawTexture(cellRect, Texture2D.whiteTexture);
-                    }
+                    GUI.color = new Color(0.92f, 0.89f, 0.80f, 0.95f);
+                    GUI.DrawTexture(cellRect, Texture2D.whiteTexture);
                 }
                 GUI.color = Color.white;
             }
         }
 
-        // BORDES NEGROS Y PAREDES INTERIORES DE PASILLOS
+        // BORDES Y LINEAS DE BARRERA EN EL PLANO
         for (int x = 0; x < sX; x++)
         {
             for (int z = 0; z < sZ; z++)
             {
-                if (!tunnelsGen.grid[x, z]) continue;
+                if (!IsTunnelsGridPath(effectiveGrid, x, z, sX, sZ)) continue;
 
                 float rx = startMapX + x * cellW;
                 float ry = startMapY + (sZ - 1 - z) * cellH;
 
                 GUI.color = new Color(0.15f, 0.15f, 0.15f, 0.9f);
 
-                if (z + 1 >= sZ || !tunnelsGen.grid[x, z + 1])
+                if (!IsTunnelsGridPath(effectiveGrid, x, z + 1, sX, sZ))
                     GUI.DrawTexture(new Rect(rx, ry, cellW, 1.5f), Texture2D.whiteTexture);
 
-                if (z - 1 < 0 || !tunnelsGen.grid[x, z - 1])
+                if (!IsTunnelsGridPath(effectiveGrid, x, z - 1, sX, sZ))
                     GUI.DrawTexture(new Rect(rx, ry + cellH - 1.5f, cellW, 1.5f), Texture2D.whiteTexture);
 
-                if (x - 1 < 0 || !tunnelsGen.grid[x - 1, z])
+                if (!IsTunnelsGridPath(effectiveGrid, x - 1, z, sX, sZ))
                     GUI.DrawTexture(new Rect(rx, ry, 1.5f, cellH), Texture2D.whiteTexture);
 
-                if (x + 1 >= sX || !tunnelsGen.grid[x + 1, z])
+                if (!IsTunnelsGridPath(effectiveGrid, x + 1, z, sX, sZ))
                     GUI.DrawTexture(new Rect(rx + cellW - 1.5f, ry, 1.5f, cellH), Texture2D.whiteTexture);
 
                 GUI.color = Color.white;
             }
         }
 
-        // MARCADOR DE POSICIÓN DEL JUGADOR ("TÚ")
-        if (showPlayerPositionOnMap && pGX >= 0 && pGZ >= 0)
+        // 5. DIBUJAR SUBGENERADORES (A, B, C) EN EL PLANO
+        SubGenerator[] subGens = FindObjectsByType<SubGenerator>(FindObjectsSortMode.None);
+        foreach (var sub in subGens)
         {
-            float prx = startMapX + pGX * cellW;
-            float pry = startMapY + (sZ - 1 - pGZ) * cellH;
-            Rect pRect = new Rect(prx, pry, cellW, cellH);
+            if (sub == null) continue;
 
-            float blinkAlpha = 0.85f + Mathf.PingPong(Time.time * 4f, 0.15f);
-            GUI.color = new Color(0.85f, 0.15f, 0.1f, blinkAlpha);
-            GUI.DrawTexture(pRect, Texture2D.whiteTexture);
+            int sgX = -1;
+            int sgZ = -1;
+            if (tunnelsGen != null)
+            {
+                float segLen = tunnelsGen.segmentLength * tunnelsGen.mapScale;
+                Vector3 sLocal = sub.transform.position - tunnelsGen.transform.position;
+                sgX = Mathf.Clamp(Mathf.RoundToInt(sLocal.x / segLen), 0, sX - 1);
+                sgZ = Mathf.Clamp(Mathf.RoundToInt(sLocal.z / segLen), 0, sZ - 1);
+            }
+            else
+            {
+                float normX = Mathf.InverseLerp(navMeshBoundsCenter.x - navMeshBoundsRadius, navMeshBoundsCenter.x + navMeshBoundsRadius, sub.transform.position.x);
+                float normZ = Mathf.InverseLerp(navMeshBoundsCenter.z - navMeshBoundsRadius, navMeshBoundsCenter.z + navMeshBoundsRadius, sub.transform.position.z);
+                sgX = Mathf.Clamp(Mathf.FloorToInt(normX * sX), 0, sX - 1);
+                sgZ = Mathf.Clamp(Mathf.FloorToInt(normZ * sZ), 0, sZ - 1);
+            }
 
-            GUIStyle pTagStyle = new GUIStyle();
-            pTagStyle.fontSize = 8;
-            pTagStyle.fontStyle = FontStyle.Bold;
-            pTagStyle.alignment = TextAnchor.MiddleCenter;
-            pTagStyle.normal.textColor = Color.white;
-            GUI.Label(pRect, "TÚ", pTagStyle);
-            GUI.color = Color.white;
+            if (sgX >= 0 && sgX < sX && sgZ >= 0 && sgZ < sZ)
+            {
+                float srx = startMapX + sgX * cellW;
+                float sry = startMapY + (sZ - 1 - sgZ) * cellH;
+                Rect sgRect = new Rect(srx + 1f, sry + 1f, cellW - 2f, cellH - 2f);
+
+                GUI.color = sub.isOn ? new Color(0.2f, 0.9f, 0.3f, 0.95f) : new Color(0.9f, 0.2f, 0.2f, 0.95f);
+                GUI.DrawTexture(sgRect, Texture2D.whiteTexture);
+
+                GUIStyle subStyle = new GUIStyle();
+                subStyle.fontSize = 8;
+                subStyle.fontStyle = FontStyle.Bold;
+                subStyle.alignment = TextAnchor.MiddleCenter;
+                subStyle.normal.textColor = Color.white;
+                GUI.Label(sgRect, sub.subgeneratorLetter, subStyle);
+                GUI.color = Color.white;
+            }
+        }
+
+        // 6. DIBUJAR MARCADOR TITILANTE DEL JUGADOR ("TÚ")
+        if (playerTransform != null && showPlayerPositionOnMap)
+        {
+            int pGX = -1;
+            int pGZ = -1;
+            if (tunnelsGen != null)
+            {
+                float segLen = tunnelsGen.segmentLength * tunnelsGen.mapScale;
+                Vector3 pLocal = playerTransform.position - tunnelsGen.transform.position;
+                pGX = Mathf.Clamp(Mathf.RoundToInt(pLocal.x / segLen), 0, sX - 1);
+                pGZ = Mathf.Clamp(Mathf.RoundToInt(pLocal.z / segLen), 0, sZ - 1);
+            }
+            else
+            {
+                float normX = Mathf.InverseLerp(navMeshBoundsCenter.x - navMeshBoundsRadius, navMeshBoundsCenter.x + navMeshBoundsRadius, playerTransform.position.x);
+                float normZ = Mathf.InverseLerp(navMeshBoundsCenter.z - navMeshBoundsRadius, navMeshBoundsCenter.z + navMeshBoundsRadius, playerTransform.position.z);
+                pGX = Mathf.Clamp(Mathf.FloorToInt(normX * sX), 0, sX - 1);
+                pGZ = Mathf.Clamp(Mathf.FloorToInt(normZ * sZ), 0, sZ - 1);
+            }
+
+            if (pGX >= 0 && pGX < sX && pGZ >= 0 && pGZ < sZ)
+            {
+                float prx = startMapX + pGX * cellW;
+                float pry = startMapY + (sZ - 1 - pGZ) * cellH;
+                Rect pRect = new Rect(prx + 1f, pry + 1f, cellW - 2f, cellH - 2f);
+
+                float blinkAlpha = 0.85f + Mathf.PingPong(Time.time * 4f, 0.15f);
+                GUI.color = new Color(0.85f, 0.15f, 0.1f, blinkAlpha);
+                GUI.DrawTexture(pRect, Texture2D.whiteTexture);
+
+                GUIStyle pTagStyle = new GUIStyle();
+                pTagStyle.fontSize = 8;
+                pTagStyle.fontStyle = FontStyle.Bold;
+                pTagStyle.alignment = TextAnchor.MiddleCenter;
+                pTagStyle.normal.textColor = Color.white;
+                GUI.Label(pRect, "TÚ", pTagStyle);
+                GUI.color = Color.white;
+            }
         }
     }
 

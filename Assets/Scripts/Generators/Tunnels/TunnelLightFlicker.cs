@@ -66,10 +66,9 @@ public class TunnelLightFlicker : MonoBehaviour
         // 3. Crear AudioSource 3D para el sonido de fallo de luz
         audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.spatialBlend = 1.0f; // Sonido 3D
-        audioSource.minDistance = 3.0f;
-        audioSource.maxDistance = 15.0f;
-        audioSource.loop = true;
-        audioSource.volume = 0.5f;
+        audioSource.minDistance = 1.0f;
+        audioSource.maxDistance = 6.0f;
+        audioSource.volume = 0.25f;
 
         // Cargar el sonido desde Resources
         flickerSound = Resources.Load<AudioClip>("Audio/Hospital/ErrorLightSound");

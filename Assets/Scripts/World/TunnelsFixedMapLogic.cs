@@ -4,17 +4,9 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 
-/// <summary>
-/// Controlador principal del Mapa Manual de Túneles.
-/// Selecciona aleatoriamente por partida:
-/// - 3 Subgeneradores (y desactiva el resto)
-/// - 1 Consola de Bombeo de Agua (y desactiva el resto)
-/// - 1 Escotilla de Escape (y desactiva el resto)
-/// Reproduce la música de ambiente de los túneles y configura los sonidos de fallo en las luces.
-/// </summary>
-public partial class TunnelsGenerator : MonoBehaviour
+public class TunnelsFixedMapLogic : MonoBehaviour
 {
-    public static TunnelsGenerator Instance { get; private set; }
+    public static TunnelsFixedMapLogic Instance { get; private set; }
 
     public enum EscapeState
     {
@@ -26,38 +18,23 @@ public partial class TunnelsGenerator : MonoBehaviour
     public static EscapeState escapeState = EscapeState.Idle;
     public static Vector3 worldExitPointPos = Vector3.zero;
 
-    private Texture2D alarmBgTex;
-    private Texture2D alarmBorderTex;
-    private Texture2D alarmProgressTex;
-    private Texture2D progressRemainingTex;
-    private Texture2D fadeBlackTex;
+    [Header("Configuración del Mapa de Túneles Manual")]
+    public float drainageDuration = 45.0f;
+    public float mapScale = 1.0f;
+
+    [Header("Referencias de Entidades")]
+    public Transform pointStartRespawn;
+    public GameObject waterPlaneObj;
 
     [Header("Pruebas / Debug")]
     [Tooltip("Activar automáticamente los 3 subgeneradores al iniciar la partida para pruebas")]
     public bool autoActivateAllGenerators = false;
 
-    [Header("Configuración del Mapa Manual de Túneles")]
-    [Tooltip("Duración del evento de drenaje de agua en segundos")]
-    public float drainageDuration = 45.0f;
-
-    [Tooltip("Escala del mapa (por defecto 1.0)")]
-    public float mapScale = 1.0f;
-
-    [Header("Referencias Opcionales")]
-    [Tooltip("Punto de spawn inicial del jugador")]
-    public Transform pointStartRespawn;
-
-    [Tooltip("Plano de agua global del mapa")]
-    public GameObject waterPlaneObj;
-
-    // ─── CAMPOS DE COMPATIBILIDAD CON SCRIPTS DE ESCENA ───
-    [HideInInspector] public int width = 15;
-    [HideInInspector] public int height = 15;
-    [HideInInspector] public float segmentLength = 2.8f;
-    [HideInInspector] public bool[,] grid = new bool[1, 1];
-    [HideInInspector] public float playerSpawnCellSize = 2.8f;
-    [HideInInspector] public int playerSpawnGridX = 0;
-    [HideInInspector] public int playerSpawnGridZ = 0;
+    private Texture2D alarmBgTex;
+    private Texture2D alarmBorderTex;
+    private Texture2D alarmProgressTex;
+    private Texture2D progressRemainingTex;
+    private Texture2D fadeBlackTex;
 
     private List<SubGenerator> activeSubGenerators = new List<SubGenerator>();
     private int activatedSubGenCount = 0;
@@ -88,52 +65,34 @@ public partial class TunnelsGenerator : MonoBehaviour
         Instance = this;
         escapeState = EscapeState.Idle;
         worldExitPointPos = Vector3.zero;
-        grid = new bool[1, 1];
         exitReached = false;
     }
 
     private void Start()
     {
-        InitManualTunnelsMap();
+        SetupFixedTunnelsMap();
     }
 
-    public void InitManualTunnelsMap()
+    public void SetupFixedTunnelsMap()
     {
-        Debug.Log("[TunnelsGenerator] 🛠️ Inicializando controlador de mapa manual de túneles...");
+        Debug.Log("[TunnelsFixedMapLogic] 🛠️ Inicializando mapa manual de túneles...");
         escapeState = EscapeState.Idle;
 
-        // 1. Configurar spawn del jugador
-        SetupPlayerSpawn();
-
-        // 2. Seleccionar 3 Subgeneradores aleatorios (y desactivar el resto)
+        SetupPlayerAndSpawn();
         SetupRandomSubgenerators();
-
-        // 3. Seleccionar 1 Consola de Bombeo aleatoria (y desactivar el resto)
         SetupRandomWaterPumpConsole();
-
-        // 4. Seleccionar 1 Escotilla de Salida aleatoria (y desactivar el resto)
         SetupRandomEscapeHatch();
-
-        // 5. Configurar Plano de Agua e Inundación
         SetupWaterPlane();
-
-        // 6. Configurar Música de Ambiente y Sonidos de Luces Fallando
         SetupAmbientMusicAndFlickerLights();
-
-        // 7. Configurar Notas de Lore y Pilas
         SetupLoreNotesAndBatteries();
-
-        // 8. Configurar Monstruo (The Phenomenon)
         SetupPhenomenonMonster();
         
-        // 9. Configurar Sonidos Ambientales Optimizados (Chispas y Goteras)
         gameObject.AddComponent<TunnelsAmbientAudioManager>();
 
-        // 10. Disparar monólogo inicial
         LevelIntroData.TriggerStartMonologue("tunnels");
     }
 
-    private void SetupPlayerSpawn()
+    private void SetupPlayerAndSpawn()
     {
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player == null) player = GameObject.Find("PlayerMale");
@@ -166,9 +125,8 @@ public partial class TunnelsGenerator : MonoBehaviour
 
         if (player != null)
         {
-            // Raycast hacia abajo para colocar al jugador al ras del suelo
             RaycastHit floorHit;
-            if (Physics.Raycast(spawnPos + Vector3.up * 2.0f, Vector3.down, out floorHit, 10.0f))
+            if (Physics.Raycast(spawnPos + Vector3.up * 1.5f, Vector3.down, out floorHit, 5.0f))
             {
                 spawnPos.y = floorHit.point.y;
             }
@@ -191,9 +149,6 @@ public partial class TunnelsGenerator : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Busca recursivamente objetos candidatos por palabra clave excluyendo carpetas contenedoras vacías.
-    /// </summary>
     private List<GameObject> FindCandidateObjects(params string[] keywords)
     {
         List<GameObject> candidates = new List<GameObject>();
@@ -205,7 +160,6 @@ public partial class TunnelsGenerator : MonoBehaviour
 
             string nLower = obj.name.ToLower();
 
-            // Excluir carpetas padre contenedoras principales que tengan más de un hijo
             if ((nLower == "generatorts" || nLower == "generators" || nLower == "pump" || nLower == "escape_hatch") && obj.transform.childCount > 0)
             {
                 continue;
@@ -232,11 +186,10 @@ public partial class TunnelsGenerator : MonoBehaviour
         activatedSubGenCount = 0;
 
         List<GameObject> candidates = FindCandidateObjects("Subgenerator", "SubGenerator");
-        Debug.Log($"[TunnelsGenerator] ⚡ Se encontraron {candidates.Count} objetos candidatos de Subgenerador.");
+        Debug.Log($"[TunnelsFixedMapLogic] Se encontraron {candidates.Count} Subgeneradores candidatos.");
 
         if (candidates.Count == 0) return;
 
-        // Mezclar aleatoriamente la lista de subgeneradores
         for (int i = 0; i < candidates.Count; i++)
         {
             int rnd = Random.Range(i, candidates.Count);
@@ -245,7 +198,6 @@ public partial class TunnelsGenerator : MonoBehaviour
             candidates[rnd] = temp;
         }
 
-        // Elegir exactamente 3 activos por partida
         int activeCount = Mathf.Min(3, candidates.Count);
         string[] letters = new string[] { "A", "B", "C" };
 
@@ -261,7 +213,7 @@ public partial class TunnelsGenerator : MonoBehaviour
                 subComp.subgeneratorLetter = letters[i];
                 subComp.isOn = autoActivateAllGenerators;
                 activeSubGenerators.Add(subComp);
-                Debug.Log($"[TunnelsGenerator] ⚡ Subgenerador '{letters[i]}' ACTIVADO (Encendido: {autoActivateAllGenerators}) en la partida pos={sObj.transform.position}");
+                Debug.Log($"[TunnelsFixedMapLogic] Subgenerador '{letters[i]}' activo (Encendido: {autoActivateAllGenerators}) en {sObj.transform.position}");
             }
             else
             {
@@ -272,18 +224,18 @@ public partial class TunnelsGenerator : MonoBehaviour
         if (autoActivateAllGenerators)
         {
             activatedSubGenCount = activeCount;
-            Debug.Log("[TunnelsGenerator] ⚡ PRUEBAS: Todos los subgeneradores se activaron automáticamente al iniciar.");
+            Debug.Log("[TunnelsFixedMapLogic] ⚡ PRUEBAS: Todos los subgeneradores se activaron automáticamente al iniciar.");
         }
     }
 
     public void OnSubGeneratorTurnedOn(SubGenerator subGen)
     {
         activatedSubGenCount++;
-        Debug.Log($"[TunnelsGenerator] ⚡ Subgenerador {subGen.generatorName} activado. ({activatedSubGenCount}/3)");
+        Debug.Log($"[TunnelsFixedMapLogic] ⚡ Subgenerador {subGen.generatorName} encendido. ({activatedSubGenCount}/3)");
 
         if (activatedSubGenCount >= 3)
         {
-            Debug.Log("[TunnelsGenerator] 💧 ¡Los 3 subgeneradores están activos! Consola de bombeo energizada.");
+            Debug.Log("[TunnelsFixedMapLogic] 💧 ¡Los 3 subgeneradores están activos! Consola de bombeo habilitada.");
             PlayerMonologueManager.ShowDialogue(LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("monologue_subgens_complete") : "¡Energía reactivada! La consola de bombeo ya puede presurizarse.", 5.0f);
         }
     }
@@ -291,7 +243,7 @@ public partial class TunnelsGenerator : MonoBehaviour
     private void SetupRandomWaterPumpConsole()
     {
         List<GameObject> candidates = FindCandidateObjects("Water_Pump_Console", "WaterPumpConsole", "PumpConsole");
-        Debug.Log($"[TunnelsGenerator] 🎛️ Se encontraron {candidates.Count} Consolas de Bombeo candidatos en el mapa.");
+        Debug.Log($"[TunnelsFixedMapLogic] Se encontraron {candidates.Count} Consolas de Bombeo candidatas.");
 
         if (candidates.Count == 0) return;
 
@@ -302,7 +254,7 @@ public partial class TunnelsGenerator : MonoBehaviour
             {
                 activeConsoleObj = candidates[i];
                 activeConsoleObj.SetActive(true);
-                Debug.Log($"[TunnelsGenerator] 🎛️ Consola de Bombeo ACTIVA elegida en {activeConsoleObj.transform.position}");
+                Debug.Log($"[TunnelsFixedMapLogic] Consola de Bombeo activa en {activeConsoleObj.transform.position}");
             }
             else
             {
@@ -313,20 +265,16 @@ public partial class TunnelsGenerator : MonoBehaviour
 
     private void SetupRandomEscapeHatch()
     {
-        // 1. Asegurar que el objeto o carpeta contenedora ("Escape_Hatch" / "EscapeTrampilla") esté SIEMPRE activo
         GameObject containerObj = GameObject.Find("Escape_Hatch");
         if (containerObj == null) containerObj = GameObject.Find("EscapeTrampilla");
         if (containerObj != null) containerObj.SetActive(true);
 
-        // 2. Buscar únicamente los objetos escotilla individuales (hijos)
         List<GameObject> candidates = new List<GameObject>();
         GameObject[] allObjects = FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
         foreach (var obj in allObjects)
         {
             if (obj == null) continue;
-            
-            // Ignorar carpetas contenedoras con más de 0 hijos
             if (obj.transform.childCount > 0 && (obj.name.ToLower() == "escape_hatch" || obj.name.ToLower() == "escapetrampilla"))
             {
                 obj.SetActive(true);
@@ -352,11 +300,10 @@ public partial class TunnelsGenerator : MonoBehaviour
             }
         }
 
-        Debug.Log($"[TunnelsGenerator] 🚪 Se encontraron {candidates.Count} Escotillas de Escape candidatas en el mapa.");
+        Debug.Log($"[TunnelsFixedMapLogic] 🚪 Se encontraron {candidates.Count} Escotillas candidatas.");
 
         if (candidates.Count == 0) return;
 
-        // Mezclar y elegir exactamente 1 escotilla activa por partida
         int chosenIndex = Random.Range(0, candidates.Count);
         for (int i = 0; i < candidates.Count; i++)
         {
@@ -365,7 +312,6 @@ public partial class TunnelsGenerator : MonoBehaviour
                 activeHatchObj = candidates[i];
                 activeHatchObj.SetActive(true);
 
-                // Asegurar que toda su cadena de padres esté activa
                 Transform curr = activeHatchObj.transform.parent;
                 while (curr != null)
                 {
@@ -374,7 +320,7 @@ public partial class TunnelsGenerator : MonoBehaviour
                 }
 
                 worldExitPointPos = activeHatchObj.transform.position;
-                Debug.Log($"[TunnelsGenerator] 🚪 Escotilla de Salida ACTIVA en {worldExitPointPos}");
+                Debug.Log($"[TunnelsFixedMapLogic] 🚪 Escotilla de Salida activa en {worldExitPointPos}");
             }
             else
             {
@@ -405,7 +351,6 @@ public partial class TunnelsGenerator : MonoBehaviour
             bc.size = new Vector3(1f, 1f, 0.2f);
         }
 
-        // Aumentar la escala a 800m x 800m para cubrir completamente cualquier mapa manual gigante
         waterPlaneObj.transform.localScale = new Vector3(800f, 800f, 1f);
 
         float floorY = 0f;
@@ -461,12 +406,11 @@ public partial class TunnelsGenerator : MonoBehaviour
 
     private void SetupAmbientMusicAndFlickerLights()
     {
-        // 1. Música de Ambiente de los Túneles (1 solo AudioSource 2D global)
         if (ambientMusicSource == null)
         {
             ambientMusicSource = gameObject.AddComponent<AudioSource>();
             ambientMusicSource.loop = true;
-            ambientMusicSource.spatialBlend = 0f; // 2D global
+            ambientMusicSource.spatialBlend = 0f;
             ambientMusicSource.volume = 0.40f;
 
             AudioClip musicClip = Resources.Load<AudioClip>("Audio/Tuneles/AmbienteTunel");
@@ -475,11 +419,9 @@ public partial class TunnelsGenerator : MonoBehaviour
             {
                 ambientMusicSource.clip = musicClip;
                 ambientMusicSource.Play();
-                Debug.Log("[TunnelsGenerator] 🎵 Música de ambiente 'AmbienteTunel' iniciada.");
             }
         }
 
-        // 2. Seleccionar SOLO 3 a 4 lámparas aleatorias para parpadear y sonar (evita caída de FPS y saturación de sonido)
         List<GameObject> allLampObjs = new List<GameObject>();
         GameObject[] allObjs = FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
@@ -494,7 +436,6 @@ public partial class TunnelsGenerator : MonoBehaviour
             }
         }
 
-        // Mezclar lámparas aleatoriamente
         for (int i = 0; i < allLampObjs.Count; i++)
         {
             int rnd = Random.Range(i, allLampObjs.Count);
@@ -512,12 +453,7 @@ public partial class TunnelsGenerator : MonoBehaviour
             }
         }
 
-        Debug.Log($"[TunnelsGenerator] 💡 Rendimiento optimizado: {flickerLimit} de {allLampObjs.Count} lámparas configuradas con fallos de parpadeo y audio 3D.");
-
-        // 3. Configurar Triggers de Zona Segura ("Safe")
         SafeZoneTrigger.ResetSafety();
-        int safeTriggersConfigured = 0;
-
         foreach (var obj in allObjs)
         {
             if (obj == null) continue;
@@ -531,12 +467,9 @@ public partial class TunnelsGenerator : MonoBehaviour
                 if (obj.GetComponent<SafeZoneTrigger>() == null)
                 {
                     obj.AddComponent<SafeZoneTrigger>();
-                    safeTriggersConfigured++;
                 }
             }
         }
-
-        Debug.Log($"[TunnelsGenerator] 🛡️ Configurados {safeTriggersConfigured} Triggers de Zona Segura ('Safe').");
     }
 
     private void SetupLoreNotesAndBatteries()
@@ -577,7 +510,6 @@ public partial class TunnelsGenerator : MonoBehaviour
         if (phenomenon != null)
         {
             phenomenon.detectionRange = 15.0f;
-            Debug.Log("[TunnelsGenerator] 👻 ¡The Phenomenon activado tras período de gracia!");
         }
     }
 
@@ -652,8 +584,6 @@ public partial class TunnelsGenerator : MonoBehaviour
         escapeState = EscapeState.Draining;
         currentDrainageTime = drainageDuration;
 
-        Debug.Log("[TunnelsGenerator] 💧 Evacuación de agua iniciada (45s)...");
-
         // 1. Sonido de impacto inicial
         AudioClip impactClip = Resources.Load<AudioClip>("Audio/Tuneles/Apagon_Sonido");
         if (impactClip == null) impactClip = Resources.Load<AudioClip>("Apagon_Sonido");
@@ -679,7 +609,6 @@ public partial class TunnelsGenerator : MonoBehaviour
     private void FinishDrainage()
     {
         escapeState = EscapeState.Ready;
-        Debug.Log("[TunnelsGenerator] 🟢 Drenaje completado. Escotilla abierta.");
 
         if (pumpAudioSource != null) pumpAudioSource.Stop();
 
@@ -691,6 +620,7 @@ public partial class TunnelsGenerator : MonoBehaviour
             AudioSource.PlayClipAtPoint(successClip, activeConsoleObj.transform.position, 1.0f);
         }
 
+        // 2. Apagar MeshRenderer y BoxCollider y reposicionar a -500 Y el waterPlaneObj al finalizar el drenaje
         if (waterPlaneObj != null)
         {
             var mr = waterPlaneObj.GetComponent<MeshRenderer>();
@@ -760,7 +690,7 @@ public partial class TunnelsGenerator : MonoBehaviour
                     m.enabled = false;
                 }
 
-                StartCoroutine(HandleVictorySequence());
+                StartCoroutine(HandleVictory());
             }
         }
         else
@@ -769,7 +699,7 @@ public partial class TunnelsGenerator : MonoBehaviour
         }
     }
 
-    private IEnumerator HandleVictorySequence()
+    private IEnumerator HandleVictory()
     {
         float elapsed = 0f;
         float duration = 1.5f;
@@ -1083,19 +1013,6 @@ public partial class TunnelsGenerator : MonoBehaviour
         }
     }
 
-    private Texture2D MakeTex(int width, int height, Color col)
-    {
-        Color[] array = new Color[width * height];
-        for (int i = 0; i < array.Length; i++)
-        {
-            array[i] = col;
-        }
-        Texture2D texture2D = new Texture2D(width, height);
-        texture2D.SetPixels(array);
-        texture2D.Apply();
-        return texture2D;
-    }
-
     private void DrawPrompt(string text, float progress = -1f)
     {
         GUIStyle style = new GUIStyle();
@@ -1133,6 +1050,19 @@ public partial class TunnelsGenerator : MonoBehaviour
 
             GUI.color = Color.white;
         }
+    }
+
+    private Texture2D MakeTex(int width, int height, Color col)
+    {
+        Color[] array = new Color[width * height];
+        for (int i = 0; i < array.Length; i++)
+        {
+            array[i] = col;
+        }
+        Texture2D texture2D = new Texture2D(width, height);
+        texture2D.SetPixels(array);
+        texture2D.Apply();
+        return texture2D;
     }
 
     private void DrawSubgeneratorsHUD()

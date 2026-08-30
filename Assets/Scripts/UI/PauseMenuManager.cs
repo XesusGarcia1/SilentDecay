@@ -9,6 +9,21 @@ public class PauseMenuManager : MonoBehaviour
     private enum PauseState { None, Paused, Settings }
     private PauseState currentState = PauseState.None;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void AutoInitialize()
+    {
+        string sceneName = SceneManager.GetActiveScene().name;
+        if (sceneName == "MainMenu" || sceneName == "LoadingScene") return;
+
+        if (Instance == null && FindObjectOfType<PauseMenuManager>() == null)
+        {
+            GameObject go = new GameObject("[PauseMenuManager]");
+            go.AddComponent<PauseMenuManager>();
+            DontDestroyOnLoad(go);
+            Debug.Log("[PauseMenuManager] 🎮 Auto-inicializado para control de pausa con tecla ESC.");
+        }
+    }
+
     private void Awake()
     {
         if (Instance == null)
@@ -152,6 +167,12 @@ public class PauseMenuManager : MonoBehaviour
         // Detectar pulsación de la tecla Escape
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+            if (GuideMapUI.Instance != null && GuideMapUI.isOpen)
+            {
+                GuideMapUI.Instance.CloseMap();
+                return;
+            }
+
             if (currentState == PauseState.None)
             {
                 PauseGame();
@@ -226,6 +247,17 @@ public class PauseMenuManager : MonoBehaviour
             return;
 
         if (GameEndingManager.isEndingTriggered)
+            return;
+
+        // Evitar dibujar el menú de pausa o la tuerca si el jugador está muerto
+        var playerHealth = FindObjectOfType<PlayerHealth>();
+        if (playerHealth != null && playerHealth.IsDead)
+            return;
+
+        // Evitar dibujar el menú de pausa o la tuerca si se ha ganado la partida
+        if (TunnelsFixedMapLogic.Instance != null && TunnelsFixedMapLogic.Instance.IsVictoryActive)
+            return;
+        if (TunnelsGenerator.Instance != null && TunnelsGenerator.Instance.IsVictoryActive)
             return;
 
         GUI.depth = -100; // Garantizar que el menú de pausa se dibuje SIEMPRE por encima de cualquier otro elemento GUI
@@ -338,7 +370,7 @@ public class PauseMenuManager : MonoBehaviour
                 PlayClickSound();
                 currentState = PauseState.Settings;
             }
-            GUILayout.Space(25);
+            GUILayout.Space(15);
 
             // BOTÓN SALIR AL MENÚ
             var quitBtnStyle = new GUIStyle(s.Button);
