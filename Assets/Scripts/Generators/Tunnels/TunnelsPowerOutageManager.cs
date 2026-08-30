@@ -55,9 +55,11 @@ public class TunnelsPowerOutageManager : MonoBehaviour
         // Cargar sonidos
         outageStartClip = Resources.Load<AudioClip>("Audio/Tuneles/Apagon_Sonido");
         if (outageStartClip == null) outageStartClip = Resources.Load<AudioClip>("Apagon_Sonido");
+        if (outageStartClip == null) Debug.LogError("[TunnelsPowerOutageManager] ¡No se pudo encontrar Apagon_Sonido en Resources!");
         
         outageEndClip = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");
         if (outageEndClip == null) outageEndClip = Resources.Load<AudioClip>("Interruptor");
+        if (outageEndClip == null) Debug.LogError("[TunnelsPowerOutageManager] ¡No se pudo encontrar Interruptor en Resources!");
 
         // Iniciar la corrutina del ciclo de energía
         StartCoroutine(PowerCycleRoutine());
@@ -90,9 +92,10 @@ public class TunnelsPowerOutageManager : MonoBehaviour
             }
 
             // Reproducir sonido de apagón
-            if (globalAudioSource != null && outageStartClip != null)
+            if (outageStartClip != null)
             {
-                globalAudioSource.PlayOneShot(outageStartClip);
+                Vector3 playPos = (Camera.main != null) ? Camera.main.transform.position : Vector3.zero;
+                AudioSource.PlayClipAtPoint(outageStartClip, playPos, 1.0f);
             }
 
             // Duración del apagón
@@ -111,9 +114,10 @@ public class TunnelsPowerOutageManager : MonoBehaviour
             }
 
             // Reproducir sonido de interruptor
-            if (globalAudioSource != null && outageEndClip != null)
+            if (outageEndClip != null)
             {
-                globalAudioSource.PlayOneShot(outageEndClip);
+                Vector3 playPos = (Camera.main != null) ? Camera.main.transform.position : Vector3.zero;
+                AudioSource.PlayClipAtPoint(outageEndClip, playPos, 0.85f);
             }
 
             // Intervalo de energía estable antes del próximo apagón

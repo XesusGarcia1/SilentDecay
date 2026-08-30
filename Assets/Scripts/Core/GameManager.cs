@@ -147,6 +147,13 @@ public class GameManager : MonoBehaviour
         // 3. Determinar posición y rotación seguras de destino
         Vector3 targetPos = hasSpawnPoint ? playerSpawnPosition : (player.transform.position.y < -5f ? Vector3.up * 0.5f : player.transform.position);
         Quaternion targetRot = hasSpawnPoint ? playerSpawnRotation : Quaternion.identity;
+
+        // 3b. Raycast hacia abajo para colocar al jugador al ras del suelo (evitar flotar)
+        RaycastHit floorHit;
+        if (Physics.Raycast(targetPos + Vector3.up * 2.0f, Vector3.down, out floorHit, 10.0f))
+        {
+            targetPos.y = floorHit.point.y;
+        }
         
         Debug.Log($"[GameManager] ReaparecerJugador invocado para: '{player.name}'. hasSpawnPoint: {hasSpawnPoint}, playerSpawnPosition (registrado): {playerSpawnPosition}, Destino Final (targetPos): {targetPos}");
 
@@ -182,16 +189,12 @@ public class GameManager : MonoBehaviour
             rb.angularVelocity = Vector3.zero;
         }
 
-        // 7. Resetear pitch vertical del FirstPersonController
+        // 7. Resetear rotación de la cámara (pitch y yaw) del FirstPersonController
         var fpc = player.GetComponent<StarterAssets.FirstPersonController>();
         if (fpc == null) fpc = player.GetComponentInChildren<StarterAssets.FirstPersonController>();
         if (fpc != null)
         {
-            var pitchField = fpc.GetType().GetField("_cinemachineTargetPitch", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (pitchField != null)
-            {
-                pitchField.SetValue(fpc, 0f);
-            }
+            fpc.ResetCameraRotation(targetRot.eulerAngles.y);
         }
 
         // 8. Sincronizar transformadas y reactivar CharacterController

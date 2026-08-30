@@ -4,53 +4,58 @@ public class SubGenerator : MonoBehaviour
 {
     [Header("Ajustes del Subgenerador")]
     public string generatorName = "A";
+    public string subgeneratorLetter = "A";
     public bool isOn = false;
+    public bool isTurnedOn
+    {
+        get => isOn;
+        set => isOn = value;
+    }
     public float interactDistance = 2.5f;
 
     [Header("Sonidos (Personalizables)")]
-    public AudioClip activeLoopSound; // Sonido de motor en bucle cuando está encendido
-    public AudioClip activateSound;   // Sonido transitorio al encenderse (clic/arranque)
+    public AudioClip activeLoopSound;
+    public AudioClip activateSound;
 
-    [Header("Referencias (Autoresueltas)")]
+    [Header("Referencias de Luz")]
     public Light statusLight;
-    public Renderer lightRenderer;
     public AudioSource audioSource;
 
     private Transform player;
     private bool playerNear = false;
-    private Material lightMaterial;
 
     void Start()
     {
-        // Encontrar al jugador en la escena
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null) player = playerObj.transform;
 
-        // Auto-resolver o crear la luz de estado interna (sin esfera flotante)
+        // Buscar o crear la Luz de Punto (Point Light) colocada al frente del tablero del generador
         if (statusLight == null) statusLight = GetComponentInChildren<Light>();
-        if (lightRenderer == null) lightRenderer = GetComponentInChildren<Renderer>();
 
         if (statusLight == null)
         {
             GameObject lightObj = new GameObject("Generator_PointLight");
             lightObj.transform.SetParent(transform, false);
-            lightObj.transform.localPosition = new Vector3(0f, 1.1f, 0f);
+            // Colocar ligeramente al frente y arriba del panel de control para que no quede atrapada dentro del modelo 3D
+            lightObj.transform.localPosition = new Vector3(0f, 0.6f, 0.65f);
 
             statusLight = lightObj.AddComponent<Light>();
             statusLight.type = LightType.Point;
-            statusLight.range = 5.0f;
+            statusLight.range = 6.0f;
             statusLight.shadows = LightShadows.None;
+            statusLight.renderMode = LightRenderMode.ForcePixel; // Forzar renderizado por píxel en Unity
         }
-
-        if (lightRenderer != null && lightMaterial == null)
+        else
         {
-            lightMaterial = lightRenderer.material;
+            statusLight.type = LightType.Point;
+            statusLight.range = 6.0f;
+            statusLight.renderMode = LightRenderMode.ForcePixel;
+            statusLight.transform.localPosition = new Vector3(0f, 0.6f, 0.65f);
         }
 
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
 
-        // Configurar sonido eléctrico en bucle (se activa al encender)
         audioSource.loop = true;
         audioSource.spatialBlend = 1f; // Sonido 3D
         audioSource.minDistance = 2f;
@@ -66,7 +71,7 @@ public class SubGenerator : MonoBehaviour
             if (audioSource.clip == null) audioSource.clip = Resources.Load<AudioClip>("activeLoopSound");
             if (audioSource.clip == null)
             {
-                audioSource.clip = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Viaje"); // Fallback secundario
+                audioSource.clip = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Viaje");
             }
         }
         
@@ -91,7 +96,6 @@ public class SubGenerator : MonoBehaviour
 
             if (cam != null)
             {
-                // Calcular distancia al colisionador del generador (o al pivote si no tiene colisionador) para evitar problemas con pivotes desplazados
                 BoxCollider bCol = GetComponent<BoxCollider>();
                 float dist = Vector3.Distance(transform.position, cam.transform.position);
                 if (bCol != null)
@@ -99,7 +103,6 @@ public class SubGenerator : MonoBehaviour
                     dist = Vector3.Distance(bCol.bounds.center, cam.transform.position);
                 }
 
-                // Usamos un rango de interacción de 3.8m adaptado a jugadores grandes
                 float maxRange = 3.8f;
                 if (dist <= maxRange)
                 {
@@ -109,7 +112,6 @@ public class SubGenerator : MonoBehaviour
                     }
                     else
                     {
-                        // Probar también con los hijos (si los hay)
                         foreach (Transform child in transform)
                         {
                             if (InteractionFocusManager.IsFocused(child.gameObject, maxRange))
@@ -129,31 +131,30 @@ public class SubGenerator : MonoBehaviour
             playerNear = false;
         }
 
-        if (playerNear && !isOn && MobileInput.GetKeyDown(KeyCode.E))
+        if (playerNear && !isOn && (Input.GetKeyDown(KeyCode.E) || MobileInput.GetKeyDown(KeyCode.E) || MobileInput.ePressedDown))
         {
+            MobileInput.ePressedDown = false;
             ActivateGenerator();
         }
+
+        UpdateVisuals();
     }
 
     void ActivateGenerator()
     {
         isOn = true;
         
-        // Rotar palanca física hacia abajo para simular accionamiento
         Transform lever = transform.Find("PanelControl/Palanca_Hinge");
         if (lever != null)
         {
             lever.localRotation = Quaternion.Euler(-35f, 0f, 0f);
         }
-        isOn = true;
         
-        // Reproducir sonido en bucle
         if (audioSource != null && audioSource.clip != null)
         {
             audioSource.Play();
         }
 
-        // Tocar sonido de clic/interruptor
         AudioClip clickSound = activateSound != null ? activateSound : Resources.Load<AudioClip>("Interruptor");
         if (audioSource != null && clickSound != null)
         {
@@ -174,39 +175,62 @@ public class SubGenerator : MonoBehaviour
 
         UpdateVisuals();
 
-        // Buscar caja de fusibles central para notificar y comprobar si ya se activaron ambos
+        if (TunnelsFixedMapLogic.Instance != null)
+        {
+            TunnelsFixedMapLogic.Instance.OnSubGeneratorTurnedOn(this);
+        }
+        if (TunnelsGenerator.Instance != null)
+        {
+            TunnelsGenerator.Instance.OnSubGeneratorTurnedOn(this);
+        }
+
         PowerBox pBox = FindObjectOfType<PowerBox>();
         if (pBox != null)
         {
             pBox.ShowMessage($"Subgenerador {generatorName} Encendido! (Restableciendo entrada de red)", Color.green, 4.0f);
-            
-            // Verificar si el otro generador también está encendido
-            SubGenerator[] allGens = FindObjectsOfType<SubGenerator>();
-            int activeCount = 0;
-            foreach (var gen in allGens)
-            {
-                if (gen != null && gen.isOn) activeCount++;
-            }
-
-            if (activeCount >= 2)
-            {
-                pBox.ShowMessage("¡Subgeneradores A y B listos!\nCaja de fusibles central energizada.", new Color(0.2f, 0.8f, 1f), 5f);
-            }
         }
         Debug.Log($"SubGenerator: Subgenerador {generatorName} activado.");
     }
 
-    void UpdateVisuals()
+    private void SetupStatusLight()
     {
-        // Únicamente controlar la luz proyectada (brillo ambiental), sin alterar las texturas ni materiales del modelo del generador
-        Color lightColor = isOn ? new Color(0.1f, 1.0f, 0.3f) : new Color(1.0f, 0.08f, 0.08f);
+        if (statusLight == null)
+        {
+            Transform existingLight = transform.Find("Generator_PointLight");
+            if (existingLight != null) statusLight = existingLight.GetComponent<Light>();
+        }
+
+        if (statusLight == null)
+        {
+            GameObject lightObj = new GameObject("Generator_PointLight");
+            lightObj.transform.SetParent(transform, false);
+            lightObj.transform.localPosition = new Vector3(0f, 0.7f, 0.7f);
+
+            statusLight = lightObj.AddComponent<Light>();
+            statusLight.type = LightType.Point;
+            statusLight.range = 8.0f;
+            statusLight.shadows = LightShadows.None;
+            statusLight.renderMode = LightRenderMode.ForcePixel;
+        }
+        else
+        {
+            statusLight.type = LightType.Point;
+            statusLight.range = 8.0f;
+            statusLight.renderMode = LightRenderMode.ForcePixel;
+            statusLight.transform.localPosition = new Vector3(0f, 0.7f, 0.7f);
+        }
+    }
+
+    public void UpdateVisuals()
+    {
+        if (statusLight == null) SetupStatusLight();
 
         if (statusLight != null)
         {
             statusLight.enabled = true;
-            statusLight.color = lightColor;
-            statusLight.intensity = isOn ? 3.0f : 2.0f;
-            statusLight.range = 5.0f;
+            statusLight.color = isOn ? new Color(0.1f, 1.0f, 0.2f) : new Color(1.0f, 0.05f, 0.05f);
+            statusLight.intensity = isOn ? 7.5f : 4.5f;
+            statusLight.range = 8.0f;
         }
     }
 
@@ -229,4 +253,3 @@ public class SubGenerator : MonoBehaviour
         }
     }
 }
-

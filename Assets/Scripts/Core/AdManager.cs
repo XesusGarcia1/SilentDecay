@@ -10,7 +10,29 @@ namespace SilentDecay.Core
     /// </summary>
     public class AdManager : MonoBehaviour
     {
-        public static AdManager Instance { get; private set; }
+        private static AdManager _instance;
+        public static AdManager Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    _instance = FindObjectOfType<AdManager>();
+                    if (_instance == null)
+                    {
+                        GameObject go = new GameObject("[AdManager]");
+                        _instance = go.AddComponent<AdManager>();
+                        DontDestroyOnLoad(go);
+                        Debug.Log("[AdManager] 📢 Auto-inicializado para pruebas directas en escena.");
+                    }
+                }
+                return _instance;
+            }
+            private set
+            {
+                _instance = value;
+            }
+        }
 
         [Header("Configuración Global de Anuncios")]
         [Tooltip("Si se desmarca, NO se inicializarán ni mostrarán anuncios en el juego.")]
@@ -44,12 +66,12 @@ namespace SilentDecay.Core
 
         private void Awake()
         {
-            if (Instance == null)
+            if (_instance == null)
             {
-                Instance = this;
+                _instance = this;
                 DontDestroyOnLoad(gameObject);
             }
-            else
+            else if (_instance != this)
             {
                 Destroy(gameObject);
             }
@@ -57,11 +79,14 @@ namespace SilentDecay.Core
 
         private void Start()
         {
-            // Desactivar anuncios automáticamente en versiones de PC (Steam/PC Standalone)
+            // Desactivar anuncios automáticamente en versiones de PC (Steam/PC Standalone) fuera del Editor
             #if !UNITY_ANDROID && !UNITY_IOS
-            enableAds = false;
-            Debug.Log("[AdManager] Plataforma de PC/Consola detectada. Anuncios DESACTIVADOS automáticamente para la versión de pago.");
-            return;
+            if (!Application.isEditor)
+            {
+                enableAds = false;
+                Debug.Log("[AdManager] Plataforma de PC/Consola detectada. Anuncios DESACTIVADOS automáticamente para la versión de pago.");
+                return;
+            }
             #endif
 
             if (!enableAds)
@@ -297,6 +322,13 @@ namespace SilentDecay.Core
 
         public void ShowInterstitialTransition(Action onAdFinished = null)
         {
+            // Omitir el anuncio intersticial de simulación en el editor para evitar bloquear la transición de escenas o abrir navegador de pruebas
+            if (Application.isEditor)
+            {
+                onAdFinished?.Invoke();
+                return;
+            }
+
             if (!enableAds)
             {
                 onAdFinished?.Invoke();
