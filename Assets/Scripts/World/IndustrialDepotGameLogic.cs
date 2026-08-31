@@ -29,9 +29,59 @@ public class IndustrialDepotGameLogic : MonoBehaviour
 
         SetupPlayerSpawn();
         SetupGuideMapItemAtStart();
+        ApplyDevTestSettings();
 
         // 2. Disparar monólogo inicial del jugador con pequeño delay (escena completamente cargada)
         StartCoroutine(TriggerStartMonologueDelayed());
+    }
+
+    private void ApplyDevTestSettings()
+    {
+        if (DevTestSettings.testModeEnableAll || DevTestSettings.testDepotGiveAllKeys)
+        {
+            MetalKeyItem.hasMetalKey = true;
+            MetalKeyItem.collectedKeys.Add("EXITKEY_01");
+            MetalKeyItem.collectedKeys.Add("Access_keys_mannequin");
+            MetalKeyItem.collectedKeys.Add("MetalKey");
+            MetalKeyItem.collectedKeys.Add("Key_01");
+            MetalKeyItem.collectedKeys.Add("Key_02");
+            MetalKeyItem.collectedKeys.Add("Key_03");
+
+            // Otorgar todos los IDs de llaves presentes en la escena
+            foreach (var k in Resources.FindObjectsOfTypeAll<MetalKeyItem>())
+            {
+                if (k != null && !string.IsNullOrEmpty(k.keyID))
+                {
+                    MetalKeyItem.collectedKeys.Add(k.keyID);
+                }
+            }
+            Debug.Log("[IndustrialDepotGameLogic] 🔑 MODO DE PRUEBAS: Todas las llaves del depósito otorgadas al inventario.");
+        }
+
+        if (DevTestSettings.testModeEnableAll || DevTestSettings.testDepotGiveGuideMap)
+        {
+            GuideMapUI.hasGuideMap = true;
+            Debug.Log("[IndustrialDepotGameLogic] 🗺️ MODO DE PRUEBAS: Mapa de guía entregado al inventario.");
+        }
+
+        if (DevTestSettings.testModeEnableAll || DevTestSettings.testDepotLadderRepaired)
+        {
+            foreach (var ladder in Resources.FindObjectsOfTypeAll<LadderInteract>())
+            {
+                if (ladder != null)
+                {
+                    ladder.isBroken = false;
+                    if (ladder.ladderComponents != null)
+                    {
+                        foreach (var c in ladder.ladderComponents)
+                        {
+                            if (c != null) c.SetActive(true);
+                        }
+                    }
+                }
+            }
+            Debug.Log("[IndustrialDepotGameLogic] 🪜 MODO DE PRUEBAS: Escaleras del depósito completamente armadas y reparadas.");
+        }
     }
 
     private IEnumerator TriggerStartMonologueDelayed()

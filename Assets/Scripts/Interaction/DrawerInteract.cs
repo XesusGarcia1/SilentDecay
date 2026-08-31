@@ -78,7 +78,16 @@ namespace ModularHospital
             if (dist <= interactDistance)
             {
                 Vector3 dir = (transform.position - cam.transform.position).normalized;
-                if (Vector3.Dot(cam.transform.forward, dir) > 0.2f) isFocused = true;
+                if (Vector3.Dot(cam.transform.forward, dir) > 0.2f)
+                {
+                    // Verificar que no haya pared entre la cámara y el cajón
+                    bool blocked = Physics.Raycast(
+                        cam.transform.position, dir, dist - 0.05f,
+                        ~LayerMask.GetMask("Player", "Ignore Raycast"),
+                        QueryTriggerInteraction.Ignore
+                    );
+                    if (!blocked) isFocused = true;
+                }
             }
         }
 
@@ -147,7 +156,16 @@ namespace ModularHospital
             if (dist <= interactDistance)
             {
                 Vector3 dir = (transform.position - cam.transform.position).normalized;
-                if (Vector3.Dot(cam.transform.forward, dir) > 0.2f) focused = true;
+                if (Vector3.Dot(cam.transform.forward, dir) > 0.2f)
+                {
+                    // Verificar que no haya pared entre la cámara y el cajón
+                    bool blocked = Physics.Raycast(
+                        cam.transform.position, dir, dist - 0.05f,
+                        ~LayerMask.GetMask("Player", "Ignore Raycast"),
+                        QueryTriggerInteraction.Ignore
+                    );
+                    if (!blocked) focused = true;
+                }
             }
         }
         if (!focused) return;

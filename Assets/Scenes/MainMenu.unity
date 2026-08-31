@@ -1785,8 +1785,16 @@ MonoBehaviour:
   gameTitle: 
   titleLogo: {fileID: 2800000, guid: 05009eecc7471a0468620a357969ef1e, type: 3}
   logoHeight: 250
-  enableTunnelsLevel: 0
-  unlockAllMapsDebug: 0
+  enableTunnelsLevel: 1
+  unlockAllMapsDebug: 1
+  testModeEnableAll: 1
+  testStartWithKeycard: 0
+  testBypassKeycard: 0
+  testBypassPower: 0
+  testAutoActivateGenerators: 0
+  testDepotGiveAllKeys: 0
+  testDepotLadderRepaired: 0
+  testDepotGiveGuideMap: 0
   btnNormalTexture: {fileID: 2800000, guid: 4ceece709d135814a98d0a685a8070d1, type: 3}
   btnHoverTexture: {fileID: 2800000, guid: 0fd7996d22f61ab42b9e74c05f882842, type: 3}
   instagramURL: https://www.instagram.com/lxesusgarcial

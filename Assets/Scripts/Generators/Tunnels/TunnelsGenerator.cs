@@ -231,6 +231,11 @@ public partial class TunnelsGenerator : MonoBehaviour
         activeSubGenerators.Clear();
         activatedSubGenCount = 0;
 
+        if (DevTestSettings.testModeEnableAll || DevTestSettings.autoActivateGenerators)
+        {
+            autoActivateAllGenerators = true;
+        }
+
         List<GameObject> candidates = FindCandidateObjects("Subgenerator", "SubGenerator");
         Debug.Log($"[TunnelsGenerator] ⚡ Se encontraron {candidates.Count} objetos candidatos de Subgenerador.");
 
@@ -789,9 +794,15 @@ public partial class TunnelsGenerator : MonoBehaviour
         if (exitClip != null) AudioSource.PlayClipAtPoint(exitClip, Camera.main.transform.position, 1.0f);
 
         victoryStep = 1;
-        yield return StartCoroutine(FadeVictoryStepText(3.2f));
+        // Guardar progreso: Nivel 2 completado, desbloquea Nivel 3 (Depósito Industrial)
+        PlayerPrefs.SetInt("Campaign_TunnelsCompleted", 1);
+        PlayerPrefs.SetInt("Campaign_HospitalTunnelsCompleted", 1); // compatibilidad
+        PlayerPrefs.Save();
+        Debug.Log("[TunnelsGenerator] 🏆 ¡Nivel 2 (Túneles) completado! Nivel 3 (Depósito Industrial) desbloqueado.");
+
+        yield return StartCoroutine(FadeVictoryStepText(4.2f));
         victoryStep = 2;
-        yield return StartCoroutine(FadeVictoryStepText(3.0f));
+        yield return StartCoroutine(FadeVictoryStepText(3.2f));
         victoryStep = 3;
         yield return StartCoroutine(FadeVictoryStepText(4.5f));
 
@@ -832,7 +843,116 @@ public partial class TunnelsGenerator : MonoBehaviour
 
     private void OnGUI()
     {
-        if (Time.timeScale == 0f && victoryStep == 0) return;
+        // ─── PANTALLA DE VICTORIA Y DESBLOQUEO (NIVEL 2: TÚNELES) ───────────────
+        if (victoryStep > 0)
+        {
+            if (fadeBlackTex == null)
+            {
+                fadeBlackTex = MakeTex(2, 2, Color.black);
+            }
+
+            RenderSettings.ambientLight = Color.black;
+            RenderSettings.ambientIntensity = 0f;
+
+            GUI.color = Color.black;
+            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), fadeBlackTex);
+
+            GUI.color = new Color(1f, 1f, 1f, victoryStepAlpha);
+
+            LocalizationManager.Idioma lang = LocalizationManager.Idioma.ESPAÑOL;
+            if (LocalizationManager.Instance != null)
+            {
+                lang = LocalizationManager.Instance.GetIdiomaActual();
+            }
+
+            float sWidth = Screen.width;
+            float sHeight = Screen.height;
+
+            if (victoryStep == 1)
+            {
+                GUIStyle titleStyle = new GUIStyle(GUI.skin.label);
+                titleStyle.alignment = TextAnchor.MiddleCenter;
+                titleStyle.fontStyle = FontStyle.Bold;
+                titleStyle.fontSize = Mathf.RoundToInt(sHeight * 0.055f);
+                titleStyle.normal.textColor = Color.white;
+
+                GUIStyle subStyle = new GUIStyle(GUI.skin.label);
+                subStyle.alignment = TextAnchor.MiddleCenter;
+                subStyle.fontStyle = FontStyle.Bold;
+                subStyle.fontSize = Mathf.RoundToInt(sHeight * 0.038f);
+                subStyle.normal.textColor = new Color(0.3f, 0.95f, 0.4f);
+
+                string winTitle = "¡NIVEL 2: TÚNELES COMPLETADO!";
+                string unlockSub = "🔓 ¡NIVEL 3: DEPÓSITO INDUSTRIAL DESBLOQUEADO!";
+
+                if (lang == LocalizationManager.Idioma.ENGLISH)
+                {
+                    winTitle = "LEVEL 2: FLOODED TUNNELS COMPLETED!";
+                    unlockSub = "🔓 LEVEL 3: INDUSTRIAL DEPOT UNLOCKED!";
+                }
+                else if (lang == LocalizationManager.Idioma.PORTUGUES)
+                {
+                    winTitle = "NÍVEL 2: TÚNEIS INUNDADOS CONCLUÍDO!";
+                    unlockSub = "🔓 NÍVEL 3: DEPÓSITO INDUSTRIAL DESBLOQUEADO!";
+                }
+                else if (lang == LocalizationManager.Idioma.РУССКИЙ)
+                {
+                    winTitle = "УРОВЕНЬ 2: ТОННЕЛИ ПРОЙДЕНЫ!";
+                    unlockSub = "🔓 УРОВЕНЬ 3: ПРОМЫШЛЕННЫЙ СКЛАД РАЗБЛОКИРОВАН!";
+                }
+
+                GUI.Label(new Rect(0f, sHeight * 0.38f, sWidth, sHeight * 0.10f), winTitle, titleStyle);
+                GUI.Label(new Rect(0f, sHeight * 0.50f, sWidth, sHeight * 0.08f), unlockSub, subStyle);
+            }
+            else if (victoryStep == 2)
+            {
+                GUIStyle style = new GUIStyle(GUI.skin.label);
+                style.alignment = TextAnchor.MiddleCenter;
+                style.fontStyle = FontStyle.Bold;
+                style.fontSize = Mathf.RoundToInt(sHeight * 0.065f);
+                style.normal.textColor = new Color(0.95f, 0.85f, 0.4f);
+
+                string thanksMsg = "¡GRACIAS POR JUGAR!";
+                if (lang == LocalizationManager.Idioma.ENGLISH) thanksMsg = "THANK YOU FOR PLAYING!";
+                else if (lang == LocalizationManager.Idioma.PORTUGUES) thanksMsg = "OBRIGADO POR JOGAR!";
+                else if (lang == LocalizationManager.Idioma.РУССКИЙ) thanksMsg = "СПАСИБО ЗА ИГРУ!";
+
+                GUI.Label(new Rect(0f, 0f, sWidth, sHeight), thanksMsg, style);
+            }
+            else if (victoryStep == 3)
+            {
+                GUIStyle headerStyle = new GUIStyle(GUI.skin.label);
+                headerStyle.alignment = TextAnchor.MiddleCenter;
+                headerStyle.fontStyle = FontStyle.Bold;
+                headerStyle.fontSize = Mathf.RoundToInt(sHeight * 0.045f);
+                headerStyle.normal.textColor = new Color(0.9f, 0.9f, 0.95f);
+
+                string devTitle = "SIGUE EL DESARROLLO Y NOVEDADES EN:";
+                if (lang == LocalizationManager.Idioma.ENGLISH) devTitle = "FOLLOW DEVELOPMENT & UPDATES AT:";
+                else if (lang == LocalizationManager.Idioma.PORTUGUES) devTitle = "SIGA O DESENVOLVIMENTO EM:";
+                else if (lang == LocalizationManager.Idioma.РУССКИЙ) devTitle = "СЛЕДИТЕ ЗА РАЗРАБОТКОЙ И НОВОСТЯМИ:";
+
+                GUI.Label(new Rect(0f, sHeight * 0.18f, sWidth, sHeight * 0.1f), devTitle, headerStyle);
+
+                // Tarjeta de redes sociales
+                GUIStyle cardStyle = new GUIStyle(GUI.skin.label);
+                cardStyle.alignment = TextAnchor.MiddleCenter;
+                cardStyle.fontStyle = FontStyle.Bold;
+                cardStyle.fontSize = Mathf.RoundToInt(sHeight * 0.035f);
+                cardStyle.normal.textColor = Color.white;
+
+                string socialText = "INSTAGRAM: @lxesusgarcial\n\n" +
+                                    "FACEBOOK: lXesusGarcial\n\n" +
+                                    "YOUTUBE: @Xesus_Garcia";
+
+                GUI.Label(new Rect(sWidth * 0.1f, sHeight * 0.35f, sWidth * 0.8f, sHeight * 0.45f), socialText, cardStyle);
+            }
+
+            GUI.color = Color.white;
+            return;
+        }
+
+        if (Time.timeScale == 0f) return;
 
         DrawSubgeneratorsHUD();
 
@@ -1002,85 +1122,6 @@ public partial class TunnelsGenerator : MonoBehaviour
             }
         }
 
-        if (victoryStep > 0)
-        {
-            if (fadeBlackTex == null)
-            {
-                fadeBlackTex = MakeTex(2, 2, Color.black);
-            }
-
-            // Asegurar que la luz ambiental esté apagada durante el fade final
-            RenderSettings.ambientLight = Color.black;
-            RenderSettings.ambientIntensity = 0f;
-
-            GUI.color = new Color(1f, 1f, 1f, victoryFadeAlpha);
-            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), fadeBlackTex);
-            GUI.color = new Color(1f, 1f, 1f, victoryStepAlpha);
-
-            GUIStyle style = new GUIStyle(GUI.skin.label);
-            style.alignment = TextAnchor.MiddleCenter;
-            style.fontStyle = FontStyle.Bold;
-
-            if (victoryStep > 0 && victoryStepAlpha > 0f)
-            {
-                // Obtener idioma actual
-                LocalizationManager.Idioma lang = LocalizationManager.Idioma.ESPAÑOL;
-                if (LocalizationManager.Instance != null)
-                {
-                    lang = LocalizationManager.Instance.GetIdiomaActual();
-                }
-
-                float sWidth = Screen.width;
-                float sHeight = Screen.height;
-
-                if (victoryStep == 1)
-                {
-                    style.fontSize = Mathf.RoundToInt(sHeight * 0.07f);
-                    style.normal.textColor = Color.white;
-
-                    string winMsg = "JUEGO TERMINADO";
-                    if (lang == LocalizationManager.Idioma.ENGLISH) winMsg = "GAME COMPLETED";
-                    else if (lang == LocalizationManager.Idioma.PORTUGUES) winMsg = "JOGO CONCLUÍDO";
-
-                    GUI.Label(new Rect(0f, 0f, sWidth, sHeight), winMsg, style);
-                }
-                else if (victoryStep == 2)
-                {
-                    style.fontSize = Mathf.RoundToInt(sHeight * 0.065f);
-                    style.normal.textColor = new Color(0.95f, 0.85f, 0.4f);
-
-                    string thanksMsg = "¡GRACIAS POR JUGAR!";
-                    if (lang == LocalizationManager.Idioma.ENGLISH) thanksMsg = "THANK YOU FOR PLAYING!";
-                    else if (lang == LocalizationManager.Idioma.PORTUGUES) thanksMsg = "OBRIGADO POR JOGAR!";
-
-                    GUI.Label(new Rect(0f, 0f, sWidth, sHeight), thanksMsg, style);
-                }
-                else if (victoryStep == 3)
-                {
-                    GUIStyle headerStyle = new GUIStyle(style);
-                    headerStyle.fontSize = Mathf.RoundToInt(sHeight * 0.045f);
-                    headerStyle.normal.textColor = new Color(0.9f, 0.9f, 0.95f);
-
-                    string devTitle = "SIGUE EL DESARROLLO Y NOVEDADES EN:";
-                    if (lang == LocalizationManager.Idioma.ENGLISH) devTitle = "FOLLOW DEVELOPMENT & UPDATES AT:";
-                    else if (lang == LocalizationManager.Idioma.PORTUGUES) devTitle = "SIGA O DESENVOLVIMENTO EM:";
-
-                    GUI.Label(new Rect(0f, sHeight * 0.18f, sWidth, sHeight * 0.1f), devTitle, headerStyle);
-
-                    // Tarjeta de redes sociales
-                    GUIStyle cardStyle = new GUIStyle(style);
-                    cardStyle.fontSize = Mathf.RoundToInt(sHeight * 0.035f);
-                    cardStyle.normal.textColor = Color.white;
-
-                    string socialText = "INSTAGRAM: @lxesusgarcial\n\n" +
-                                        "FACEBOOK: lXesusGarcial\n\n" +
-                                        "YOUTUBE: @Xesus_Garcia";
-
-                    GUI.Label(new Rect(sWidth * 0.1f, sHeight * 0.35f, sWidth * 0.8f, sHeight * 0.45f), socialText, cardStyle);
-                }
-            }
-            GUI.color = Color.white;
-        }
     }
 
     private Texture2D MakeTex(int width, int height, Color col)

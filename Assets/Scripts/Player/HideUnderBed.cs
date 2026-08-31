@@ -182,20 +182,38 @@ public class HideUnderBed : MonoBehaviour
                 BoxCollider box = bed.GetComponent<BoxCollider>();
                 if (box != null) box.isTrigger = true;
 
-                Vector3 surfacePoint = bed.transform.position;
+                Vector3 bedCenter = bed.transform.position;
                 if (box != null)
                 {
-                    surfacePoint = box.ClosestPoint(camPos);
+                    bedCenter = box.bounds.center;
                 }
 
-                float surfaceDist = Vector3.Distance(surfacePoint, camPos);
+                // Usar distancia HORIZONTAL (XZ) para el rango: ignora la diferencia de Y entre
+                // la cámara (~2m) y el centro de la cama (puede ser negativo por el suelo del mapa)
+                Vector3 bedAtCamHeight = new Vector3(bedCenter.x, camPos.y, bedCenter.z);
+                float horizontalDist = Vector3.Distance(bedAtCamHeight, camPos);
                 float maxDistAllowed = Mathf.Max(interactDistance, 3.5f);
 
-                // Si la superficie de la cama está a menos de 4.5 metros de la cámara, es válida inmediatamente
-                if (surfaceDist <= maxDistAllowed && surfaceDist < bestSurfaceDist)
+                if (horizontalDist <= maxDistAllowed && horizontalDist < bestSurfaceDist)
                 {
-                    bestSurfaceDist = surfaceDist;
-                    closestBed = bed;
+                    // Rayo horizontal a la altura de los ojos: paredes lo bloquean,
+                    // el marco de la cama (≤0.6m alto) queda por debajo y no interfiere
+                    bool wallBlocking = false;
+                    if (horizontalDist > 0.3f)
+                    {
+                        Vector3 horizontalDir = (bedAtCamHeight - camPos).normalized;
+                        wallBlocking = Physics.Raycast(
+                            camPos, horizontalDir, horizontalDist,
+                            ~LayerMask.GetMask("Player", "Ignore Raycast"),
+                            QueryTriggerInteraction.Ignore
+                        );
+                    }
+
+                    if (!wallBlocking)
+                    {
+                        bestSurfaceDist = horizontalDist;
+                        closestBed = bed;
+                    }
                 }
             }
 
@@ -392,34 +410,24 @@ public class HideUnderBed : MonoBehaviour
         {
             if (nearBed && targetBed != null)
             {
-                BoxCollider box = targetBed.GetComponent<BoxCollider>();
-                Vector3 targetPoint = targetBed.transform.position;
-                if (box != null)
-                {
-                    targetPoint = box.ClosestPoint(mainCamera.transform.position);
-                }
+                // nearBed ya fue validado en Update() con distancia horizontal y check de paredes.
+                // No hace falta un segundo check de distancia 3D aquí.
+                GUIStyle style = new GUIStyle();
+                style.fontSize = 22;
+                style.alignment = TextAnchor.MiddleCenter;
+                style.fontStyle = FontStyle.Bold;
 
-                float distToBed = Vector3.Distance(targetPoint, mainCamera.transform.position);
-                float maxDistAllowed = Mathf.Max(interactDistance, 3.5f);
-                if (distToBed <= maxDistAllowed)
-                {
-                    GUIStyle style = new GUIStyle();
-                    style.fontSize = 22;
-                    style.alignment = TextAnchor.MiddleCenter;
-                    style.fontStyle = FontStyle.Bold;
+                Rect rect = new Rect(Screen.width / 2 - 260, Screen.height - 120, 520, 50);
 
-                    Rect rect = new Rect(Screen.width / 2 - 260, Screen.height - 120, 520, 50);
+                GUI.color = new Color(0f, 0.1f, 0.2f, 0.75f);
+                GUI.DrawTexture(new Rect(rect.x - 10, rect.y - 5, rect.width + 20, rect.height + 10), Texture2D.whiteTexture);
+                GUI.color = Color.white;
 
-                    GUI.color = new Color(0f, 0.1f, 0.2f, 0.75f);
-                    GUI.DrawTexture(new Rect(rect.x - 10, rect.y - 5, rect.width + 20, rect.height + 10), Texture2D.whiteTexture);
-                    GUI.color = Color.white;
+                style.normal.textColor = Color.black;
+                GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), "[E]  Esconderse bajo la Cama", style);
 
-                    style.normal.textColor = Color.black;
-                    GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), "[E]  Esconderse bajo la Cama", style);
-
-                    style.normal.textColor = new Color(0.3f, 0.75f, 1f);
-                    GUI.Label(rect, "[E]  Esconderse bajo la Cama", style);
-                }
+                style.normal.textColor = new Color(0.3f, 0.75f, 1f);
+                GUI.Label(rect, "[E]  Esconderse bajo la Cama", style);
             }
         }
     }
