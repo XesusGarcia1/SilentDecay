@@ -1800,6 +1800,11 @@ MonoBehaviour:
   masterVolume: 1
   isFullscreen: 1
   sidebarTex: {fileID: 0}
+  screenMain: {fileID: 0}
+  screenLevelSelect: {fileID: 0}
+  screenPlayOptions: {fileID: 0}
+  screenDepotOptions: {fileID: 0}
+  screenSettings: {fileID: 0}
 --- !u!4 &105978373
 Transform:
   m_ObjectHideFlags: 0
@@ -5917,7 +5922,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   enableAds: 1
   useTestAdsInEditor: 1
-  useTestAdsInBuild: 1
+  useTestAdsInBuild: 0
   rewardedReviveAdUnitId: ca-app-pub-5970961731703173/8187700485
   rewardedBatteryAdUnitId: ca-app-pub-5970961731703173/4631598851
   interstitialAdUnitId: ca-app-pub-5970961731703173/3222419466

@@ -26,8 +26,16 @@ public class SubGenerator : MonoBehaviour
 
     void Start()
     {
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj != null) player = playerObj.transform;
+        // Asegurar que exista un Collider para interactuar y recibir raycasts
+        Collider col = GetComponent<Collider>();
+        if (col == null)
+        {
+            BoxCollider bc = gameObject.AddComponent<BoxCollider>();
+            bc.size = new Vector3(1.8f, 2.4f, 1.8f);
+            bc.center = new Vector3(0f, 1.0f, 0f);
+        }
+
+        FindPlayerRef();
 
         // Buscar o crear la Luz de Punto (Point Light) colocada al frente del tablero del generador
         if (statusLight == null) statusLight = GetComponentInChildren<Light>();
@@ -36,14 +44,13 @@ public class SubGenerator : MonoBehaviour
         {
             GameObject lightObj = new GameObject("Generator_PointLight");
             lightObj.transform.SetParent(transform, false);
-            // Colocar ligeramente al frente y arriba del panel de control para que no quede atrapada dentro del modelo 3D
             lightObj.transform.localPosition = new Vector3(0f, 0.6f, 0.65f);
 
             statusLight = lightObj.AddComponent<Light>();
             statusLight.type = LightType.Point;
             statusLight.range = 6.0f;
             statusLight.shadows = LightShadows.None;
-            statusLight.renderMode = LightRenderMode.ForcePixel; // Forzar renderizado por píxel en Unity
+            statusLight.renderMode = LightRenderMode.ForcePixel;
         }
         else
         {
@@ -85,50 +92,71 @@ public class SubGenerator : MonoBehaviour
         UpdateVisuals();
     }
 
+    private void FindPlayerRef()
+    {
+        if (player != null) return;
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj == null) playerObj = GameObject.Find("PlayerMale");
+        if (playerObj == null) playerObj = GameObject.Find("PlayerFemale");
+        if (playerObj == null)
+        {
+            CharacterController cc = FindFirstObjectByType<CharacterController>();
+            if (cc != null) playerObj = cc.gameObject;
+        }
+        if (playerObj != null) player = playerObj.transform;
+    }
+
     void Update()
     {
-        if (player != null)
+        FindPlayerRef();
+        playerNear = false;
+
+        Camera cam = Camera.main;
+        if (cam == null && player != null) cam = player.GetComponentInChildren<Camera>();
+        if (cam == null) cam = FindFirstObjectByType<Camera>();
+
+        if (cam != null)
         {
-            playerNear = false;
-            Camera cam = Camera.main;
-            if (cam == null) cam = player.GetComponentInChildren<Camera>();
-            if (cam == null) cam = FindAnyObjectByType<Camera>();
+            Vector3 genCenter = transform.position + Vector3.up * 1.0f;
+            Collider c = GetComponent<Collider>();
+            if (c != null) genCenter = c.bounds.center;
 
-            if (cam != null)
+            float dist = Vector3.Distance(cam.transform.position, genCenter);
+            float maxRange = 4.2f;
+
+            if (dist <= maxRange)
             {
-                BoxCollider bCol = GetComponent<BoxCollider>();
-                float dist = Vector3.Distance(transform.position, cam.transform.position);
-                if (bCol != null)
+                // 1. Raycast de mirilla central directo
+                if (InteractionFocusManager.IsFocused(gameObject, maxRange))
                 {
-                    dist = Vector3.Distance(bCol.bounds.center, cam.transform.position);
+                    playerNear = true;
                 }
-
-                float maxRange = 3.8f;
-                if (dist <= maxRange)
+                else
                 {
-                    if (InteractionFocusManager.IsFocused(gameObject, maxRange))
+                    // 2. Comprobar todos los colliders hijos (a cualquier nivel)
+                    Collider[] childCols = GetComponentsInChildren<Collider>();
+                    foreach (var childCol in childCols)
                     {
-                        playerNear = true;
-                    }
-                    else
-                    {
-                        foreach (Transform child in transform)
+                        if (childCol != null && InteractionFocusManager.IsFocused(childCol.gameObject, maxRange))
                         {
-                            if (InteractionFocusManager.IsFocused(child.gameObject, maxRange))
-                            {
-                                playerNear = true;
-                                break;
-                            }
+                            playerNear = true;
+                            break;
+                        }
+                    }
+
+                    // 3. Fallback infalible de proximidad y ángulo:
+                    // Si el jugador está a menos de 3.2 metros y mirando en dirección general al generador
+                    if (!playerNear && dist <= 3.2f)
+                    {
+                        Vector3 dirToGen = (genCenter - cam.transform.position).normalized;
+                        float lookDot = Vector3.Dot(cam.transform.forward, dirToGen);
+                        if (lookDot > 0.35f) // Ángulo amplio (~70°)
+                        {
+                            playerNear = true;
                         }
                     }
                 }
             }
-        }
-        else
-        {
-            GameObject p = GameObject.FindGameObjectWithTag("Player");
-            if (p != null) player = p.transform;
-            playerNear = false;
         }
 
         if (playerNear && !isOn && (Input.GetKeyDown(KeyCode.E) || MobileInput.GetKeyDown(KeyCode.E) || MobileInput.ePressedDown))

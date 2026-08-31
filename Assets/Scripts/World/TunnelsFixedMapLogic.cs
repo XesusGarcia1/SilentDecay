@@ -719,10 +719,11 @@ public class TunnelsFixedMapLogic : MonoBehaviour
         if (exitClip != null) AudioSource.PlayClipAtPoint(exitClip, Camera.main.transform.position, 1.0f);
 
         victoryStep = 1;
-        // Guardar progreso: el jugador ha completado la campaña de Hospital y Túneles, desbloqueando el Depósito Industrial
-        PlayerPrefs.SetInt("Campaign_HospitalTunnelsCompleted", 1);
+        // Guardar progreso: Nivel 2 completado, desbloquea Nivel 3 (Depósito Industrial)
+        PlayerPrefs.SetInt("Campaign_TunnelsCompleted", 1);
+        PlayerPrefs.SetInt("Campaign_HospitalTunnelsCompleted", 1); // compatibilidad
         PlayerPrefs.Save();
-        Debug.Log("[TunnelsFixedMapLogic] 🏆 ¡Campaña de Hospital y Túneles completada! Depósito Industrial desbloqueado.");
+        Debug.Log("[TunnelsFixedMapLogic] 🏆 ¡Nivel 2 (Túneles) completado! Nivel 3 (Depósito Industrial) desbloqueado.");
 
         yield return StartCoroutine(FadeVictoryStepText(3.2f));
         victoryStep = 2;
@@ -970,14 +971,34 @@ public class TunnelsFixedMapLogic : MonoBehaviour
 
                 if (victoryStep == 1)
                 {
-                    style.fontSize = Mathf.RoundToInt(sHeight * 0.07f);
+                    style.fontSize = Mathf.RoundToInt(sHeight * 0.055f);
                     style.normal.textColor = Color.white;
 
-                    string winMsg = "JUEGO TERMINADO";
-                    if (lang == LocalizationManager.Idioma.ENGLISH) winMsg = "GAME COMPLETED";
-                    else if (lang == LocalizationManager.Idioma.PORTUGUES) winMsg = "JOGO CONCLUÍDO";
+                    GUIStyle subStyle = new GUIStyle(style);
+                    subStyle.fontSize = Mathf.RoundToInt(sHeight * 0.038f);
+                    subStyle.normal.textColor = new Color(0.3f, 0.95f, 0.4f);
 
-                    GUI.Label(new Rect(0f, 0f, sWidth, sHeight), winMsg, style);
+                    string winTitle = "¡NIVEL 2: TÚNELES COMPLETADO!";
+                    string unlockSub = "🔓 ¡NIVEL 3: DEPÓSITO INDUSTRIAL DESBLOQUEADO!";
+
+                    if (lang == LocalizationManager.Idioma.ENGLISH)
+                    {
+                        winTitle = "LEVEL 2: FLOODED TUNNELS COMPLETED!";
+                        unlockSub = "🔓 LEVEL 3: INDUSTRIAL DEPOT UNLOCKED!";
+                    }
+                    else if (lang == LocalizationManager.Idioma.PORTUGUES)
+                    {
+                        winTitle = "NÍVEL 2: TÚNEIS INUNDADOS CONCLUÍDO!";
+                        unlockSub = "🔓 NÍVEL 3: DEPÓSITO INDUSTRIAL DESBLOQUEADO!";
+                    }
+                    else if (lang == LocalizationManager.Idioma.РУССКИЙ)
+                    {
+                        winTitle = "УРОВЕНЬ 2: ТОННЕЛИ ПРОЙДЕНЫ!";
+                        unlockSub = "🔓 УРОВЕНЬ 3: ПРОМЫШЛЕННЫЙ СКЛАД РАЗБЛОКИРОВАН!";
+                    }
+
+                    GUI.Label(new Rect(0f, sHeight * 0.38f, sWidth, sHeight * 0.10f), winTitle, style);
+                    GUI.Label(new Rect(0f, sHeight * 0.50f, sWidth, sHeight * 0.08f), unlockSub, subStyle);
                 }
                 else if (victoryStep == 2)
                 {
@@ -987,6 +1008,7 @@ public class TunnelsFixedMapLogic : MonoBehaviour
                     string thanksMsg = "¡GRACIAS POR JUGAR!";
                     if (lang == LocalizationManager.Idioma.ENGLISH) thanksMsg = "THANK YOU FOR PLAYING!";
                     else if (lang == LocalizationManager.Idioma.PORTUGUES) thanksMsg = "OBRIGADO POR JOGAR!";
+                    else if (lang == LocalizationManager.Idioma.РУССКИЙ) thanksMsg = "СПАСИБО ЗА ИГРУ!";
 
                     GUI.Label(new Rect(0f, 0f, sWidth, sHeight), thanksMsg, style);
                 }
@@ -999,6 +1021,7 @@ public class TunnelsFixedMapLogic : MonoBehaviour
                     string devTitle = "SIGUE EL DESARROLLO Y NOVEDADES EN:";
                     if (lang == LocalizationManager.Idioma.ENGLISH) devTitle = "FOLLOW DEVELOPMENT & UPDATES AT:";
                     else if (lang == LocalizationManager.Idioma.PORTUGUES) devTitle = "SIGA O DESENVOLVIMENTO EM:";
+                    else if (lang == LocalizationManager.Idioma.РУССКИЙ) devTitle = "СЛЕДИТЕ ЗА РАЗРАБОТКОЙ И НОВОСТЯМИ:";
 
                     GUI.Label(new Rect(0f, sHeight * 0.18f, sWidth, sHeight * 0.1f), devTitle, headerStyle);
 

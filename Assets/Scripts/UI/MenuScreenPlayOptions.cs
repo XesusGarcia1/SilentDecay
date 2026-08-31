@@ -20,45 +20,24 @@ public class MenuScreenPlayOptions : MonoBehaviour
         selectedCharacterIndex = (character == "Female") ? 1 : 0;
     }
 
+    private string targetScene = "Test_ModularHospital";
+    private string targetLevelName = "NIVEL 1: HOSPITAL";
+
+    public void SetTargetLevel(string sceneName, string levelName)
+    {
+        targetScene = sceneName;
+        targetLevelName = levelName;
+    }
+
     public void Draw(MenuStyles s)
     {
         // ─── Textos localizados ───────────────────────────────────────────────
-        string title     = "AJUSTES DE LA PARTIDA";
-        string diffLabel = "Dificultad de Supervivencia:";
-        string startBtn  = "  [ EMPEZAR JUEGO ]";
-        string tunnelBtn = "  [ IR A LOS TÚNELES ]";
-        string backBtn   = "  VOLVER AL MENÚ";
+        string title     = GetLocalized("AJUSTES DE LA PARTIDA", "GAME PARAMETERS", "AJUSTES DA PARTIDA", "ПАРАМЕТРЫ ИГРЫ");
+        string diffLabel = GetLocalized("Dificultad de Supervivencia:", "Survival Difficulty:", "Dificuldade de Sobrevivência:", "Сложность выживания:");
+        string startBtn  = GetLocalized("  [ EMPEZAR JUEGO ]", "  [ START GAME ]", "  [ INICIAR JOGO ]", "  [ НАЧАТЬ ИГРУ ]");
+        string backBtn   = GetLocalized("  VOLVER A SELECCIÓN", "  BACK TO SELECTION", "  VOLTAR À SELEÇÃO", "  НАЗАД К ВЫБОРУ");
 
-        if (LocalizationManager.Instance != null)
-        {
-            var lang = LocalizationManager.Instance.GetIdiomaActual();
-            if (lang == LocalizationManager.Idioma.ENGLISH)
-            {
-                title     = "GAME PARAMETERS";
-                diffLabel = "Survival Difficulty:";
-                startBtn  = "  [ START GAME ]";
-                tunnelBtn = "  [ GO TO TUNNELS ]";
-                backBtn   = "  BACK TO MENU";
-            }
-            else if (lang == LocalizationManager.Idioma.PORTUGUES)
-            {
-                title     = "AJUSTES DA PARTIDA";
-                diffLabel = "Dificuldade de Sobrevivência:";
-                startBtn  = "  [ INICIAR JOGO ]";
-                tunnelBtn = "  [ IR PARA OS TÚNEIS ]";
-                backBtn   = "  VOLTAR AO MENU";
-            }
-            else if (lang == LocalizationManager.Idioma.РУССКИЙ)
-            {
-                title     = "ПАРАМЕТРЫ ИГРЫ";
-                diffLabel = "Сложность выживания:";
-                startBtn  = "  [ НАЧАТЬ ИГРУ ]";
-                tunnelBtn = "  [ В ТОННЕЛИ ]";
-                backBtn   = "  НАЗАД В МЕНЮ";
-            }
-        }
-
-        GUILayout.Label(title, s.SectionHeader, GUILayout.Height(30));
+        GUILayout.Label($"{title}  •  {targetLevelName}", s.SectionHeader, GUILayout.Height(30));
         GUILayout.Space(30);
 
         GUILayout.BeginHorizontal();
@@ -75,15 +54,8 @@ public class MenuScreenPlayOptions : MonoBehaviour
         GUILayout.Space(30);
 
         // Selección de personaje
-        string charLabel = "Seleccionar Personaje:";
+        string charLabel = GetLocalized("Seleccionar Personaje:", "Select Character:", "Selecionar Personagem:", "Выбор персонажа:");
         string[] charNames = { "ETHAN", "NORA" };
-        if (LocalizationManager.Instance != null)
-        {
-            var lang = LocalizationManager.Instance.GetIdiomaActual();
-            if (lang == LocalizationManager.Idioma.ENGLISH) charLabel = "Select Character:";
-            else if (lang == LocalizationManager.Idioma.PORTUGUES) charLabel = "Selecionar Personagem:";
-            else if (lang == LocalizationManager.Idioma.РУССКИЙ) charLabel = "Выбор персонажа:";
-        }
 
         GUILayout.Label(charLabel, s.Label);
         GUILayout.Space(5);
@@ -105,37 +77,36 @@ public class MenuScreenPlayOptions : MonoBehaviour
         GUILayout.FlexibleSpace();
 
         var redBtn = RedButton(s);
-        if (GUILayout.Button(startBtn, redBtn, GUILayout.Height(60)))
+        if (GUILayout.Button(startBtn, redBtn, GUILayout.Height(65)))
         {
             ctx.PlayClickSound();
-            SaveAndLoad("Test_ModularHospital", 20); // Tamaño por defecto para el Hospital estático
+            int defaultSize = (targetScene == "TunnelsMap") ? 25 : 20;
+            SaveAndLoad(targetScene, defaultSize);
         }
-        GUILayout.Space(20);
-
-        if (ctx == null || ctx.enableTunnelsLevel)
-        {
-            var goldBtn = new GUIStyle(s.Button);
-            goldBtn.normal.textColor = new Color(0.9f, 0.6f, 0.1f);
-            goldBtn.hover.textColor  = Color.white;
-
-            if (GUILayout.Button(tunnelBtn, goldBtn, GUILayout.Height(50)))
-            {
-                ctx.PlayClickSound();
-                SaveAndLoad("TunnelsMap", 25); // Tamaño Mediano por defecto para Túneles
-            }
-            GUILayout.Space(20);
-        }
+        GUILayout.Space(25);
 
         if (GUILayout.Button(backBtn, s.Button, GUILayout.Height(50)))
         {
             ctx.PlayClickSound();
-            ctx.GoTo(MainMenuManager.MenuState.Main);
+            ctx.GoTo(MainMenuManager.MenuState.LevelSelect);
         }
 
         GUILayout.FlexibleSpace();
         GUILayout.EndVertical();
 
         GUILayout.EndHorizontal();
+    }
+
+    private string GetLocalized(string es, string en, string pt, string ru)
+    {
+        if (LocalizationManager.Instance == null) return es;
+        return LocalizationManager.Instance.GetIdiomaActual() switch
+        {
+            LocalizationManager.Idioma.ENGLISH   => en,
+            LocalizationManager.Idioma.PORTUGUES => pt,
+            LocalizationManager.Idioma.РУССКИЙ   => ru,
+            _                                    => es
+        };
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────

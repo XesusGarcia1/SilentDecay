@@ -54,12 +54,12 @@ public class MainMenuManager : MonoBehaviour
     [HideInInspector] public Texture2D sidebarTex;
 
     // ─── Subcomponentes de pantalla ──────────────────────────────────────────
-    private MenuCameraController     cameraController;
-    private MenuScreenMain           screenMain;
-    private MenuScreenLevelSelect    screenLevelSelect;
-    private MenuScreenPlayOptions    screenPlayOptions;
-    private MenuScreenDepotOptions   screenDepotOptions;
-    private MenuScreenSettings       screenSettings;
+    [HideInInspector] public MenuCameraController     cameraController;
+    [HideInInspector] public MenuScreenMain           screenMain;
+    [HideInInspector] public MenuScreenLevelSelect    screenLevelSelect;
+    [HideInInspector] public MenuScreenPlayOptions    screenPlayOptions;
+    [HideInInspector] public MenuScreenDepotOptions   screenDepotOptions;
+    [HideInInspector] public MenuScreenSettings       screenSettings;
 
     // ─────────────────────────────────────────────────────────────────────────
     void Start()
@@ -253,7 +253,7 @@ public class MainMenuManager : MonoBehaviour
         float logoAreaBottom = 60f + Mathf.Max(150f, logoHeight + 50f) + 10f;
         float availableH = 1080f - logoAreaBottom - 20f; // Espacio restante hasta el borde inferior
 
-        int menuW = (currentState == MenuState.LevelSelect) ? 1280 :
+        int menuW = (currentState == MenuState.LevelSelect) ? 900 :
                     (currentState == MenuState.PlayOptions || currentState == MenuState.DepotOptions) ? 1100 :
                     (isSettingsCalibrating ? 820 : (currentState == MenuState.Settings ? 720 : 640));
         int menuH = isSettingsCalibrating ? 620 : (int)Mathf.Min(700f, availableH);
