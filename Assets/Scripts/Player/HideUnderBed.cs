@@ -267,8 +267,6 @@ public class HideUnderBed : MonoBehaviour
 
         if (isHiding && activeBed != null)
         {
-            Debug.Log("🛌 Escondiéndose bajo la cama...");
-
             EvictEnemiesFarFromPlayer();
 
             bedHidePosition = activeBed.hidePosition;
@@ -334,8 +332,6 @@ public class HideUnderBed : MonoBehaviour
         }
         else
         {
-            Debug.Log("🚶 Saliendo del escondite...");
-
             if (playerRenderers != null)
             {
                 foreach (var r in playerRenderers)
@@ -488,7 +484,6 @@ public class HideUnderBed : MonoBehaviour
             UnityEngine.AI.NavMeshHit hit;
             if (UnityEngine.AI.NavMesh.SamplePosition(bedSide, out hit, 3.0f, UnityEngine.AI.NavMesh.AllAreas))
             {
-                Debug.Log("[Escondite] BookHead se acerca a inspeccionar la cama...");
                 agent.SetDestination(hit.position);
                 agent.speed = 1.8f;
 
@@ -510,7 +505,6 @@ public class HideUnderBed : MonoBehaviour
 
                 yield return new WaitForSeconds(4.5f);
 
-                Debug.Log("[Escondite] BookHead no descubrió al jugador y se retira despacio.");
                 agent.isStopped = false;
                 monster.FleeFarFromPlayer();
             }

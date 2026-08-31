@@ -58,7 +58,6 @@ namespace ModularHospital
         if (found != null)
         {
             keycardInside = found.gameObject;
-            Debug.Log("DrawerInteract: Tarjeta encontrada automáticamente en hijos del cajón.");
         }
     }
 
@@ -112,7 +111,6 @@ namespace ModularHospital
 
                 Destroy(keycardInside);
                 keycardInside = null;
-                Debug.Log("DrawerInteract: Tarjeta recogida directamente al interactuar con el cajón abierto.");
                 return;
             }
 

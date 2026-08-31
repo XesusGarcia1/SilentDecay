@@ -48,13 +48,7 @@ public class SafeZoneTrigger : MonoBehaviour
         }
 
         float dist = Vector3.Distance(transform.position, playerTransform.position);
-        bool wasSafe = isPlayerSafe;
         isPlayerSafe = (dist <= safeRadius);
-
-        if (isPlayerSafe && !wasSafe)
-            Debug.Log($"[SafeZoneTrigger] 🛡️ Jugador DENTRO de la Zona Segura (dist={dist:F1}m <= radio={safeRadius}m)");
-        else if (!isPlayerSafe && wasSafe)
-            Debug.Log($"[SafeZoneTrigger] ⚠️ Jugador SALIÓ de la Zona Segura (dist={dist:F1}m > radio={safeRadius}m)");
     }
 
     public static bool IsPositionInSafeZone(Vector3 pos)

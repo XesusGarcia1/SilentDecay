@@ -335,7 +335,6 @@ public class BookHeadPatrolState : IEnemyState
         }
 
         agent.SetPath(path);
-        Debug.Log("[Patrol] pt=" + currentPatrolIndex + " asignado OK | pathStatus=" + path.status + " | speed=" + agent.speed);
         return true;
     }
 }
