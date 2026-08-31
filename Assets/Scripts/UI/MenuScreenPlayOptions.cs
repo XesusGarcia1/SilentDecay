@@ -25,8 +25,8 @@ public class MenuScreenPlayOptions : MonoBehaviour
         // ─── Textos localizados ───────────────────────────────────────────────
         string title     = "AJUSTES DE LA PARTIDA";
         string diffLabel = "Dificultad de Supervivencia:";
-        string startBtn  = "  [ EMPEZAR JUEGO (HOSPITAL) ]";
-        string tunnelBtn = "  [ IR A LOS TÚNELES (MEDIANO) ]";
+        string startBtn  = "  [ EMPEZAR JUEGO ]";
+        string tunnelBtn = "  [ IR A LOS TÚNELES ]";
         string backBtn   = "  VOLVER AL MENÚ";
 
         if (LocalizationManager.Instance != null)
@@ -36,24 +36,24 @@ public class MenuScreenPlayOptions : MonoBehaviour
             {
                 title     = "GAME PARAMETERS";
                 diffLabel = "Survival Difficulty:";
-                startBtn  = "  [ START GAME (HOSPITAL) ]";
-                tunnelBtn = "  [ GO TO TUNNELS (MEDIUM) ]";
+                startBtn  = "  [ START GAME ]";
+                tunnelBtn = "  [ GO TO TUNNELS ]";
                 backBtn   = "  BACK TO MENU";
             }
             else if (lang == LocalizationManager.Idioma.PORTUGUES)
             {
                 title     = "AJUSTES DA PARTIDA";
                 diffLabel = "Dificuldade de Sobrevivência:";
-                startBtn  = "  [ INICIAR JOGO (HOSPITAL) ]";
-                tunnelBtn = "  [ IR PARA OS TÚNEIS (MÉDIO) ]";
+                startBtn  = "  [ INICIAR JOGO ]";
+                tunnelBtn = "  [ IR PARA OS TÚNEIS ]";
                 backBtn   = "  VOLTAR AO MENU";
             }
             else if (lang == LocalizationManager.Idioma.РУССКИЙ)
             {
                 title     = "ПАРАМЕТРЫ ИГРЫ";
                 diffLabel = "Сложность выживания:";
-                startBtn  = "  [ НАЧАТЬ ИГРУ (БОЛЬНИЦА) ]";
-                tunnelBtn = "  [ В ТОННЕЛИ (СРЕДНИЙ) ]";
+                startBtn  = "  [ НАЧАТЬ ИГРУ ]";
+                tunnelBtn = "  [ В ТОННЕЛИ ]";
                 backBtn   = "  НАЗАД В МЕНЮ";
             }
         }

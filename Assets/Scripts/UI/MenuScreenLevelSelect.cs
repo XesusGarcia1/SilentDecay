@@ -115,38 +115,74 @@ public class MenuScreenLevelSelect : MonoBehaviour
 
     void DrawDepotCard(MenuStyles s, string label)
     {
-        GUIStyle playBtn = new GUIStyle(s.Button);
-        playBtn.normal.textColor = Color.red;
-        playBtn.hover.textColor  = Color.white;
-
-        GUIStyle diffTag = new GUIStyle(GUI.skin.label);
-        diffTag.fontSize  = 15;
-        diffTag.fontStyle = FontStyle.Bold;
-        diffTag.alignment = TextAnchor.MiddleCenter;
-        diffTag.normal.textColor = new Color(1f, 0.45f, 0.1f); // Naranja → Difícil
+        bool isUnlocked = (ctx != null && ctx.unlockAllMapsDebug) || PlayerPrefs.GetInt("Campaign_HospitalTunnelsCompleted", 0) == 1;
 
         GUIStyle cardLabel = CardLabelStyle(s);
-        string playText    = GetLocalized("JUGAR", "PLAY", "JOGAR", "ИГРАТЬ");
-        string diffText    = GetLocalized("⚠ DIFÍCIL", "⚠ HARD", "⚠ DIFÍCIL", "⚠ СЛОЖНО");
 
-        GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(380), GUILayout.Height(380));
-        GUILayout.Space(10);
-
-        Rect thumb = GUILayoutUtility.GetRect(356f, 200f);
-        GUI.DrawTexture(thumb,
-            texDepotThumb != null ? texDepotThumb : Texture2D.blackTexture,
-            ScaleMode.StretchToFill);
-
-        GUILayout.Space(12);
-        GUILayout.Label(label, cardLabel, GUILayout.Height(50));
-        GUILayout.Space(16);
-
-        if (GUILayout.Button(playText, playBtn, GUILayout.Height(40)))
+        if (isUnlocked)
         {
-            ctx.PlayClickSound();
-            ctx.GoTo(MainMenuManager.MenuState.DepotOptions);
+            GUIStyle playBtn = new GUIStyle(s.Button);
+            playBtn.normal.textColor = Color.red;
+            playBtn.hover.textColor  = Color.white;
+
+            string playText = GetLocalized("JUGAR", "PLAY", "JOGAR", "ИГРАТЬ");
+
+            GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(380), GUILayout.Height(380));
+            GUILayout.Space(10);
+
+            Rect thumb = GUILayoutUtility.GetRect(356f, 200f);
+            GUI.DrawTexture(thumb,
+                texDepotThumb != null ? texDepotThumb : Texture2D.blackTexture,
+                ScaleMode.StretchToFill);
+
+            GUILayout.Space(12);
+            GUILayout.Label(label, cardLabel, GUILayout.Height(50));
+            GUILayout.Space(16);
+
+            if (GUILayout.Button(playText, playBtn, GUILayout.Height(40)))
+            {
+                ctx.PlayClickSound();
+                ctx.GoTo(MainMenuManager.MenuState.DepotOptions);
+            }
+            GUILayout.EndVertical();
         }
-        GUILayout.EndVertical();
+        else
+        {
+            // DEPÓSITO BLOQUEADO HASTA COMPLETAR HOSPITAL Y TÚNELES
+            GUIStyle lockStyle = new GUIStyle(GUI.skin.label);
+            lockStyle.fontSize = 20;
+            lockStyle.fontStyle = FontStyle.Bold;
+            lockStyle.normal.textColor = new Color(0.95f, 0.45f, 0.45f);
+            lockStyle.alignment = TextAnchor.MiddleCenter;
+
+            GUIStyle reqStyle = new GUIStyle(GUI.skin.label);
+            reqStyle.fontSize = 12;
+            reqStyle.fontStyle = FontStyle.Bold;
+            reqStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
+            reqStyle.alignment = TextAnchor.MiddleCenter;
+
+            string lockedStatus = GetLocalized("🔒 BLOQUEADO", "🔒 LOCKED", "🔒 BLOQUEADO", "🔒 ЗАБЛОКИРОВАНО");
+            string reqText = GetLocalized("REQUIERE COMPLETAR\nHOSPITAL Y TÚNELES", "REQUIRES COMPLETING\nHOSPITAL & TUNNELS", "REQUER COMPLETAR\nHOSPITAL E TÚNEIS", "ТРЕБУЕТСЯ ПРОЙТИ\nБОЛЬНИЦУ И ТУННЕЛИ");
+
+            GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(380), GUILayout.Height(380));
+            GUILayout.Space(10);
+
+            Rect thumb = GUILayoutUtility.GetRect(356f, 200f);
+            // Dibujar miniatura oscurecida
+            Color prevColor = GUI.color;
+            GUI.color = new Color(0.35f, 0.35f, 0.35f, 0.9f);
+            GUI.DrawTexture(thumb,
+                texDepotThumb != null ? texDepotThumb : Texture2D.blackTexture,
+                ScaleMode.StretchToFill);
+            GUI.color = prevColor;
+
+            GUILayout.Space(12);
+            GUILayout.Label(label, cardLabel, GUILayout.Height(40));
+            GUILayout.Space(4);
+            GUILayout.Label(lockedStatus, lockStyle, GUILayout.Height(25));
+            GUILayout.Label(reqText, reqStyle, GUILayout.Height(35));
+            GUILayout.EndVertical();
+        }
     }
 
     void DrawLockedCard(MenuStyles s, string title, string lockedLabel)

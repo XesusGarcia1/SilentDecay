@@ -454,7 +454,7 @@ public class MenuScreenSettings : MonoBehaviour
         headerStyle.normal.textColor = new Color(0.95f, 0.85f, 0.70f);
 
         // --- TECLADO Y RATÓN ---
-        string pcHeader = GetLocalized("⌨️ TECLADO Y RATÓN (PC)", "⌨️ KEYBOARD & MOUSE (PC)", "⌨️ TECLADO E MOUSE (PC)", "⌨️ КЛАВИАТУРА И МЫШЬ (ПК)");
+        string pcHeader = GetLocalized("TECLADO Y RATÓN (PC)", "KEYBOARD & MOUSE (PC)", "TECLADO E MOUSE (PC)", "КЛАВИАТУРА И МЫШЬ (ПК)");
         GUILayout.Label(pcHeader, headerStyle);
         GUILayout.Space(6);
 
@@ -469,7 +469,7 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.Space(14);
 
         // --- CONTROLES TÁCTILES ---
-        string touchHeader = GetLocalized("📱 CONTROLES TÁCTILES (MÓVIL)", "📱 TOUCH CONTROLS (MOBILE)", "📱 CONTROLES DE TOQUE (MOBILE)", "📱 СЕНСОРНОЕ УПРАВЛЕНИЕ (ТЕЛЕФОН)");
+        string touchHeader = GetLocalized("CONTROLES TÁCTILES (MÓVIL)", "TOUCH CONTROLS (MOBILE)", "CONTROLES DE TOQUE (MOBILE)", "СЕНСОРНОЕ УПРАВЛЕНИЕ (ТЕЛЕФОН)");
         GUILayout.Label(touchHeader, headerStyle);
         GUILayout.Space(6);
 

@@ -25,6 +25,8 @@ public class MainMenuManager : MonoBehaviour
     [Header("Configuración de Niveles")]
     [Tooltip("Si está desactivado, el botón para ir a los Túneles estará oculto o deshabilitado en el menú de partida")]
     public bool enableTunnelsLevel = true;
+    [Tooltip("Si es true, desbloquea el Depósito Industrial para pruebas sin necesidad de completar Hospital y Túneles")]
+    public bool unlockAllMapsDebug = false;
 
     [Header("Estilos de Botones")]
     public Texture2D btnNormalTexture;

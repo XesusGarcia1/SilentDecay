@@ -719,6 +719,11 @@ public class TunnelsFixedMapLogic : MonoBehaviour
         if (exitClip != null) AudioSource.PlayClipAtPoint(exitClip, Camera.main.transform.position, 1.0f);
 
         victoryStep = 1;
+        // Guardar progreso: el jugador ha completado la campaña de Hospital y Túneles, desbloqueando el Depósito Industrial
+        PlayerPrefs.SetInt("Campaign_HospitalTunnelsCompleted", 1);
+        PlayerPrefs.Save();
+        Debug.Log("[TunnelsFixedMapLogic] 🏆 ¡Campaña de Hospital y Túneles completada! Depósito Industrial desbloqueado.");
+
         yield return StartCoroutine(FadeVictoryStepText(3.2f));
         victoryStep = 2;
         yield return StartCoroutine(FadeVictoryStepText(3.0f));

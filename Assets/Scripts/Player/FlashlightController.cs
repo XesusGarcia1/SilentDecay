@@ -2,16 +2,46 @@ using UnityEngine;
 
 public class FlashlightController : MonoBehaviour
 {
-    [Header("Configuracin de Luz")]
+    [Header("Configuración de Luz")]
     public Light flashlightLight;      // Foco de luz de la linterna
     public KeyCode toggleKey = KeyCode.F; // Tecla para encender/apagar
+
+    [Tooltip("Intensidad del haz principal de la linterna")]
+    public float lightIntensity = 70.0f;
+
+    [Tooltip("Alcance en metros del haz principal")]
+    public float lightRange = 150f;
+
+    [Tooltip("Ángulo de apertura del foco (en grados)")]
+    public float spotAngle = 70f;
+
+    [Tooltip("Intensidad de la luz de relleno para paredes cercanas")]
+    public float fillLightIntensity = 1.8f;
+
+    [Tooltip("Intensidad de la adaptación visual nocturna (ojos)")]
+    public float ambientEyesIntensity = 0.85f;
+
+    private void OnValidate()
+    {
+        if (flashlightLight != null)
+        {
+            flashlightLight.intensity = lightIntensity;
+            flashlightLight.range = lightRange;
+            flashlightLight.spotAngle = spotAngle;
+            baseIntensity = lightIntensity;
+        }
+        if (fillLight != null)
+        {
+            fillLight.intensity = fillLightIntensity;
+        }
+    }
 
     [Header("Sonido")]
     public AudioClip clickSound;        // Sonido de clic
     private AudioSource audioSource;
 
-    [Header("Batera (Opcional)")]
-    public bool useBattery = true; // Cambiado por defecto a true para supervivencia      // Consume batera?
+    [Header("Batería (Opcional)")]
+    public bool useBattery = true;      // Consume batería?
     public float maxBattery = 100f;
     public float currentBattery;
     public float drainRate = 0.035f;     // Consumo super optimizado (~45 minutos reales por bateria)
@@ -23,7 +53,7 @@ public class FlashlightController : MonoBehaviour
 
     private void Start()
     {
-        // Obtener o aadir el componente AudioSource para los clics
+        // Obtener o añadir el componente AudioSource para los clics
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
         {
@@ -36,20 +66,20 @@ public class FlashlightController : MonoBehaviour
             clickSound = Resources.Load<AudioClip>("Audio/Compartido/Linterna_Click");
         }
 
-        // Si no se asign luz en el Inspector, la creamos dinmicamente
+        // Si no se asignó luz en el Inspector, la creamos dinámicamente
         if (flashlightLight == null)
         {
             CreateDynamicFlashlight();
         }
         else
         {
-            // Calibrar la luz existente del Inspector para que actǧe como el foco LED de una cǭmara de video
+            // Calibrar la luz existente del Inspector para que actúe como el foco LED de una cámara de video
             flashlightLight.type = LightType.Spot;
-            flashlightLight.range = 55f;
-            flashlightLight.spotAngle = 70f;
-            flashlightLight.intensity = 13.5f;
+            flashlightLight.range = lightRange;
+            flashlightLight.spotAngle = spotAngle;
+            flashlightLight.intensity = lightIntensity;
             flashlightLight.shadows = LightShadows.Soft;
-            flashlightLight.color = new Color(0.92f, 0.97f, 1f); // Luz fra LED digital
+            flashlightLight.color = new Color(0.92f, 0.97f, 1f); // Luz fría LED digital
 
             // Crear el fillLight como hijo de la luz existente para iluminar las paredes laterales
             if (transform.Find("Player_Flashlight_Fill") == null)
@@ -59,7 +89,7 @@ public class FlashlightController : MonoBehaviour
                 fillLight = fillObj.AddComponent<Light>();
                 fillLight.type = LightType.Point;
                 fillLight.range = 8f;
-                fillLight.intensity = 1.8f;
+                fillLight.intensity = fillLightIntensity;
                 fillLight.color = new Color(0.92f, 0.97f, 1f);
                 fillLight.shadows = LightShadows.None;
                 fillLight.enabled = flashlightLight.enabled;
@@ -71,7 +101,7 @@ public class FlashlightController : MonoBehaviour
             baseIntensity = flashlightLight.intensity;
         }
 
-        // Evitar que el cuerpo o cǭpsula del jugador proyecte sombras que bloqueen la linterna
+        // Evitar que el cuerpo o cápsula del jugador proyecte sombras que bloqueen la linterna
         foreach (var r in transform.root.GetComponentsInChildren<Renderer>())
         {
             if (r is MeshRenderer || r is SkinnedMeshRenderer)
@@ -95,7 +125,7 @@ public class FlashlightController : MonoBehaviour
             Light ambientLight = ambientObj.AddComponent<Light>();
             ambientLight.type = LightType.Point;
             ambientLight.range = 9.0f;
-            ambientLight.intensity = 0.85f;
+            ambientLight.intensity = ambientEyesIntensity;
             ambientLight.color = new Color(0.20f, 0.24f, 0.32f); // Azul marino suave / visión nocturna natural
             ambientLight.shadows = LightShadows.None;
             ambientLight.enabled = true;
@@ -282,25 +312,25 @@ public class FlashlightController : MonoBehaviour
         // Agregar el componente Light y configurarlo como foco de cámara de video
         flashlightLight = flashlightObj.AddComponent<Light>();
         flashlightLight.type = LightType.Spot;
-        flashlightLight.range = 55f;           // Alcance ideal para interiores oscuros
-        flashlightLight.spotAngle = 70f;       // Ángulo muy amplio (70°) que cubre todo el encuadre de la pantalla
-        flashlightLight.intensity = 13.5f;     // Brillo difuso equilibrado
-        flashlightLight.shadows = LightShadows.Soft; // Sombras suaves
+        flashlightLight.range = lightRange;           // Alcance ideal para interiores oscuros
+        flashlightLight.spotAngle = spotAngle;        // Ángulo amplio que cubre todo el encuadre de la pantalla
+        flashlightLight.intensity = lightIntensity;   // Brillo difuso equilibrado
+        flashlightLight.shadows = LightShadows.Soft;  // Sombras suaves
         flashlightLight.color = new Color(0.92f, 0.97f, 1f); // Blanco frío LED de cámara digital
-        flashlightLight.enabled = false;       // Empieza apagada
+        flashlightLight.enabled = false;              // Empieza apagada
 
         // Foco secundario de Point (luz de relleno ambiental para iluminar paredes cercanas)
         GameObject fillObj = new GameObject("Player_Flashlight_Fill");
         fillObj.transform.SetParent(flashlightObj.transform, false);
         fillLight = fillObj.AddComponent<Light>();
         fillLight.type = LightType.Point;
-        fillLight.range = 8f; // Rango corto de 8 metros
-        fillLight.intensity = 1.8f; // Intensidad suave
+        fillLight.range = 8f;                         // Rango corto de 8 metros
+        fillLight.intensity = fillLightIntensity;     // Intensidad suave
         fillLight.color = new Color(0.92f, 0.97f, 1f); // Mismo tono frío LED
-        fillLight.shadows = LightShadows.None; // Sin sombras para no impactar el rendimiento
+        fillLight.shadows = LightShadows.None;        // Sin sombras para no impactar el rendimiento
         fillLight.enabled = false;
         
-        Debug.Log("Flashlight: Foco de luz dinmico creado y configurado correctamente.");
+        Debug.Log("Flashlight: Foco de luz dinámico creado y configurado correctamente.");
     }
 
     // Metodo para recargar la bateria de la linterna (llamado al recoger pilas)
