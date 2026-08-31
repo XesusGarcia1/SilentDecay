@@ -5916,7 +5916,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   enableAds: 1
   useTestAdsInEditor: 1
-  useTestAdsInBuild: 0
+  useTestAdsInBuild: 1
   rewardedReviveAdUnitId: ca-app-pub-5970961731703173/8187700485
   rewardedBatteryAdUnitId: ca-app-pub-5970961731703173/4631598851
   interstitialAdUnitId: ca-app-pub-5970961731703173/3222419466

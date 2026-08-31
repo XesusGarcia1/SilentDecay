@@ -78,6 +78,16 @@ public class GuideMapUI : MonoBehaviour
         string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         if (sceneName == "LoadingScene" || sceneName == "MainMenu") return true;
 
+        // Suprimir en mapas de Túneles y Hospital (estos mapas usan el plano interactivo de la Libreta)
+        if (sceneName.Contains("Tunnel") || sceneName.Contains("Hospital") ||
+            FindFirstObjectByType<TunnelsGenerator>() != null ||
+            FindFirstObjectByType<TunnelsFixedMapLogic>() != null ||
+            FindFirstObjectByType<ModularHospital.ModularHospitalGenerator>() != null ||
+            FindFirstObjectByType<HospitalFixedMapLogic>() != null)
+        {
+            return true;
+        }
+
         var generator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
         if (generator != null && generator.isMenuMode) return true;
 

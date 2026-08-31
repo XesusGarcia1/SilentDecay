@@ -27643,7 +27643,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c26934f7d8bc46f44b785963a1c3b24d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  autoActivateAllGenerators: 1
+  autoActivateAllGenerators: 0
   drainageDuration: 45
   mapScale: 3
   pointStartRespawn: {fileID: 1683624216}
