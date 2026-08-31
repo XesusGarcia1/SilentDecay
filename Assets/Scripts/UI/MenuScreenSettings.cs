@@ -58,18 +58,23 @@ public class MenuScreenSettings : MonoBehaviour
         GUILayout.BeginHorizontal();
 
         tabStyle.normal.textColor = activeTab == 0 ? s.BrandRed : Color.gray;
-        string tab0 = GetLocalized("AUDIO Y CONTROLES", "AUDIO & CONTROLS", "ÁUDIO E CONTROLES", "АУДИО И УПРАВЛЕНИЕ");
+        string tab0 = GetLocalized("AUDIO / GENERAL", "AUDIO / GENERAL", "ÁUDIO / GERAL", "АУДИО / ОБЩИЕ");
         if (GUILayout.Button(tab0, tabStyle, GUILayout.Height(35))) { ctx.PlayClickSound(); activeTab = 0; }
 
         tabStyle.normal.textColor = activeTab == 1 ? s.BrandRed : Color.gray;
-        string tab1 = GetLocalized("GRÁFICOS Y RENDIMIENTO", "GRAPHICS & RUNTIME", "GRÁFICOS E VIDEO", "ГРАФИКА И ПРОИЗВОДИТЕЛЬНОСТЬ");
+        string tab1 = GetLocalized("GRÁFICOS", "GRAPHICS", "GRÁFICOS", "ГРАФИКА");
         if (GUILayout.Button(tab1, tabStyle, GUILayout.Height(35))) { ctx.PlayClickSound(); activeTab = 1; }
+
+        tabStyle.normal.textColor = activeTab == 2 ? s.BrandRed : Color.gray;
+        string tab2 = GetLocalized("CONTROLES", "CONTROLS", "CONTROLES", "УПРАВЛЕНИЕ");
+        if (GUILayout.Button(tab2, tabStyle, GUILayout.Height(35))) { ctx.PlayClickSound(); activeTab = 2; }
 
         GUILayout.EndHorizontal();
         GUILayout.Space(12);
 
-        if (activeTab == 0) DrawAudioTab(s);
-        else                DrawGraphicsTab(s);
+        if (activeTab == 0)      DrawAudioTab(s);
+        else if (activeTab == 1) DrawGraphicsTab(s);
+        else                     DrawControlsTab(s);
 
         GUILayout.Space(12);
 
@@ -434,5 +439,67 @@ public class MenuScreenSettings : MonoBehaviour
         }
 
         GUILayout.EndHorizontal();
+    }
+
+    // ─── Tab 2: Controles ─────────────────────────────────────────────────────
+    private Vector2 controlsScroll = Vector2.zero;
+
+    void DrawControlsTab(MenuStyles s)
+    {
+        controlsScroll = GUILayout.BeginScrollView(controlsScroll, GUILayout.Height(330));
+
+        GUIStyle headerStyle = new GUIStyle(s.SectionHeader);
+        headerStyle.fontSize = 20;
+        headerStyle.alignment = TextAnchor.MiddleLeft;
+        headerStyle.normal.textColor = new Color(0.95f, 0.85f, 0.70f);
+
+        // --- TECLADO Y RATÓN ---
+        string pcHeader = GetLocalized("TECLADO Y RATÓN (PC)", "KEYBOARD & MOUSE (PC)", "TECLADO E MOUSE (PC)", "КЛАВИАТУРА И МЫШЬ (ПК)");
+        GUILayout.Label(pcHeader, headerStyle);
+        GUILayout.Space(6);
+
+        DrawControlRow(s, "W / A / S / D", GetLocalized("Moverse / Caminar", "Move / Walk", "Mover-se / Andar", "Движение / Ходьба"));
+        DrawControlRow(s, GetLocalized("Shift (Mantener)", "Shift (Hold)", "Shift (Segurar)", "Shift (Удерживать)"), GetLocalized("Correr / Sprint", "Sprint / Run", "Correr / Sprint", "Бег / Спринт"));
+        DrawControlRow(s, GetLocalized("E / Clic Izq.", "E / Left Click", "E / Clique Esq.", "E / ЛКМ"), GetLocalized("Interactuar / Recoger notas / Usar máquinas", "Interact / Pick Up / Use machines", "Interagir / Pegar notas / Usar máquinas", "Взаимодействие / Взять / Использовать"));
+        DrawControlRow(s, "F", GetLocalized("Encender / Apagar Linterna", "Flashlight (Toggle)", "Ligar / Desligar Lanterna", "Фонарик (Вкл/Выкл)"));
+        DrawControlRow(s, "M", GetLocalized("Abrir Mapa directamente", "Open Map directly", "Abrir Mapa diretamente", "Открыть карту"));
+        DrawControlRow(s, "Tab / N", GetLocalized("Abrir Libreta (Claves, Mapa, Registros)", "Open Notepad (Notes, Map, Lore)", "Abrir Caderno (Notas, Mapa, Lore)", "Блокнот (Коды, Карта, Заметки)"));
+        DrawControlRow(s, "ESC", GetLocalized("Pausar / Cerrar menús", "Pause Menu / Close UI", "Pausa / Fechar UI", "Меню паузы / Закрыть меню"));
+
+        GUILayout.Space(14);
+
+        // --- CONTROLES TÁCTILES ---
+        string touchHeader = GetLocalized("CONTROLES TÁCTILES (MÓVIL)", "TOUCH CONTROLS (MOBILE)", "CONTROLES DE TOQUE (MOBILE)", "СЕНСОРНОЕ УПРАВЛЕНИЕ (ТЕЛЕФОН)");
+        GUILayout.Label(touchHeader, headerStyle);
+        GUILayout.Space(6);
+
+        DrawControlRow(s, GetLocalized("Joystick Izquierdo", "Left Joystick", "Joystick Esquerdo", "Левый джойстик"), GetLocalized("Mover al personaje", "Move character", "Mover o personagem", "Передвижение персонажа"));
+        DrawControlRow(s, GetLocalized("Deslizar Pantalla", "Touch & Drag", "Arrastar na Tela", "Проведение по экрану"), GetLocalized("Rotar cámara / Mirar", "Look around / Aim", "Olhar ao redor / Mirar", "Обзор камеры / Прицел"));
+        DrawControlRow(s, GetLocalized("Botón 'Uso'", "'Use' Button", "Botão 'Uso'", "Кнопка 'Использование'"), GetLocalized("Interactuar con puertas, objetos y generadores", "Interact with doors, items & generators", "Interagir com portas, itens e geradores", "Взаимодействие с дверьми и предметами"));
+        DrawControlRow(s, GetLocalized("Botón 'Luz'", "'Light' Button", "Botão 'Luz'", "Кнопка 'Свет'"), GetLocalized("Alternar Linterna", "Toggle Flashlight", "Alternar Lanterna", "Включить / Выключить фонарик"));
+        DrawControlRow(s, GetLocalized("Botón 'Correr'", "'Sprint' Button", "Botão 'Correr'", "Кнопка 'Бег'"), GetLocalized("Activar sprint / Correr", "Toggle Sprint / Run", "Ativar sprint / Correr", "Бег / Ускорение"));
+
+        GUILayout.EndScrollView();
+    }
+
+    void DrawControlRow(MenuStyles s, string key, string desc)
+    {
+        GUILayout.BeginHorizontal(GUI.skin.box);
+
+        GUIStyle keyStyle = new GUIStyle(s.Label);
+        keyStyle.fontSize = 18;
+        keyStyle.fontStyle = FontStyle.Bold;
+        keyStyle.normal.textColor = new Color(0.95f, 0.45f, 0.45f);
+        keyStyle.alignment = TextAnchor.MiddleLeft;
+        GUILayout.Label(key, keyStyle, GUILayout.Width(220));
+
+        GUIStyle descStyle = new GUIStyle(s.Label);
+        descStyle.fontSize = 17;
+        descStyle.normal.textColor = new Color(0.9f, 0.9f, 0.9f);
+        descStyle.alignment = TextAnchor.MiddleLeft;
+        GUILayout.Label(desc, descStyle);
+
+        GUILayout.EndHorizontal();
+        GUILayout.Space(2);
     }
 }

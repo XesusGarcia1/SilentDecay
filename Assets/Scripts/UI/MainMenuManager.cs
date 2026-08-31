@@ -25,6 +25,8 @@ public class MainMenuManager : MonoBehaviour
     [Header("Configuración de Niveles")]
     [Tooltip("Si está desactivado, el botón para ir a los Túneles estará oculto o deshabilitado en el menú de partida")]
     public bool enableTunnelsLevel = true;
+    [Tooltip("Si es true, desbloquea el Depósito Industrial para pruebas sin necesidad de completar Hospital y Túneles")]
+    public bool unlockAllMapsDebug = false;
 
     [Header("Estilos de Botones")]
     public Texture2D btnNormalTexture;
@@ -253,7 +255,7 @@ public class MainMenuManager : MonoBehaviour
 
         int menuW = (currentState == MenuState.LevelSelect) ? 1280 :
                     (currentState == MenuState.PlayOptions || currentState == MenuState.DepotOptions) ? 1100 :
-                    (isSettingsCalibrating ? 820 : 640);
+                    (isSettingsCalibrating ? 820 : (currentState == MenuState.Settings ? 720 : 640));
         int menuH = isSettingsCalibrating ? 620 : (int)Mathf.Min(700f, availableH);
         float menuY = logoAreaBottom;
         GUILayout.BeginArea(new Rect(1920f / 2f - menuW / 2f, menuY, menuW, menuH));

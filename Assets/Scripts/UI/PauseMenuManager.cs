@@ -418,6 +418,15 @@ public class PauseMenuManager : MonoBehaviour
                 PlayClickSound();
                 activeSettingsTab = 1;
             }
+
+            // Pestaña Controles
+            tabButtonStyle.normal.textColor = activeSettingsTab == 2 ? s.BrandRed : Color.gray;
+            string controlsTabTitle = GetLocalized("CONTROLES", "CONTROLS", "CONTROLES", "УПРАВЛЕНИЕ");
+            if (GUILayout.Button(controlsTabTitle, tabButtonStyle, GUILayout.Height(35)))
+            {
+                PlayClickSound();
+                activeSettingsTab = 2;
+            }
             
             GUILayout.EndHorizontal();
             GUILayout.Space(20);
@@ -464,7 +473,7 @@ public class PauseMenuManager : MonoBehaviour
                 }
                 GUILayout.EndHorizontal();
             }
-            else
+            else if (activeSettingsTab == 1)
             {
                 // CALIDAD DE GRÁFICOS
                 GUILayout.Label(LocalizationManager.Instance.Get("pause_graphics_quality"), s.Label);
@@ -522,7 +531,6 @@ public class PauseMenuManager : MonoBehaviour
                         Resolution targetRes = pcResolutions[selectedResIndex];
                         Screen.SetResolution(targetRes.width, targetRes.height, isFullscreen);
                     }
-
                     GUILayout.EndHorizontal();
                 }
                 else
@@ -546,8 +554,13 @@ public class PauseMenuManager : MonoBehaviour
                     isCalibratingGamma = true;
                 }
             }
+            else
+            {
+                // CONTROLES IN-GAME
+                DrawPauseControlsTab(s);
+            }
 
-            GUILayout.Space(30);
+            GUILayout.Space(20);
 
             // Guardar y Volver
             if (GUILayout.Button(LocalizationManager.Instance.Get("pause_save_back"), s.Button, GUILayout.Height(65)))
@@ -697,5 +710,80 @@ public class PauseMenuManager : MonoBehaviour
     {
         if (gearTex == null) gearTex = Resources.Load<Texture2D>("UI/HUD_Gear_Icon");
         return gearTex;
+    }
+
+    // ─── Pestaña de Controles In-Game ─────────────────────────────────────────
+    private Vector2 pauseControlsScroll = Vector2.zero;
+
+    private string GetLocalized(string es, string en, string pt, string ru)
+    {
+        if (LocalizationManager.Instance == null) return es;
+        return LocalizationManager.Instance.GetIdiomaActual() switch
+        {
+            LocalizationManager.Idioma.ESPAÑOL => es,
+            LocalizationManager.Idioma.ENGLISH => en,
+            LocalizationManager.Idioma.PORTUGUES => pt,
+            LocalizationManager.Idioma.РУССКИЙ => ru,
+            _ => es
+        };
+    }
+
+    private void DrawPauseControlsTab(MenuStyles s)
+    {
+        pauseControlsScroll = GUILayout.BeginScrollView(pauseControlsScroll, GUILayout.Height(330));
+
+        GUIStyle headerStyle = new GUIStyle(s.SectionHeader);
+        headerStyle.fontSize = 20;
+        headerStyle.alignment = TextAnchor.MiddleLeft;
+        headerStyle.normal.textColor = new Color(0.95f, 0.85f, 0.70f);
+
+        // --- TECLADO Y RATÓN ---
+        string pcHeader = GetLocalized("⌨️ TECLADO Y RATÓN (PC)", "⌨️ KEYBOARD & MOUSE (PC)", "⌨️ TECLADO E MOUSE (PC)", "⌨️ КЛАВИАТУРА И МЫШЬ (ПК)");
+        GUILayout.Label(pcHeader, headerStyle);
+        GUILayout.Space(6);
+
+        DrawPauseControlRow(s, "W / A / S / D", GetLocalized("Moverse / Caminar", "Move / Walk", "Mover-se / Andar", "Движение / Ходьба"));
+        DrawPauseControlRow(s, GetLocalized("Shift (Mantener)", "Shift (Hold)", "Shift (Segurar)", "Shift (Удерживать)"), GetLocalized("Correr / Sprint", "Sprint / Run", "Correr / Sprint", "Бег / Спринт"));
+        DrawPauseControlRow(s, GetLocalized("E / Clic Izq.", "E / Left Click", "E / Clique Esq.", "E / ЛКМ"), GetLocalized("Interactuar / Recoger notas / Usar máquinas", "Interact / Pick Up / Use machines", "Interagir / Pegar notas / Usar máquinas", "Взаимодействие / Взять / Использовать"));
+        DrawPauseControlRow(s, "F", GetLocalized("Encender / Apagar Linterna", "Flashlight (Toggle)", "Ligar / Desligar Lanterna", "Фонарик (Вкл/Выкл)"));
+        DrawPauseControlRow(s, "M", GetLocalized("Abrir Mapa directamente", "Open Map directly", "Abrir Mapa diretamente", "Открыть карту"));
+        DrawPauseControlRow(s, "Tab / N", GetLocalized("Abrir Libreta (Claves, Mapa, Registros)", "Open Notepad (Notes, Map, Lore)", "Abrir Caderno (Notas, Mapa, Lore)", "Блокнот (Коды, Карта, Заметки)"));
+        DrawPauseControlRow(s, "ESC", GetLocalized("Pausar / Cerrar menús", "Pause Menu / Close UI", "Pausa / Fechar UI", "Меню паузы / Закрыть меню"));
+
+        GUILayout.Space(14);
+
+        // --- CONTROLES TÁCTILES ---
+        string touchHeader = GetLocalized("📱 CONTROLES TÁCTILES (MÓVIL)", "📱 TOUCH CONTROLS (MOBILE)", "📱 CONTROLES DE TOQUE (MOBILE)", "📱 СЕНСОРНОЕ УПРАВЛЕНИЕ (ТЕЛЕФОН)");
+        GUILayout.Label(touchHeader, headerStyle);
+        GUILayout.Space(6);
+
+        DrawPauseControlRow(s, GetLocalized("Joystick Izquierdo", "Left Joystick", "Joystick Esquerdo", "Левый джойстик"), GetLocalized("Mover al personaje", "Move character", "Mover o personagem", "Передвижение персонажа"));
+        DrawPauseControlRow(s, GetLocalized("Deslizar Pantalla", "Touch & Drag", "Arrastar na Tela", "Проведение по экрану"), GetLocalized("Rotar cámara / Mirar", "Look around / Aim", "Olhar ao redor / Mirar", "Обзор камеры / Прицел"));
+        DrawPauseControlRow(s, GetLocalized("Botón 'Uso'", "'Use' Button", "Botão 'Uso'", "Кнопка 'Использование'"), GetLocalized("Interactuar con puertas, objetos y generadores", "Interact with doors, items & generators", "Interagir com portas, itens e geradores", "Взаимодействие с дверьми и предметами"));
+        DrawPauseControlRow(s, GetLocalized("Botón 'Luz'", "'Light' Button", "Botão 'Luz'", "Кнопка 'Свет'"), GetLocalized("Alternar Linterna", "Toggle Flashlight", "Alternar Lanterna", "Включить / Выключить фонарик"));
+        DrawPauseControlRow(s, GetLocalized("Botón 'Correr'", "'Sprint' Button", "Botão 'Correr'", "Кнопка 'Бег'"), GetLocalized("Activar sprint / Correr", "Toggle Sprint / Run", "Ativar sprint / Correr", "Бег / Ускорение"));
+
+        GUILayout.EndScrollView();
+    }
+
+    private void DrawPauseControlRow(MenuStyles s, string key, string desc)
+    {
+        GUILayout.BeginHorizontal(GUI.skin.box);
+
+        GUIStyle keyStyle = new GUIStyle(s.Label);
+        keyStyle.fontSize = 18;
+        keyStyle.fontStyle = FontStyle.Bold;
+        keyStyle.normal.textColor = new Color(0.95f, 0.45f, 0.45f);
+        keyStyle.alignment = TextAnchor.MiddleLeft;
+        GUILayout.Label(key, keyStyle, GUILayout.Width(220));
+
+        GUIStyle descStyle = new GUIStyle(s.Label);
+        descStyle.fontSize = 17;
+        descStyle.normal.textColor = new Color(0.9f, 0.9f, 0.9f);
+        descStyle.alignment = TextAnchor.MiddleLeft;
+        GUILayout.Label(desc, descStyle);
+
+        GUILayout.EndHorizontal();
+        GUILayout.Space(2);
     }
 }

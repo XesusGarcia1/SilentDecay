@@ -93,7 +93,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 112000000, guid: 9f53bfd98decd774482f5488cdd7479d, type: 2}
+  m_LightingDataAsset: {fileID: 0}
   m_LightingSettings: {fileID: 0}
 --- !u!196 &4
 NavMeshSettings:
@@ -8200,6 +8200,14 @@ PrefabInstance:
     - target: {fileID: 2862278905927072855, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       propertyPath: m_LocalPosition.z
       value: 0.3820001
+      objectReference: {fileID: 0}
+    - target: {fileID: 3967018987768119565, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
+      propertyPath: lightRange
+      value: 150
+      objectReference: {fileID: 0}
+    - target: {fileID: 3967018987768119565, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
+      propertyPath: lightIntensity
+      value: 70
       objectReference: {fileID: 0}
     - target: {fileID: 4489320167873709125, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       propertyPath: m_Layer
@@ -22795,6 +22803,14 @@ PrefabInstance:
       propertyPath: m_LocalPosition.z
       value: 0.3820001
       objectReference: {fileID: 0}
+    - target: {fileID: 3967018987768119565, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
+      propertyPath: lightRange
+      value: 150
+      objectReference: {fileID: 0}
+    - target: {fileID: 3967018987768119565, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
+      propertyPath: lightIntensity
+      value: 70
+      objectReference: {fileID: 0}
     - target: {fileID: 5126527961139664760, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.0059999973
@@ -27643,7 +27659,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c26934f7d8bc46f44b785963a1c3b24d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  autoActivateAllGenerators: 1
+  autoActivateAllGenerators: 0
   drainageDuration: 45
   mapScale: 3
   pointStartRespawn: {fileID: 1683624216}
