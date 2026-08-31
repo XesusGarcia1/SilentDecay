@@ -93,6 +93,8 @@ public class ElevatorController : MonoBehaviour
     private Texture2D fadeBlackTex;
     private bool isAsyncLoading = false;
     private float asyncProgress = 0f;
+    private int hospitalVictoryStep = 0;
+    private float hospitalVictoryAlpha = 0f;
 
     void Start()
     {
@@ -694,8 +696,52 @@ public class ElevatorController : MonoBehaviour
         Camera.main.transform.localPosition = originalCameraLocalPos;
         escapeFadeAlpha = 1f;
 
-        // 4. Iniciar la carga de la escena a través de la pantalla de carga unificada (con consejos)
-        SceneLoader.LoadScene(nextSceneName);
+        // Guardar progreso: Nivel 1 completado, desbloquea Nivel 2 (Túneles)
+        PlayerPrefs.SetInt("Campaign_HospitalCompleted", 1);
+        PlayerPrefs.Save();
+        Debug.Log("[ElevatorController] 🏆 ¡Nivel 1 (Hospital) completado! Nivel 2 (Túneles) desbloqueado.");
+
+        // Secuencia cinemática de victoria
+        hospitalVictoryStep = 1;
+        yield return StartCoroutine(FadeHospitalVictoryStep(3.0f));
+
+        hospitalVictoryStep = 2;
+        yield return StartCoroutine(FadeHospitalVictoryStep(4.5f));
+
+        if (SilentDecay.Core.AdManager.Instance != null)
+        {
+            SilentDecay.Core.AdManager.Instance.ShowInterstitialTransition(() =>
+            {
+                SceneManager.LoadScene("MainMenu");
+            });
+        }
+        else
+        {
+            SceneManager.LoadScene("MainMenu");
+        }
+    }
+
+    private IEnumerator FadeHospitalVictoryStep(float displayTime)
+    {
+        float t = 0f;
+        while (t < 0.6f)
+        {
+            t += Time.deltaTime;
+            hospitalVictoryAlpha = Mathf.Clamp01(t / 0.6f);
+            yield return null;
+        }
+        hospitalVictoryAlpha = 1f;
+
+        yield return new WaitForSeconds(displayTime);
+
+        t = 0f;
+        while (t < 0.6f)
+        {
+            t += Time.deltaTime;
+            hospitalVictoryAlpha = Mathf.Clamp01(1f - (t / 0.6f));
+            yield return null;
+        }
+        hospitalVictoryAlpha = 0f;
     }
 
     public static void RegisterNote(int pos, int val)
@@ -823,6 +869,77 @@ public class ElevatorController : MonoBehaviour
         }
 
 
+
+        if (hospitalVictoryStep > 0)
+        {
+            if (fadeBlackTex == null)
+            {
+                fadeBlackTex = new Texture2D(2, 2);
+                Color[] pix = new Color[4] { Color.black, Color.black, Color.black, Color.black };
+                fadeBlackTex.SetPixels(pix);
+                fadeBlackTex.Apply();
+            }
+
+            GUI.color = new Color(0f, 0f, 0f, escapeFadeAlpha);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), fadeBlackTex);
+
+            GUI.color = new Color(1f, 1f, 1f, hospitalVictoryAlpha);
+
+            bool isEn = LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH;
+            bool isPt = LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.PORTUGUES;
+            bool isRu = LocalizationManager.Instance != null && LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.РУССКИЙ;
+
+            float sWidth = Screen.width;
+            float sHeight = Screen.height;
+
+            if (hospitalVictoryStep == 1)
+            {
+                GUIStyle titleSt = new GUIStyle(GUI.skin.label);
+                titleSt.alignment = TextAnchor.MiddleCenter;
+                titleSt.fontStyle = FontStyle.Bold;
+                titleSt.fontSize = Mathf.RoundToInt(sHeight * 0.055f);
+                titleSt.normal.textColor = Color.white;
+
+                GUIStyle subSt = new GUIStyle(GUI.skin.label);
+                subSt.alignment = TextAnchor.MiddleCenter;
+                subSt.fontStyle = FontStyle.Bold;
+                subSt.fontSize = Mathf.RoundToInt(sHeight * 0.038f);
+                subSt.normal.textColor = new Color(0.3f, 0.95f, 0.4f);
+
+                string winTitle = isEn ? "LEVEL 1: HOSPITAL COMPLETED!" : (isPt ? "NÍVEL 1: HOSPITAL CONCLUÍDO!" : (isRu ? "УРОВЕНЬ 1: БОЛЬНИЦА ПРОЙДЕНА!" : "¡NIVEL 1: HOSPITAL COMPLETADO!"));
+                string unlockSub = isEn ? "🔓 LEVEL 2: FLOODED TUNNELS UNLOCKED" : (isPt ? "🔓 NÍVEL 2: TÚNEIS INUNDADOS DESBLOQUEADO" : (isRu ? "🔓 УРОВЕНЬ 2: ТОННЕЛИ РАЗБЛОКИРОВАНЫ" : "🔓 ¡NIVEL 2: TÚNELES INUNDADOS DESBLOQUEADO!"));
+
+                GUI.Label(new Rect(0, sHeight * 0.38f, sWidth, sHeight * 0.10f), winTitle, titleSt);
+                GUI.Label(new Rect(0, sHeight * 0.50f, sWidth, sHeight * 0.08f), unlockSub, subSt);
+            }
+            else if (hospitalVictoryStep == 2)
+            {
+                GUIStyle headerStyle = new GUIStyle(GUI.skin.label);
+                headerStyle.alignment = TextAnchor.MiddleCenter;
+                headerStyle.fontStyle = FontStyle.Bold;
+                headerStyle.fontSize = Mathf.RoundToInt(sHeight * 0.045f);
+                headerStyle.normal.textColor = new Color(0.9f, 0.9f, 0.95f);
+
+                string devTitle = isEn ? "FOLLOW DEVELOPMENT & UPDATES AT:" : (isPt ? "SIGA O DESENVOLVIMENTO EM:" : (isRu ? "СЛЕДИТЕ ЗА РАЗРАБОТКОЙ И НОВОСТЯМИ:" : "SIGUE EL DESARROLLO Y NOVEDADES EN:"));
+                GUI.Label(new Rect(0f, sHeight * 0.18f, sWidth, sHeight * 0.1f), devTitle, headerStyle);
+
+                // Tarjeta de redes sociales
+                GUIStyle cardStyle = new GUIStyle(GUI.skin.label);
+                cardStyle.alignment = TextAnchor.MiddleCenter;
+                cardStyle.fontStyle = FontStyle.Bold;
+                cardStyle.fontSize = Mathf.RoundToInt(sHeight * 0.035f);
+                cardStyle.normal.textColor = Color.white;
+
+                string socialText = "INSTAGRAM: @lxesusgarcial\n\n" +
+                                    "FACEBOOK: lXesusGarcial\n\n" +
+                                    "YOUTUBE: @Xesus_Garcia";
+
+                GUI.Label(new Rect(sWidth * 0.1f, sHeight * 0.35f, sWidth * 0.8f, sHeight * 0.45f), socialText, cardStyle);
+            }
+
+            GUI.color = Color.white;
+            return;
+        }
 
         if (playerTransform == null || isEscaping) return;
 
