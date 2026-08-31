@@ -25,8 +25,32 @@ public class MainMenuManager : MonoBehaviour
     [Header("Configuración de Niveles")]
     [Tooltip("Si está desactivado, el botón para ir a los Túneles estará oculto o deshabilitado en el menú de partida")]
     public bool enableTunnelsLevel = true;
-    [Tooltip("Si es true, desbloquea el Depósito Industrial para pruebas sin necesidad de completar Hospital y Túneles")]
+    [Tooltip("Si es true, desbloquea todos los mapas en el carrusel para pruebas sin necesidad de completar los anteriores")]
     public bool unlockAllMapsDebug = false;
+
+    [Header("Modo de Pruebas Global (Developer Test Mode)")]
+    [Tooltip("Activa todas las ayudas globales: Inicia con tarjeta, burla tarjeta, burla energía en Hospital; auto-activa generadores en Túneles; y entrega todas las llaves, repara escaleras y da mapa en Depósito")]
+    public bool testModeEnableAll = false;
+
+    [Header("Opciones de Pruebas - Hospital")]
+    [Tooltip("Hospital: Iniciar la partida con la tarjeta de acceso")]
+    public bool testStartWithKeycard = false;
+    [Tooltip("Hospital: Burlar la tarjeta de acceso (abierto directamente)")]
+    public bool testBypassKeycard = false;
+    [Tooltip("Hospital: Burlar la energía eléctrica del elevador")]
+    public bool testBypassPower = false;
+
+    [Header("Opciones de Pruebas - Túneles")]
+    [Tooltip("Túneles: Auto-activar todos los subgeneradores al iniciar")]
+    public bool testAutoActivateGenerators = false;
+
+    [Header("Opciones de Pruebas - Depósito Industrial")]
+    [Tooltip("Depósito: Iniciar con todas las llaves recolectadas")]
+    public bool testDepotGiveAllKeys = false;
+    [Tooltip("Depósito: Escalera ya armada y reparada desde el inicio")]
+    public bool testDepotLadderRepaired = false;
+    [Tooltip("Depósito: Iniciar con el mapa de guía en el inventario")]
+    public bool testDepotGiveGuideMap = false;
 
     [Header("Estilos de Botones")]
     public Texture2D btnNormalTexture;
@@ -62,8 +86,19 @@ public class MainMenuManager : MonoBehaviour
     [HideInInspector] public MenuScreenSettings       screenSettings;
 
     // ─────────────────────────────────────────────────────────────────────────
+    void Awake()
+    {
+        DevTestSettings.SyncFromMainMenu(this);
+    }
+
+    void OnValidate()
+    {
+        DevTestSettings.SyncFromMainMenu(this);
+    }
+
     void Start()
     {
+        DevTestSettings.SyncFromMainMenu(this);
         InitRenderSettings();
         InitScreenOrientation();
         InitTextures();
@@ -253,7 +288,7 @@ public class MainMenuManager : MonoBehaviour
         float logoAreaBottom = 60f + Mathf.Max(150f, logoHeight + 50f) + 10f;
         float availableH = 1080f - logoAreaBottom - 20f; // Espacio restante hasta el borde inferior
 
-        int menuW = (currentState == MenuState.LevelSelect) ? 900 :
+        int menuW = (currentState == MenuState.LevelSelect) ? 960 :
                     (currentState == MenuState.PlayOptions || currentState == MenuState.DepotOptions) ? 1100 :
                     (isSettingsCalibrating ? 820 : (currentState == MenuState.Settings ? 720 : 640));
         int menuH = isSettingsCalibrating ? 620 : (int)Mathf.Min(700f, availableH);
@@ -277,5 +312,33 @@ public class MainMenuManager : MonoBehaviour
             screenMain?.DrawSocialButtons();
 
         GUI.matrix = svMat;
+    }
+}
+
+/// <summary>
+/// Configuración de pruebas persistente entre escenas durante la sesión de juego.
+/// </summary>
+public static class DevTestSettings
+{
+    public static bool testModeEnableAll = false;
+    public static bool startWithKeycard = false;
+    public static bool bypassKeycard = false;
+    public static bool bypassPower = false;
+    public static bool autoActivateGenerators = false;
+    public static bool testDepotGiveAllKeys = false;
+    public static bool testDepotLadderRepaired = false;
+    public static bool testDepotGiveGuideMap = false;
+
+    public static void SyncFromMainMenu(MainMenuManager m)
+    {
+        if (m == null) return;
+        testModeEnableAll = m.testModeEnableAll;
+        startWithKeycard = m.testModeEnableAll || m.testStartWithKeycard;
+        bypassKeycard = m.testModeEnableAll || m.testBypassKeycard;
+        bypassPower = m.testModeEnableAll || m.testBypassPower;
+        autoActivateGenerators = m.testModeEnableAll || m.testAutoActivateGenerators;
+        testDepotGiveAllKeys = m.testModeEnableAll || m.testDepotGiveAllKeys;
+        testDepotLadderRepaired = m.testModeEnableAll || m.testDepotLadderRepaired;
+        testDepotGiveGuideMap = m.testModeEnableAll || m.testDepotGiveGuideMap;
     }
 }

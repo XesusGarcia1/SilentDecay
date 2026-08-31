@@ -433,14 +433,12 @@ public class UIVirtualTouchZone : MonoBehaviour, IPointerDownHandler, IDragHandl
 
     private void TriggerVirtualInteraction()
     {
-        Debug.Log("[TouchZone] ¡Tap de interacción detectado! Activando MobileInput.ePressedDown.");
         MobileInput.ePressedDown = true;
         MobileInput.lastFrameEPressed = Time.frameCount;
     }
 
     private void TriggerVirtualFlashlight()
     {
-        Debug.Log("[TouchZone] ¡Doble Tap detectado! Activando MobileInput.fPressedDown.");
         MobileInput.fPressedDown = true;
         MobileInput.lastFrameFPressed = Time.frameCount;
     }

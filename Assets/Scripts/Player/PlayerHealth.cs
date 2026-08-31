@@ -760,9 +760,7 @@ public class PlayerHealth : MonoBehaviour
         bool tieneMasIntentos = false;
         if (GameManager.Instance != null)
         {
-            Debug.Log($"[RESPAWN] Antes de RestarVida: vidasActuales={GameManager.Instance.vidasActuales}, maxVidas={GameManager.Instance.maxVidas}");
             tieneMasIntentos = GameManager.Instance.RestarVida();
-            Debug.Log($"[RESPAWN] Después de RestarVida: vidasActuales={GameManager.Instance.vidasActuales}, tieneMasIntentos={tieneMasIntentos}");
         }
         else
         {

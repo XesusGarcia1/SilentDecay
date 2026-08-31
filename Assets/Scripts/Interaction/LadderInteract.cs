@@ -23,6 +23,21 @@ public class LadderInteract : MonoBehaviour
 
     void Start()
     {
+        if (DevTestSettings.testModeEnableAll || DevTestSettings.testDepotLadderRepaired)
+        {
+            isBroken = false;
+            isFullyRepaired = true;
+            if (ladderComponents != null)
+            {
+                totalParts = ladderComponents.Length;
+                foreach (GameObject comp in ladderComponents)
+                {
+                    if (comp != null) comp.SetActive(true);
+                }
+            }
+            return;
+        }
+
         if (isBroken && ladderComponents != null)
         {
             totalParts = ladderComponents.Length;

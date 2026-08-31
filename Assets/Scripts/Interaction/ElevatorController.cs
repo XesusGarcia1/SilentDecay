@@ -123,6 +123,10 @@ public class ElevatorController : MonoBehaviour
             sfxAudioSource.loop = false;
         }
 
+        if (DevTestSettings.testModeEnableAll || DevTestSettings.startWithKeycard) startWithKeycard = true;
+        if (DevTestSettings.testModeEnableAll || DevTestSettings.bypassKeycard) bypassKeycard = true;
+        if (DevTestSettings.testModeEnableAll || DevTestSettings.bypassPower) bypassPower = true;
+
         if (startWithKeycard)
         {
             hasKeycard = true;
@@ -276,14 +280,21 @@ public class ElevatorController : MonoBehaviour
         if (playerTransform == null) return;
 
         // Comprobar estado de la energia
-        bool hasPower = true;
-        if (powerBox != null)
+        bool hasPower = bypassPower || DevTestSettings.bypassPower || DevTestSettings.testModeEnableAll;
+        if (!hasPower)
         {
-            hasPower = !powerBox.isPowerOut;
-        }
-        else if (roomLightsManager != null)
-        {
-            hasPower = !roomLightsManager.powerOutage;
+            if (powerBox != null)
+            {
+                hasPower = !powerBox.isPowerOut;
+            }
+            else if (roomLightsManager != null)
+            {
+                hasPower = !roomLightsManager.powerOutage;
+            }
+            else
+            {
+                hasPower = true;
+            }
         }
 
         // 1. Logica del temporizador de llamada
@@ -696,6 +707,9 @@ public class ElevatorController : MonoBehaviour
         Camera.main.transform.localPosition = originalCameraLocalPos;
         escapeFadeAlpha = 1f;
 
+        Time.timeScale = 0f;
+        MobileInput.SetCursorState(false);
+
         // Guardar progreso: Nivel 1 completado, desbloquea Nivel 2 (Túneles)
         PlayerPrefs.SetInt("Campaign_HospitalCompleted", 1);
         PlayerPrefs.Save();
@@ -703,11 +717,12 @@ public class ElevatorController : MonoBehaviour
 
         // Secuencia cinemática de victoria
         hospitalVictoryStep = 1;
-        yield return StartCoroutine(FadeHospitalVictoryStep(3.0f));
+        yield return StartCoroutine(FadeHospitalVictoryStep(4.2f));
 
         hospitalVictoryStep = 2;
         yield return StartCoroutine(FadeHospitalVictoryStep(4.5f));
 
+        Time.timeScale = 1f;
         if (SilentDecay.Core.AdManager.Instance != null)
         {
             SilentDecay.Core.AdManager.Instance.ShowInterstitialTransition(() =>
@@ -726,18 +741,18 @@ public class ElevatorController : MonoBehaviour
         float t = 0f;
         while (t < 0.6f)
         {
-            t += Time.deltaTime;
+            t += Time.unscaledDeltaTime;
             hospitalVictoryAlpha = Mathf.Clamp01(t / 0.6f);
             yield return null;
         }
         hospitalVictoryAlpha = 1f;
 
-        yield return new WaitForSeconds(displayTime);
+        yield return new WaitForSecondsRealtime(displayTime);
 
         t = 0f;
         while (t < 0.6f)
         {
-            t += Time.deltaTime;
+            t += Time.unscaledDeltaTime;
             hospitalVictoryAlpha = Mathf.Clamp01(1f - (t / 0.6f));
             yield return null;
         }
@@ -780,10 +795,18 @@ public class ElevatorController : MonoBehaviour
             return;
         }
 
-        // 4. Fallback a camara principal
-        if (Camera.main != null)
+        // 4. Fallback por nombre común
+        GameObject pm = GameObject.Find("PlayerMale");
+        if (pm != null)
         {
-            playerTransform = Camera.main.transform;
+            playerTransform = pm.transform;
+            return;
+        }
+        GameObject pf = GameObject.Find("PlayerFemale");
+        if (pf != null)
+        {
+            playerTransform = pf.transform;
+            return;
         }
     }
 
@@ -797,8 +820,8 @@ public class ElevatorController : MonoBehaviour
 
     void OnGUI()
     {
-        // Dibujar el fundido a negro y la pantalla de carga si el elevador está escapando
-        if (isEscaping)
+        // PANTALLA DE VICTORIA Y CIERRE DE NIVEL 1 (HOSPITAL)
+        if (hospitalVictoryStep > 0)
         {
             if (fadeBlackTex == null)
             {
@@ -811,76 +834,7 @@ public class ElevatorController : MonoBehaviour
                 fadeBlackTex.Apply();
             }
 
-            GUI.color = new Color(1f, 1f, 1f, escapeFadeAlpha);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), fadeBlackTex);
-            GUI.color = Color.white;
-
-            if (isAsyncLoading && escapeFadeAlpha >= 0.95f)
-            {
-                GUIStyle loadStyle = new GUIStyle();
-                loadStyle.fontSize = 26;
-                loadStyle.alignment = TextAnchor.MiddleCenter;
-                loadStyle.fontStyle = FontStyle.Bold;
-                loadStyle.normal.textColor = new Color(0.9f, 0.1f, 0.1f); // Rojo sangre
-
-                GUIStyle subLoadStyle = new GUIStyle();
-                subLoadStyle.fontSize = 16;
-                subLoadStyle.alignment = TextAnchor.MiddleCenter;
-                subLoadStyle.normal.textColor = Color.gray;
-
-                GUI.Label(new Rect(0, Screen.height / 2 - 40, Screen.width, 40), "NIVEL 2: LOS TÚNELES", loadStyle);
-                
-                string progressText = $"CARGANDO ACCESO DE VENTILACIÓN... {Mathf.RoundToInt(asyncProgress * 100)}%";
-                GUI.Label(new Rect(0, Screen.height / 2 + 10, Screen.width, 30), progressText, subLoadStyle);
-            }
-            return;
-        }
-
-        // Ocultar si estamos en modo menú
-        ModularHospital.ModularHospitalGenerator generator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
-        if (generator != null && generator.isMenuMode) return;
-        if (isGameEnded)
-        {
             GUI.color = Color.black;
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
-            GUI.color = Color.white;
-
-            GUIStyle titleStyle = new GUIStyle();
-            titleStyle.fontSize = 32;
-            titleStyle.alignment = TextAnchor.MiddleCenter;
-            titleStyle.fontStyle = FontStyle.Bold;
-            titleStyle.normal.textColor = new Color(0.9f, 0.1f, 0.1f);
-
-            GUIStyle subStyle = new GUIStyle();
-            subStyle.fontSize = 20;
-            subStyle.alignment = TextAnchor.MiddleCenter;
-            subStyle.normal.textColor = Color.gray;
-
-            GUIStyle promptStyle = new GUIStyle();
-            promptStyle.fontSize = 18;
-            promptStyle.alignment = TextAnchor.MiddleCenter;
-            promptStyle.fontStyle = FontStyle.Italic;
-            promptStyle.normal.textColor = new Color(0.3f, 0.75f, 1f);
-
-            GUI.Label(new Rect(0, Screen.height / 2 - 80, Screen.width, 50), "FIN DE LA TRANSMISION", titleStyle);
-            GUI.Label(new Rect(0, Screen.height / 2 - 10, Screen.width, 40), "Lograste escapar del hospital en el elevador... por ahora.", subStyle);
-            GUI.Label(new Rect(0, Screen.height / 2 + 50, Screen.width, 30), "Presiona [R] para reiniciar o [ESC] para salir", promptStyle);
-            return;
-        }
-
-
-
-        if (hospitalVictoryStep > 0)
-        {
-            if (fadeBlackTex == null)
-            {
-                fadeBlackTex = new Texture2D(2, 2);
-                Color[] pix = new Color[4] { Color.black, Color.black, Color.black, Color.black };
-                fadeBlackTex.SetPixels(pix);
-                fadeBlackTex.Apply();
-            }
-
-            GUI.color = new Color(0f, 0f, 0f, escapeFadeAlpha);
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), fadeBlackTex);
 
             GUI.color = new Color(1f, 1f, 1f, hospitalVictoryAlpha);
@@ -938,6 +892,59 @@ public class ElevatorController : MonoBehaviour
             }
 
             GUI.color = Color.white;
+            return;
+        }
+
+        // Fundido a negro si el ascensor está descendiendo
+        if (isEscaping && escapeFadeAlpha > 0f)
+        {
+            if (fadeBlackTex == null)
+            {
+                fadeBlackTex = new Texture2D(2, 2);
+                Color c = Color.black;
+                fadeBlackTex.SetPixel(0, 0, c);
+                fadeBlackTex.SetPixel(0, 1, c);
+                fadeBlackTex.SetPixel(1, 0, c);
+                fadeBlackTex.SetPixel(1, 1, c);
+                fadeBlackTex.Apply();
+            }
+
+            GUI.color = new Color(0f, 0f, 0f, escapeFadeAlpha);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), fadeBlackTex);
+            GUI.color = Color.white;
+            return;
+        }
+
+        // Ocultar si estamos en modo menú
+        ModularHospital.ModularHospitalGenerator generator = FindObjectOfType<ModularHospital.ModularHospitalGenerator>();
+        if (generator != null && generator.isMenuMode) return;
+
+        if (isGameEnded)
+        {
+            GUI.color = Color.black;
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+
+            GUIStyle titleStyle = new GUIStyle();
+            titleStyle.fontSize = 32;
+            titleStyle.alignment = TextAnchor.MiddleCenter;
+            titleStyle.fontStyle = FontStyle.Bold;
+            titleStyle.normal.textColor = new Color(0.9f, 0.1f, 0.1f);
+
+            GUIStyle subStyle = new GUIStyle();
+            subStyle.fontSize = 20;
+            subStyle.alignment = TextAnchor.MiddleCenter;
+            subStyle.normal.textColor = Color.gray;
+
+            GUIStyle promptStyle = new GUIStyle();
+            promptStyle.fontSize = 18;
+            promptStyle.alignment = TextAnchor.MiddleCenter;
+            promptStyle.fontStyle = FontStyle.Italic;
+            promptStyle.normal.textColor = new Color(0.3f, 0.75f, 1f);
+
+            GUI.Label(new Rect(0, Screen.height / 2 - 80, Screen.width, 50), "FIN DE LA TRANSMISION", titleStyle);
+            GUI.Label(new Rect(0, Screen.height / 2 - 10, Screen.width, 40), "Lograste escapar del hospital en el elevador... por ahora.", subStyle);
+            GUI.Label(new Rect(0, Screen.height / 2 + 50, Screen.width, 30), "Presiona [R] para reiniciar o [ESC] para salir", promptStyle);
             return;
         }
 

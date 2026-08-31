@@ -50,40 +50,42 @@ public class MenuScreenLevelSelect : MonoBehaviour
 
         // ─── Fila Central: Flecha Izq + Tarjeta Grande + Flecha Der ───────────
         GUILayout.BeginHorizontal();
+        GUILayout.FlexibleSpace();
 
         // Botón Flecha Izquierda [ < ]
         GUIStyle arrowBtn = new GUIStyle(s.Button);
-        arrowBtn.fontSize = 32;
+        arrowBtn.fontSize = 34;
         arrowBtn.fontStyle = FontStyle.Bold;
         arrowBtn.normal.textColor = currentLevelIndex > 0 ? Color.white : new Color(0.4f, 0.4f, 0.4f, 0.5f);
 
-        GUILayout.BeginVertical(GUILayout.Width(70));
+        GUILayout.BeginVertical(GUILayout.Width(75));
         GUILayout.FlexibleSpace();
-        if (GUILayout.Button("◄", arrowBtn, GUILayout.Width(65), GUILayout.Height(90)))
+        if (GUILayout.Button("◄", arrowBtn, GUILayout.Width(70), GUILayout.Height(100)))
         {
             PrevLevel();
         }
         GUILayout.FlexibleSpace();
         GUILayout.EndVertical();
 
-        GUILayout.Space(15);
+        GUILayout.Space(20);
 
         // ─── Tarjeta Central Grande del Nivel Seleccionado ───
         DrawCurrentLevelCard(s);
 
-        GUILayout.Space(15);
+        GUILayout.Space(20);
 
         // Botón Flecha Derecha [ > ]
         arrowBtn.normal.textColor = currentLevelIndex < TOTAL_LEVELS - 1 ? Color.white : new Color(0.4f, 0.4f, 0.4f, 0.5f);
-        GUILayout.BeginVertical(GUILayout.Width(70));
+        GUILayout.BeginVertical(GUILayout.Width(75));
         GUILayout.FlexibleSpace();
-        if (GUILayout.Button("►", arrowBtn, GUILayout.Width(65), GUILayout.Height(90)))
+        if (GUILayout.Button("►", arrowBtn, GUILayout.Width(70), GUILayout.Height(100)))
         {
             NextLevel();
         }
         GUILayout.FlexibleSpace();
         GUILayout.EndVertical();
 
+        GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
 
         GUILayout.Space(14);
@@ -95,11 +97,15 @@ public class MenuScreenLevelSelect : MonoBehaviour
 
         // ─── Botón Volver al Menú Principal ──────────────────────────────────
         string backBtn = GetLocalized("  ATRÁS", "  BACK", "  VOLTAR", "  НАЗАД");
-        if (GUILayout.Button(backBtn, s.Button, GUILayout.Height(50)))
+        GUILayout.BeginHorizontal();
+        GUILayout.FlexibleSpace();
+        if (GUILayout.Button(backBtn, s.Button, GUILayout.Width(620), GUILayout.Height(50)))
         {
             ctx.PlayClickSound();
             ctx.GoTo(MainMenuManager.MenuState.Main);
         }
+        GUILayout.FlexibleSpace();
+        GUILayout.EndHorizontal();
     }
 
     private void PrevLevel()
@@ -232,7 +238,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
     private void RenderActiveCard(MenuStyles s, Texture2D thumbnail, string title, string description, string diffBadge, Color badgeColor, string playBtnText, System.Action onPlay)
     {
         GUIStyle titleStyle = new GUIStyle(s.Label);
-        titleStyle.fontSize = 22;
+        titleStyle.fontSize = 23;
         titleStyle.fontStyle = FontStyle.Bold;
         titleStyle.alignment = TextAnchor.MiddleCenter;
         titleStyle.normal.textColor = Color.white;
@@ -254,11 +260,11 @@ public class MenuScreenLevelSelect : MonoBehaviour
         playBtn.normal.textColor = s.BrandRed;
         playBtn.hover.textColor  = Color.white;
 
-        GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(540), GUILayout.Height(430));
+        GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(600), GUILayout.Height(450));
         GUILayout.Space(10);
 
         // Miniatura
-        Rect thumbRect = GUILayoutUtility.GetRect(516f, 220f);
+        Rect thumbRect = GUILayoutUtility.GetRect(576f, 235f);
         GUI.DrawTexture(thumbRect, thumbnail != null ? thumbnail : Texture2D.blackTexture, ScaleMode.StretchToFill);
 
         GUILayout.Space(8);
@@ -281,7 +287,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
     private void RenderLockedCard(MenuStyles s, Texture2D thumbnail, string title, string description, string lockReason)
     {
         GUIStyle titleStyle = new GUIStyle(s.Label);
-        titleStyle.fontSize = 22;
+        titleStyle.fontSize = 23;
         titleStyle.fontStyle = FontStyle.Bold;
         titleStyle.alignment = TextAnchor.MiddleCenter;
         titleStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
@@ -301,11 +307,11 @@ public class MenuScreenLevelSelect : MonoBehaviour
         lockText.alignment = TextAnchor.MiddleCenter;
         lockText.normal.textColor = new Color(0.95f, 0.45f, 0.45f);
 
-        GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(540), GUILayout.Height(430));
+        GUILayout.BeginVertical(GUI.skin.box, GUILayout.Width(600), GUILayout.Height(450));
         GUILayout.Space(10);
 
         // Miniatura oscurecida con candado
-        Rect thumbRect = GUILayoutUtility.GetRect(516f, 220f);
+        Rect thumbRect = GUILayoutUtility.GetRect(576f, 235f);
         Color oldC = GUI.color;
         GUI.color = new Color(0.25f, 0.25f, 0.25f, 0.95f);
         GUI.DrawTexture(thumbRect, thumbnail != null ? thumbnail : Texture2D.blackTexture, ScaleMode.StretchToFill);
