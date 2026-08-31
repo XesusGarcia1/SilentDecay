@@ -160,6 +160,17 @@ namespace StarterAssets
         {
             _controller = GetComponent<CharacterController>();
             _input = GetComponent<StarterAssetsInputs>();
+
+            // Optimización de Z-Buffer para eliminar Z-Fighting / parpadeo de texturas en los mapas
+            if (_mainCamera == null) _mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
+            if (_mainCamera != null)
+            {
+                Camera cam = _mainCamera.GetComponent<Camera>();
+                if (cam != null)
+                {
+                    cam.nearClipPlane = 0.08f;
+                }
+            }
 #if ENABLE_INPUT_SYSTEM
             _playerInput = GetComponent<PlayerInput>();
             if (_playerInput != null)
