@@ -1785,9 +1785,9 @@ MonoBehaviour:
   gameTitle: 
   titleLogo: {fileID: 2800000, guid: 05009eecc7471a0468620a357969ef1e, type: 3}
   logoHeight: 250
-  enableTunnelsLevel: 1
-  unlockAllMapsDebug: 1
-  testModeEnableAll: 1
+  unlockAllMapsDebug: 0
+  resetCampaignProgress: 0
+  testModeEnableAll: 0
   testStartWithKeycard: 0
   testBypassKeycard: 0
   testBypassPower: 0

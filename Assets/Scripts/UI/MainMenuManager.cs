@@ -23,10 +23,10 @@ public class MainMenuManager : MonoBehaviour
     public float logoHeight = 80f; // Controla el tamaño del logo desde el Inspector
 
     [Header("Configuración de Niveles")]
-    [Tooltip("Si está desactivado, el botón para ir a los Túneles estará oculto o deshabilitado en el menú de partida")]
-    public bool enableTunnelsLevel = true;
     [Tooltip("Si es true, desbloquea todos los mapas en el carrusel para pruebas sin necesidad de completar los anteriores")]
     public bool unlockAllMapsDebug = false;
+    [Tooltip("Marcar esta casilla en el Inspector borra el progreso guardado de campaña (PlayerPrefs) para probar como un jugador nuevo")]
+    public bool resetCampaignProgress = false;
 
     [Header("Modo de Pruebas Global (Developer Test Mode)")]
     [Tooltip("Activa todas las ayudas globales: Inicia con tarjeta, burla tarjeta, burla energía en Hospital; auto-activa generadores en Túneles; y entrega todas las llaves, repara escaleras y da mapa en Depósito")]
@@ -93,6 +93,11 @@ public class MainMenuManager : MonoBehaviour
 
     void OnValidate()
     {
+        if (resetCampaignProgress)
+        {
+            ResetCampaignProgress();
+            resetCampaignProgress = false;
+        }
         DevTestSettings.SyncFromMainMenu(this);
     }
 
@@ -312,6 +317,19 @@ public class MainMenuManager : MonoBehaviour
             screenMain?.DrawSocialButtons();
 
         GUI.matrix = svMat;
+    }
+
+    [ContextMenu("Resetear Progreso de Campaña")]
+    public void ResetCampaignProgress()
+    {
+        PlayerPrefs.DeleteKey("Campaign_HospitalCompleted");
+        PlayerPrefs.DeleteKey("Campaign_TunnelsCompleted");
+        PlayerPrefs.DeleteKey("Campaign_HospitalUnlocked");
+        PlayerPrefs.DeleteKey("Campaign_TunnelsUnlocked");
+        PlayerPrefs.DeleteKey("HospitalCompleted");
+        PlayerPrefs.DeleteKey("TunnelsCompleted");
+        PlayerPrefs.Save();
+        Debug.Log("[MainMenuManager] 🧹 Progreso guardado de campaña reseteado exitosamente.");
     }
 }
 
