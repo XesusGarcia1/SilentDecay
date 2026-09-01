@@ -23,10 +23,14 @@ public class MenuScreenLevelSelect : MonoBehaviour
     public void Init(MainMenuManager manager)
     {
         ctx = manager;
-        texHospitalThumb = Resources.Load<Texture2D>("Texturas/UI/game1");
-        texTunnelsThumb  = Resources.Load<Texture2D>("Texturas/UI/game01");
-        if (texTunnelsThumb == null) texTunnelsThumb = Resources.Load<Texture2D>("UI/GuieMapTunnels");
-        texDepotThumb    = Resources.Load<Texture2D>("Texturas/UI/game2");
+        texHospitalThumb = Resources.Load<Texture2D>("Texturas/UI/HospitalMap");
+        if (texHospitalThumb == null) texHospitalThumb = Resources.Load<Texture2D>("Texturas/UI/game1");
+
+        texTunnelsThumb  = Resources.Load<Texture2D>("Texturas/UI/TunnelsMap");
+        if (texTunnelsThumb == null) texTunnelsThumb = Resources.Load<Texture2D>("Texturas/UI/game01");
+
+        texDepotThumb    = Resources.Load<Texture2D>("Texturas/UI/DepositoMap");
+        if (texDepotThumb == null) texDepotThumb = Resources.Load<Texture2D>("Texturas/UI/game2");
 
         texArrowLeft  = Resources.Load<Texture2D>("Texturas/UI/icon_arrow_left");
         texArrowRight = Resources.Load<Texture2D>("Texturas/UI/icon_arrow_right");
