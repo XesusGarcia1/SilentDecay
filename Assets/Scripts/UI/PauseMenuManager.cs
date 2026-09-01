@@ -344,7 +344,7 @@ public class PauseMenuManager : MonoBehaviour
         float titleAreaBottom = 245f; // 80 (top) + 150 (height) + 15 margen extra
         float availableH = Screen.height - titleAreaBottom - 20f;
 
-        int menuWidth  = (currentState == PauseState.Settings) ? 580 : 450;
+        int menuWidth  = (currentState == PauseState.Settings) ? 720 : 450;
         int menuHeight = (currentState == PauseState.Settings)
             ? (int)Mathf.Min(700f, availableH)
             : 450;
@@ -400,6 +400,7 @@ public class PauseMenuManager : MonoBehaviour
 
             // Estilos para pestañas
             GUIStyle tabButtonStyle = new GUIStyle(s.TabButton);
+            tabButtonStyle.fontSize = 15;
 
             GUILayout.BeginHorizontal();
             
@@ -714,6 +715,8 @@ public class PauseMenuManager : MonoBehaviour
 
     // ─── Pestaña de Controles In-Game ─────────────────────────────────────────
     private Vector2 pauseControlsScroll = Vector2.zero;
+    private Vector2 pauseLastTouchPos = Vector2.zero;
+    private bool isPauseDraggingTouch = false;
 
     private string GetLocalized(string es, string en, string pt, string ru)
     {
@@ -730,7 +733,38 @@ public class PauseMenuManager : MonoBehaviour
 
     private void DrawPauseControlsTab(MenuStyles s)
     {
-        pauseControlsScroll = GUILayout.BeginScrollView(pauseControlsScroll, GUILayout.Height(330));
+        // ─── SOPORTE TÁCTIL MÓVIL Y ARRASTRE DE MOUSE PARA SCROLLVIEW ───
+        if (Input.touchCount > 0)
+        {
+            Touch t = Input.GetTouch(0);
+            if (t.phase == TouchPhase.Began)
+            {
+                pauseLastTouchPos = t.position;
+                isPauseDraggingTouch = true;
+            }
+            else if (t.phase == TouchPhase.Moved && isPauseDraggingTouch)
+            {
+                float deltaY = t.position.y - pauseLastTouchPos.y;
+                pauseControlsScroll.y += deltaY * 1.5f;
+                pauseLastTouchPos = t.position;
+            }
+            else if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled)
+            {
+                isPauseDraggingTouch = false;
+            }
+        }
+        else if (Event.current != null && Event.current.type == EventType.MouseDrag)
+        {
+            pauseControlsScroll.y -= Event.current.delta.y * 1.2f;
+        }
+
+        GUIStyle vScroll = new GUIStyle(GUI.skin.verticalScrollbar);
+        vScroll.fixedWidth = 32;
+
+        GUIStyle vThumb = new GUIStyle(GUI.skin.verticalScrollbarThumb);
+        vThumb.fixedWidth = 32;
+
+        pauseControlsScroll = GUILayout.BeginScrollView(pauseControlsScroll, false, true, GUI.skin.horizontalScrollbar, vScroll, GUILayout.Height(330));
 
         GUIStyle headerStyle = new GUIStyle(s.SectionHeader);
         headerStyle.fontSize = 20;
@@ -738,7 +772,7 @@ public class PauseMenuManager : MonoBehaviour
         headerStyle.normal.textColor = new Color(0.95f, 0.85f, 0.70f);
 
         // --- TECLADO Y RATÓN ---
-        string pcHeader = GetLocalized("⌨️ TECLADO Y RATÓN (PC)", "⌨️ KEYBOARD & MOUSE (PC)", "⌨️ TECLADO E MOUSE (PC)", "⌨️ КЛАВИАТУРА И МЫШЬ (ПК)");
+        string pcHeader = GetLocalized("TECLADO Y RATÓN (PC)", "KEYBOARD & MOUSE (PC)", "TECLADO E MOUSE (PC)", "КЛАВИАТУРА И МЫШЬ (ПК)");
         GUILayout.Label(pcHeader, headerStyle);
         GUILayout.Space(6);
 
@@ -753,11 +787,11 @@ public class PauseMenuManager : MonoBehaviour
         GUILayout.Space(14);
 
         // --- CONTROLES TÁCTILES ---
-        string touchHeader = GetLocalized("📱 CONTROLES TÁCTILES (MÓVIL)", "📱 TOUCH CONTROLS (MOBILE)", "📱 CONTROLES DE TOQUE (MOBILE)", "📱 СЕНСОРНОЕ УПРАВЛЕНИЕ (ТЕЛЕФОН)");
+        string touchHeader = GetLocalized("CONTROLES TÁCTILES (MÓVIL)", "TOUCH CONTROLS (MOBILE)", "CONTROLES DE TOQUE (MOBILE)", "СЕНСОРНОЕ УПРАВЛЕНИЕ (ТЕЛЕФОН)");
         GUILayout.Label(touchHeader, headerStyle);
         GUILayout.Space(6);
 
-        DrawPauseControlRow(s, GetLocalized("Joystick Izquierdo", "Left Joystick", "Joystick Esquerdo", "Левый джойстик"), GetLocalized("Mover al personaje", "Move character", "Mover o personagem", "Передвижение персонажа"));
+        DrawPauseControlRow(s, GetLocalized("Joystick Izquierdo", "Left Joystick", "Joystick Esquerdo", "Левый джойстик"), GetLocalized("Mover al personaje", "Move character", "Mover o personaje", "Передвижение персонажа"));
         DrawPauseControlRow(s, GetLocalized("Deslizar Pantalla", "Touch & Drag", "Arrastar na Tela", "Проведение по экрану"), GetLocalized("Rotar cámara / Mirar", "Look around / Aim", "Olhar ao redor / Mirar", "Обзор камеры / Прицел"));
         DrawPauseControlRow(s, GetLocalized("Botón 'Uso'", "'Use' Button", "Botão 'Uso'", "Кнопка 'Использование'"), GetLocalized("Interactuar con puertas, objetos y generadores", "Interact with doors, items & generators", "Interagir com portas, itens e geradores", "Взаимодействие с дверьми и предметами"));
         DrawPauseControlRow(s, GetLocalized("Botón 'Luz'", "'Light' Button", "Botão 'Luz'", "Кнопка 'Свет'"), GetLocalized("Alternar Linterna", "Toggle Flashlight", "Alternar Lanterna", "Включить / Выключить фонарик"));
@@ -771,16 +805,17 @@ public class PauseMenuManager : MonoBehaviour
         GUILayout.BeginHorizontal(GUI.skin.box);
 
         GUIStyle keyStyle = new GUIStyle(s.Label);
-        keyStyle.fontSize = 18;
+        keyStyle.fontSize = 17;
         keyStyle.fontStyle = FontStyle.Bold;
         keyStyle.normal.textColor = new Color(0.95f, 0.45f, 0.45f);
         keyStyle.alignment = TextAnchor.MiddleLeft;
-        GUILayout.Label(key, keyStyle, GUILayout.Width(220));
+        GUILayout.Label(key, keyStyle, GUILayout.Width(210));
 
         GUIStyle descStyle = new GUIStyle(s.Label);
-        descStyle.fontSize = 17;
+        descStyle.fontSize = 16;
         descStyle.normal.textColor = new Color(0.9f, 0.9f, 0.9f);
         descStyle.alignment = TextAnchor.MiddleLeft;
+        descStyle.wordWrap = true;
         GUILayout.Label(desc, descStyle);
 
         GUILayout.EndHorizontal();

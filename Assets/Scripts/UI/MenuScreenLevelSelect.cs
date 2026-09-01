@@ -13,6 +13,9 @@ public class MenuScreenLevelSelect : MonoBehaviour
     private Texture2D texHospitalThumb;
     private Texture2D texTunnelsThumb;
     private Texture2D texDepotThumb;
+    private Texture2D texArrowLeft;
+    private Texture2D texArrowRight;
+    private Texture2D texLockIcon;
 
     private int currentLevelIndex = 0;
     private const int TOTAL_LEVELS = 4;
@@ -24,6 +27,10 @@ public class MenuScreenLevelSelect : MonoBehaviour
         texTunnelsThumb  = Resources.Load<Texture2D>("Texturas/UI/game01");
         if (texTunnelsThumb == null) texTunnelsThumb = Resources.Load<Texture2D>("UI/GuieMapTunnels");
         texDepotThumb    = Resources.Load<Texture2D>("Texturas/UI/game2");
+
+        texArrowLeft  = Resources.Load<Texture2D>("Texturas/UI/icon_arrow_left");
+        texArrowRight = Resources.Load<Texture2D>("Texturas/UI/icon_arrow_right");
+        texLockIcon   = Resources.Load<Texture2D>("Texturas/UI/icon_lock");
     }
 
     public void Draw(MenuStyles s)
@@ -56,11 +63,12 @@ public class MenuScreenLevelSelect : MonoBehaviour
         GUIStyle arrowBtn = new GUIStyle(s.Button);
         arrowBtn.fontSize = 34;
         arrowBtn.fontStyle = FontStyle.Bold;
-        arrowBtn.normal.textColor = currentLevelIndex > 0 ? Color.white : new Color(0.4f, 0.4f, 0.4f, 0.5f);
+        arrowBtn.alignment = TextAnchor.MiddleCenter;
 
         GUILayout.BeginVertical(GUILayout.Width(75));
         GUILayout.FlexibleSpace();
-        if (GUILayout.Button("◄", arrowBtn, GUILayout.Width(70), GUILayout.Height(100)))
+        GUIContent leftContent = texArrowLeft != null ? new GUIContent(texArrowLeft) : new GUIContent("<");
+        if (GUILayout.Button(leftContent, arrowBtn, GUILayout.Width(70), GUILayout.Height(100)))
         {
             PrevLevel();
         }
@@ -75,10 +83,10 @@ public class MenuScreenLevelSelect : MonoBehaviour
         GUILayout.Space(20);
 
         // Botón Flecha Derecha [ > ]
-        arrowBtn.normal.textColor = currentLevelIndex < TOTAL_LEVELS - 1 ? Color.white : new Color(0.4f, 0.4f, 0.4f, 0.5f);
         GUILayout.BeginVertical(GUILayout.Width(75));
         GUILayout.FlexibleSpace();
-        if (GUILayout.Button("►", arrowBtn, GUILayout.Width(70), GUILayout.Height(100)))
+        GUIContent rightContent = texArrowRight != null ? new GUIContent(texArrowRight) : new GUIContent(">");
+        if (GUILayout.Button(rightContent, arrowBtn, GUILayout.Width(70), GUILayout.Height(100)))
         {
             NextLevel();
         }
@@ -318,11 +326,21 @@ public class MenuScreenLevelSelect : MonoBehaviour
         GUI.color = oldC;
 
         // Ícono de candado centrado sobre la imagen
-        GUIStyle bigLock = new GUIStyle(s.Label);
-        bigLock.fontSize = 65;
-        bigLock.alignment = TextAnchor.MiddleCenter;
-        bigLock.normal.textColor = new Color(0.95f, 0.35f, 0.35f, 0.9f);
-        GUI.Label(thumbRect, "🔒", bigLock);
+        if (texLockIcon != null)
+        {
+            float iconSize = 72f;
+            Rect lockRect = new Rect(thumbRect.x + (thumbRect.width - iconSize) / 2f, thumbRect.y + (thumbRect.height - iconSize) / 2f, iconSize, iconSize);
+            GUI.DrawTexture(lockRect, texLockIcon, ScaleMode.ScaleToFit);
+        }
+        else
+        {
+            GUIStyle bigLock = new GUIStyle(s.Label);
+            bigLock.fontSize = 24;
+            bigLock.fontStyle = FontStyle.Bold;
+            bigLock.alignment = TextAnchor.MiddleCenter;
+            bigLock.normal.textColor = new Color(0.95f, 0.35f, 0.35f, 0.9f);
+            GUI.Label(thumbRect, "[ BLOQUEADO ]", bigLock);
+        }
 
         GUILayout.Space(8);
         GUILayout.Label(title, titleStyle, GUILayout.Height(28));

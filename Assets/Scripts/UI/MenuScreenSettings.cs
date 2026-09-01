@@ -443,10 +443,44 @@ public class MenuScreenSettings : MonoBehaviour
 
     // ─── Tab 2: Controles ─────────────────────────────────────────────────────
     private Vector2 controlsScroll = Vector2.zero;
+    private Vector2 lastTouchPos = Vector2.zero;
+    private bool isDraggingTouch = false;
 
     void DrawControlsTab(MenuStyles s)
     {
-        controlsScroll = GUILayout.BeginScrollView(controlsScroll, GUILayout.Height(330));
+        // ─── SOPORTE TÁCTIL MÓVIL Y ARRASTRE DE MOUSE PARA SCROLLVIEW ───
+        if (Input.touchCount > 0)
+        {
+            Touch t = Input.GetTouch(0);
+            if (t.phase == TouchPhase.Began)
+            {
+                lastTouchPos = t.position;
+                isDraggingTouch = true;
+            }
+            else if (t.phase == TouchPhase.Moved && isDraggingTouch)
+            {
+                float deltaY = t.position.y - lastTouchPos.y;
+                controlsScroll.y += deltaY * 1.5f; // Desplazar en la dirección del arrastre táctil
+                lastTouchPos = t.position;
+            }
+            else if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled)
+            {
+                isDraggingTouch = false;
+            }
+        }
+        else if (Event.current != null && Event.current.type == EventType.MouseDrag)
+        {
+            controlsScroll.y -= Event.current.delta.y * 1.2f;
+        }
+
+        // Estilo de barra de scroll más ancha y fácil de tocar con el dedo
+        GUIStyle vScroll = new GUIStyle(GUI.skin.verticalScrollbar);
+        vScroll.fixedWidth = 32;
+
+        GUIStyle vThumb = new GUIStyle(GUI.skin.verticalScrollbarThumb);
+        vThumb.fixedWidth = 32;
+
+        controlsScroll = GUILayout.BeginScrollView(controlsScroll, false, true, GUI.skin.horizontalScrollbar, vScroll, GUILayout.Height(330));
 
         GUIStyle headerStyle = new GUIStyle(s.SectionHeader);
         headerStyle.fontSize = 20;
