@@ -79,6 +79,10 @@ public class FlashlightController : MonoBehaviour
             flashlightLight.spotAngle = spotAngle;
             flashlightLight.intensity = lightIntensity;
             flashlightLight.shadows = LightShadows.Soft;
+            flashlightLight.shadowStrength = 0.68f; // Evita sombras 100% negras y duras
+            flashlightLight.shadowBias = 0.08f;     // Elimina el "shadow acne" (líneas/rayas oscuras en modelos)
+            flashlightLight.shadowNormalBias = 0.5f; // Suaviza contornos de sombras en superficies curvas
+            flashlightLight.shadowResolution = UnityEngine.Rendering.LightShadowResolution.High; // Sombras nítidas de alta resolución
             flashlightLight.color = new Color(0.92f, 0.97f, 1f); // Luz fría LED digital
 
             // Crear el fillLight como hijo de la luz existente para iluminar las paredes laterales
@@ -314,6 +318,10 @@ public class FlashlightController : MonoBehaviour
         flashlightLight.spotAngle = spotAngle;        // Ángulo amplio que cubre todo el encuadre de la pantalla
         flashlightLight.intensity = lightIntensity;   // Brillo difuso equilibrado
         flashlightLight.shadows = LightShadows.Soft;  // Sombras suaves
+        flashlightLight.shadowStrength = 0.68f;       // Evita sombras 100% negras y duras
+        flashlightLight.shadowBias = 0.08f;           // Elimina el "shadow acne" (líneas/rayas oscuras en modelos)
+        flashlightLight.shadowNormalBias = 0.5f;       // Suaviza contornos de sombras en superficies curvas
+        flashlightLight.shadowResolution = UnityEngine.Rendering.LightShadowResolution.High; // Sombras nítidas de alta resolución
         flashlightLight.color = new Color(0.92f, 0.97f, 1f); // Blanco frío LED de cámara digital
         flashlightLight.enabled = false;              // Empieza apagada
 

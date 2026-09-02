@@ -29,7 +29,7 @@ public class ReplicaAIController : MonoBehaviour
     [Header("Configuración de Visión y Alcance")]
     public float maxDetectionDistance = 25.0f;
     public float attackDistance = 2.5f; // Tolerancia de distancia letal (2D)
-    public float startAttackAnimationDistance = 3.2f; // Reducido para que no ataque desde tan lejos
+    public float startAttackAnimationDistance = 2.0f; // Distancia cercana para lanzar la animación de zarpazo (evita atacar al aire desde lejos)
     public float relocateCooldown = 5.0f;
 
     [Header("Audio SFX Espacializado 3D")]
@@ -592,11 +592,11 @@ public class ReplicaAIController : MonoBehaviour
         if (attackFailed || chaseTimedOut || lostPlayerInChase || playerEscapedFar)
         {
             Debug.Log($"[Replica] Persecución/Ataque fallido. Razón: (FallóAnim:{attackFailed}, TiempoAgotado:{chaseTimedOut}, VisiónPerdida:{lostPlayerInChase}, Escapó:{playerEscapedFar}). Activando ilusiones.");
-            TriggerAttackMissIllusions();
+            TriggerAttackMissIllusions(attackFailed);
         }
     }
 
-    private void TriggerAttackMissIllusions()
+    private void TriggerAttackMissIllusions(bool isDirectAttackMiss = false)
     {
         // 1. Limpiar timers y estado de ataque
         chaseTimer = 0f;
@@ -638,9 +638,21 @@ public class ReplicaAIController : MonoBehaviour
             }
         }
 
-        // 4. RESET OBLIGATORIO A F0 (Evita quedarse trabado en F3 atacando al aire)
-        currentPhase = ReplicaPhase.F0_InertMannequin;
-        relocationCount = 0; 
+        // 4. CAMBIO DE FASE AL FALLAR:
+        // Si falló el ataque directo (el jugador esquivó el golpe), pasa a Fase F2 (Transformación Avanzada)
+        // para mantenerse agresivo y cazarte de nuevo rápidamente.
+        // Si te alejaste demasiado (>11m) o se perdió la visión, vuelve a Fase F0 (Maniquí Inerte).
+        if (isDirectAttackMiss)
+        {
+            currentPhase = ReplicaPhase.F2_AdvancedTransformation;
+            relocationCount = 3; // Contador alto para avanzar de nuevo a F3 rápidamente
+        }
+        else
+        {
+            currentPhase = ReplicaPhase.F0_InertMannequin;
+            relocationCount = 0; 
+        }
+
         safeZoneTimer = 0f;
         stareTimer = 0f;
         
@@ -1013,6 +1025,13 @@ public class ReplicaAIController : MonoBehaviour
             yield return new WaitForSeconds(0.4f); 
 
             currentPhase = nextPhase;
+
+            // Resetear todos los contadores de persecución al entrar a F3 para asegurar una carrera completa
+            chaseTimer = 0f;
+            noLineOfSightTimer = 0f;
+            hasTriggeredAttackAnimation = false;
+            attackAnimationTimer = 0f;
+
             UpdatePhaseVisuals();
             if (animator != null) animator.speed = 1.0f;
             yield return new WaitForSeconds(0.1f);
