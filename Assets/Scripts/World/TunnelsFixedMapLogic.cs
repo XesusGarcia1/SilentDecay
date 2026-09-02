@@ -88,8 +88,6 @@ public class TunnelsFixedMapLogic : MonoBehaviour
         SetupPhenomenonMonster();
         
         gameObject.AddComponent<TunnelsAmbientAudioManager>();
-
-        LevelIntroData.TriggerStartMonologue("tunnels");
     }
 
     private void SetupPlayerAndSpawn()
@@ -107,6 +105,14 @@ public class TunnelsFixedMapLogic : MonoBehaviour
         {
             var ctrl = elevatorCabin.GetComponent<ArrivalElevatorController>();
             if (ctrl == null) ctrl = elevatorCabin.AddComponent<ArrivalElevatorController>();
+        }
+
+        if (pointStartRespawn == null)
+        {
+            GameObject sg = GameObject.Find("StartGame");
+            if (sg == null) sg = GameObject.Find("startgame");
+            if (sg == null) sg = GameObject.Find("Start_Game");
+            if (sg != null) pointStartRespawn = sg.transform;
         }
 
         Vector3 spawnPos = Vector3.zero;
@@ -449,10 +455,10 @@ public class TunnelsFixedMapLogic : MonoBehaviour
             allLampObjs[rnd] = temp;
         }
 
-        int flickerLimit = Mathf.Min(4, allLampObjs.Count);
-        for (int i = 0; i < flickerLimit; i++)
+        // Adjuntar script TunnelLightFlicker a TODAS las lámparas del mapa de túneles
+        for (int i = 0; i < allLampObjs.Count; i++)
         {
-            if (allLampObjs[i].GetComponent<TunnelLightFlicker>() == null)
+            if (allLampObjs[i] != null && allLampObjs[i].GetComponent<TunnelLightFlicker>() == null)
             {
                 allLampObjs[i].AddComponent<TunnelLightFlicker>();
             }

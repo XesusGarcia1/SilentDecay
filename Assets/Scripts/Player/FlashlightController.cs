@@ -79,6 +79,10 @@ public class FlashlightController : MonoBehaviour
             flashlightLight.spotAngle = spotAngle;
             flashlightLight.intensity = lightIntensity;
             flashlightLight.shadows = LightShadows.Soft;
+            flashlightLight.shadowStrength = 0.68f; // Evita sombras 100% negras y duras
+            flashlightLight.shadowBias = 0.08f;     // Elimina el "shadow acne" (líneas/rayas oscuras en modelos)
+            flashlightLight.shadowNormalBias = 0.5f; // Suaviza contornos de sombras en superficies curvas
+            flashlightLight.shadowResolution = UnityEngine.Rendering.LightShadowResolution.High; // Sombras nítidas de alta resolución
             flashlightLight.color = new Color(0.92f, 0.97f, 1f); // Luz fría LED digital
 
             // Crear el fillLight como hijo de la luz existente para iluminar las paredes laterales
@@ -206,16 +210,14 @@ public class FlashlightController : MonoBehaviour
         {
             if (isGlitchedByMonster)
             {
-                // Parpadeo rápido caótico por interferencia del monstruo
-                if (Random.value < 0.35f)
+                // Parpadeo caótico e intenso por interferencia electromagnética del monstruo
+                bool flickerOff = Random.value < 0.70f;
+                flashlightLight.intensity = flickerOff ? Random.Range(0.0f, baseIntensity * 0.10f) : Random.Range(baseIntensity * 0.5f, baseIntensity * 1.4f);
+                flashlightLight.enabled = !flickerOff || Random.value > 0.40f;
+                if (fillLight != null)
                 {
-                    flashlightLight.intensity = Random.Range(0.0f, baseIntensity * 0.15f);
-                    if (fillLight != null) fillLight.intensity = Random.Range(0.0f, 0.2f);
-                }
-                else
-                {
-                    flashlightLight.intensity = baseIntensity;
-                    if (fillLight != null) fillLight.intensity = 1.8f;
+                    fillLight.enabled = flashlightLight.enabled;
+                    fillLight.intensity = flickerOff ? 0.05f : 1.8f;
                 }
             }
             else if (playerSanity != null && playerSanity.sanity <= 45f)
@@ -316,6 +318,10 @@ public class FlashlightController : MonoBehaviour
         flashlightLight.spotAngle = spotAngle;        // Ángulo amplio que cubre todo el encuadre de la pantalla
         flashlightLight.intensity = lightIntensity;   // Brillo difuso equilibrado
         flashlightLight.shadows = LightShadows.Soft;  // Sombras suaves
+        flashlightLight.shadowStrength = 0.68f;       // Evita sombras 100% negras y duras
+        flashlightLight.shadowBias = 0.08f;           // Elimina el "shadow acne" (líneas/rayas oscuras en modelos)
+        flashlightLight.shadowNormalBias = 0.5f;       // Suaviza contornos de sombras en superficies curvas
+        flashlightLight.shadowResolution = UnityEngine.Rendering.LightShadowResolution.High; // Sombras nítidas de alta resolución
         flashlightLight.color = new Color(0.92f, 0.97f, 1f); // Blanco frío LED de cámara digital
         flashlightLight.enabled = false;              // Empieza apagada
 

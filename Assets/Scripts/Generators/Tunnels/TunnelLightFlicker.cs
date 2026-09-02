@@ -193,11 +193,9 @@ public class TunnelLightFlicker : MonoBehaviour
             lastForcedOff = false;
             lastPanicFlicker = true;
 
-            // Parpadeo rápido caótico
-            if (Random.value < 0.35f)
-            {
-                SetLightState(Random.value < 0.5f);
-            }
+            // Parpadeo caótico constante e intenso en cada cuadro
+            bool lightOn = Random.value > 0.55f;
+            SetLightState(lightOn);
 
             if (audioSource != null && flickerSound != null && !audioSource.isPlaying)
             {

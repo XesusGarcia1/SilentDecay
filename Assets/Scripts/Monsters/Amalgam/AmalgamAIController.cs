@@ -62,12 +62,16 @@ namespace Monsters.Amalgam
         [Tooltip("Efecto de golpes a puertas (tocar-la-puerta)")]
         public AudioClip doorKnockClip;
 
+        [Tooltip("Efecto de latidos de corazón acelerados (Latido)")]
+        public AudioClip heartbeatClip;
+
         [Header("Componentes de Audio")]
         public AudioSource ambientAudioSource;
         public AudioSource boneCrackAudioSource;
         public AudioSource chaseAudioSource;
         public AudioSource screamAudioSource;
         public AudioSource footstepAudioSource;
+        public AudioSource heartbeatAudioSource;
 
         [Header("Ajuste de Altura de Malla 3D")]
         [Tooltip("Desplazamiento Y de la malla 3D (ajustar si el modelo flota sobre la cápsula del NavMesh)")]
@@ -346,10 +350,13 @@ namespace Monsters.Amalgam
             {
                 agent.speed = (currentState is AmalgamChaseState) ? runSpeed : walkSpeed;
                 agent.stoppingDistance = 0.5f;
-                agent.height = 1.85f; // Reducido para pasar fácilmente por marcos de puertas
-                agent.radius = 0.35f; // Reducido para evitar atascarse en paredes estrechas
-                agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
-                agent.baseOffset = 0f; // Garantiza pivote a ras de suelo
+                agent.height = 1.80f; // Reducido para pasar fácilmente por marcos de puertas
+                agent.radius = 0.30f; // Reducido para evitar atascarse en esquinas y marcos
+                agent.angularSpeed = 720f; // Giro rápido para esquinas cerradas (evita rodeos amplios)
+                agent.acceleration = 40f;  // Aceleración instantánea para no perder velocidad en curvas
+                agent.autoBraking = false; // Desactivar frenado automático en esquinas
+                agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance; // Evitar roces bruscos con colisionadores
+                agent.baseOffset = 0f; // Pivote a ras de suelo
             }
         }
 
@@ -441,6 +448,9 @@ namespace Monsters.Amalgam
             if (footstepAudioSource == null)
                 footstepAudioSource = idx < sources.Length ? sources[idx++] : gameObject.AddComponent<AudioSource>();
 
+            if (heartbeatAudioSource == null)
+                heartbeatAudioSource = idx < sources.Length ? sources[idx++] : gameObject.AddComponent<AudioSource>();
+
             // Cargar clips por defecto desde Resources si no están asignados
             if (footstepSoundClip == null)
             {
@@ -452,6 +462,12 @@ namespace Monsters.Amalgam
             {
                 doorKnockClip = Resources.Load<AudioClip>("Audio/Compartido/tocar-la-puerta");
                 if (doorKnockClip == null) doorKnockClip = Resources.Load<AudioClip>("tocar-la-puerta");
+            }
+
+            if (heartbeatClip == null)
+            {
+                heartbeatClip = Resources.Load<AudioClip>("Audio/Compartido/Latido");
+                if (heartbeatClip == null) heartbeatClip = Resources.Load<AudioClip>("Latido");
             }
 
             if (footstepAudioSource != null)
@@ -491,7 +507,51 @@ namespace Monsters.Amalgam
                 screamAudioSource.spatialBlend = 0.2f;
                 screamAudioSource.volume = 1.0f;
             }
+
+            if (heartbeatAudioSource != null)
+            {
+                heartbeatAudioSource.spatialBlend = 0.0f; // 2D: Resona en la cabeza del jugador para pánico inmersivo
+                heartbeatAudioSource.loop = true;
+                heartbeatAudioSource.playOnAwake = false;
+            }
         }
+
+        #region Métodos de Audio de Pánico (Latidos del Corazón)
+
+        public void UpdateHeartbeatPanic(float distanceToPlayer, float panicBuildUpFactor)
+        {
+            if (heartbeatAudioSource == null || heartbeatClip == null) return;
+
+            if (!heartbeatAudioSource.isPlaying)
+            {
+                heartbeatAudioSource.clip = heartbeatClip;
+                heartbeatAudioSource.pitch = 0.9f;
+                heartbeatAudioSource.volume = 0.1f;
+                heartbeatAudioSource.Play();
+            }
+
+            // Distancia de 13m (suave) a 2.5m (máxima intensidad)
+            float normDist = Mathf.Clamp01((13.0f - distanceToPlayer) / 10.5f);
+
+            // Volumen base de latidos según cercanía
+            float targetVol = Mathf.Lerp(0.12f, 0.95f, normDist);
+
+            // Velocidad/pitch de latido acelerado (de 0.9x a 1.45x) + bonus por pánico acumulado
+            float targetPitch = Mathf.Lerp(0.90f, 1.45f, normDist) + (panicBuildUpFactor * 0.35f);
+
+            heartbeatAudioSource.volume = Mathf.MoveTowards(heartbeatAudioSource.volume, targetVol, Time.deltaTime * 3.0f);
+            heartbeatAudioSource.pitch = Mathf.MoveTowards(heartbeatAudioSource.pitch, targetPitch, Time.deltaTime * 2.5f);
+        }
+
+        public void StopHeartbeatAudio()
+        {
+            if (heartbeatAudioSource != null && heartbeatAudioSource.isPlaying)
+            {
+                heartbeatAudioSource.Stop();
+            }
+        }
+
+        #endregion
 
         #region Métodos de Pasos y Puertas
 
@@ -619,6 +679,44 @@ namespace Monsters.Amalgam
 
             yield return new WaitForSeconds(0.35f);
             isKnockingDoor = false;
+        }
+
+        /// <summary>
+        /// Rompe temporalmente la física para atravesar marcos de puertas o salir de habitaciones si el colisionador bloquea el paso.
+        /// </summary>
+        public void ForcePhaseThroughDoorwayIfNeeded()
+        {
+            if (playerTransform == null) return;
+
+            Vector3 monsterPos = transform.position;
+            Vector3 playerPos = playerTransform.position;
+            Vector3 dirToPlayer = (playerPos - monsterPos).normalized;
+            dirToPlayer.y = 0f;
+
+            // Lanzar un Raycast a la altura de la cintura (1.0m) para ver si está el marco de una puerta o pared bloqueando
+            if (Physics.Raycast(monsterPos + Vector3.up * 1.0f, dirToPlayer, out RaycastHit hit, 2.2f))
+            {
+                string hName = hit.collider.name.ToLower();
+                bool isDoorwayObstacle = hName.Contains("door") || hName.Contains("puerta") || hName.Contains("frame") || hName.Contains("marco") || hName.Contains("wall") || hName.Contains("pared");
+
+                if (isDoorwayObstacle || hit.distance < 0.8f)
+                {
+                    Vector3 phaseTarget = monsterPos + dirToPlayer * 1.5f;
+
+                    if (NavMesh.SamplePosition(phaseTarget, out NavMeshHit navHit, 3.0f, NavMesh.AllAreas))
+                    {
+                        if (agent != null && agent.enabled && agent.isOnNavMesh)
+                        {
+                            agent.Warp(navHit.position);
+                        }
+                        else
+                        {
+                            transform.position = navHit.position;
+                        }
+                        Debug.Log($"[The Amalgam] 🚪 Físicas de marco rotas temporalmente para salir de la habitación hacia {navHit.position}");
+                    }
+                }
+            }
         }
 
         #endregion

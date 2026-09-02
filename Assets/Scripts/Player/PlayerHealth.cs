@@ -907,27 +907,41 @@ public class PlayerHealth : MonoBehaviour
 
             CharacterController cc = GetComponent<CharacterController>();
             if (cc == null) cc = GetComponentInParent<CharacterController>();
-            if (cc != null) cc.enabled = true;
+            if (cc != null)
+            {
+                cc.enabled = true;
+                Physics.SyncTransforms();
+            }
 
             FirstPersonController fpController = GetComponent<FirstPersonController>();
             if (fpController == null) fpController = GetComponentInParent<FirstPersonController>();
             if (fpController != null)
             {
+                fpController.fearParalysisMultiplier = 1.0f;
                 fpController.ResetCameraRotation(transform.eulerAngles.y);
                 fpController.enabled = true;
             }
 
+            // Resetear efectos de pánico/evento de parálisis de Phenomenon (linterna y luces del techo)
+            FlashlightController flComp = FindObjectOfType<FlashlightController>();
+            if (flComp != null) flComp.isGlitchedByMonster = false;
+
+            PhenomenonAIController phenomRef = FindObjectOfType<PhenomenonAIController>();
+            if (phenomRef != null) phenomRef.EndParalysisEvent();
+
+            TunnelLightFlicker[] allFlickerLights = FindObjectsOfType<TunnelLightFlicker>();
+            foreach (var l in allFlickerLights)
+            {
+                if (l != null) l.isPanicFlickering = false;
+            }
+
             if (Camera.main != null)
             {
-                Camera.main.transform.SetParent(null);
-                Camera.main.transform.position = transform.position + Vector3.up * 1.5f;
-                Camera.main.transform.rotation = transform.rotation;
-
                 Cinemachine.CinemachineBrain brain = Camera.main.GetComponent<Cinemachine.CinemachineBrain>();
                 if (brain != null) 
                 {
                     brain.enabled = true;
-                    brain.ManualUpdate(); // Forzar actualización inmediata sin giros ni lerp de cámara
+                    brain.ManualUpdate(); // Forzar actualización inmediata para que siga al jugador
                 }
             }
 

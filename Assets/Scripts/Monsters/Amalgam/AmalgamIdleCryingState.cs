@@ -42,6 +42,13 @@ namespace Monsters.Amalgam
 
             float distanceToPlayer = Vector3.Distance(controller.transform.position, controller.PlayerTransform.position);
 
+            // Transición inmediata a Chase si el jugador se acerca a quemarropa (<= 4.5m)
+            if (distanceToPlayer <= 4.5f)
+            {
+                controller.ChangeState(new AmalgamChaseState(controller, agent, anim));
+                return;
+            }
+
             // Transición a Warning si el jugador se acerca a la zona de peligro (<=10m)
             if (distanceToPlayer <= controller.warningDistance)
             {
