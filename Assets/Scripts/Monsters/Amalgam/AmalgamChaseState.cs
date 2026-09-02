@@ -18,6 +18,8 @@ namespace Monsters.Amalgam
         private float losePlayerTimer = 0f;
         private float chaseTimer = 0f;
         private float targetChaseDuration = 12.0f;
+        private Vector2 lastPosition2D = Vector2.zero;
+        private float stuckTimer = 0f;
 
         public AmalgamChaseState(AmalgamAIController controller, NavMeshAgent agent, AmalgamAnimation anim)
         {
@@ -40,6 +42,10 @@ namespace Monsters.Amalgam
                 agent.updatePosition = true;
                 agent.updateRotation = true;
                 agent.speed = controller.runSpeed;
+                agent.angularSpeed = 720f; // Giro ultra veloz (evita rodeos amplios en esquinas)
+                agent.acceleration = 40f;   // Aceleración inmediata
+                agent.autoBraking = false;  // Sin frenos en esquinas
+                agent.stoppingDistance = 0.5f;
 
                 if (controller.PlayerTransform != null && agent.isOnNavMesh)
                 {
@@ -47,10 +53,16 @@ namespace Monsters.Amalgam
                 }
             }
 
+            if (controller.PlayerTransform != null)
+            {
+                lastPosition2D = new Vector2(controller.transform.position.x, controller.transform.position.z);
+            }
+
             controller.PlayChaseAudio();
             controller.TriggerHorrorLightFlickerSequence();
             losePlayerTimer = 0f;
             chaseTimer = 0f;
+            stuckTimer = 0f;
         }
 
         public void UpdateState()
@@ -64,6 +76,7 @@ namespace Monsters.Amalgam
 
             // Comprobar y golpear/abrir puertas en el camino (tocar-la-puerta)
             controller.CheckAndOpenDoorsInPath();
+            controller.ForcePhaseThroughDoorwayIfNeeded();
 
             float distanceToPlayer = Vector3.Distance(controller.transform.position, controller.PlayerTransform.position);
 
@@ -72,6 +85,10 @@ namespace Monsters.Amalgam
             {
                 if (!agent.enabled) agent.enabled = true;
                 if (agent.isStopped) agent.isStopped = false;
+
+                agent.angularSpeed = 720f;
+                agent.acceleration = 40f;
+                agent.autoBraking = false;
 
                 // Reenganchar al NavMesh si por teletransporte se desfasó levemente
                 if (!agent.isOnNavMesh)
@@ -87,6 +104,13 @@ namespace Monsters.Amalgam
                 {
                     agent.speed = controller.runSpeed;
                     agent.SetDestination(controller.PlayerTransform.position);
+
+                    // Orientar la rotación directamente hacia la dirección del camino o del jugador si hay desvío de ángulo
+                    if (agent.velocity.sqrMagnitude > 0.1f)
+                    {
+                        Quaternion targetRot = Quaternion.LookRotation(agent.velocity.normalized);
+                        controller.transform.rotation = Quaternion.Slerp(controller.transform.rotation, targetRot, Time.deltaTime * 15.0f);
+                    }
                 }
                 else
                 {
@@ -99,6 +123,31 @@ namespace Monsters.Amalgam
                         controller.transform.rotation = Quaternion.LookRotation(moveDir);
                     }
                 }
+            }
+
+            // Detección y corrección de atascamiento (Anti-Stuck / Correr en el mismo lugar)
+            Vector2 currentPos2D = new Vector2(controller.transform.position.x, controller.transform.position.z);
+            float distMoved = Vector2.Distance(currentPos2D, lastPosition2D);
+            lastPosition2D = currentPos2D;
+
+            if (distMoved < 0.04f)
+            {
+                stuckTimer += Time.deltaTime;
+                if (stuckTimer > 0.30f)
+                {
+                    // Nudge/Empuje físico hacia la dirección del jugador para salir del atolladero de la pared/marco
+                    Vector3 pushDir = (controller.PlayerTransform.position - controller.transform.position).normalized;
+                    pushDir.y = 0f;
+                    controller.transform.position += pushDir * (controller.runSpeed * 0.8f) * Time.deltaTime;
+                    if (pushDir != Vector3.zero)
+                    {
+                        controller.transform.rotation = Quaternion.LookRotation(pushDir);
+                    }
+                }
+            }
+            else
+            {
+                stuckTimer = 0f;
             }
 
             // 2. Comprobar si alcanza al jugador para atacar (<= attackRange)
