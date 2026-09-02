@@ -18,7 +18,16 @@ public class ArrivalElevatorController : MonoBehaviour
     private Vector3 rightDoorOpenPos;
 
     public static bool IsPlayerInElevator = true;
+    public static Vector3 InitialElevatorSpawnPosition = Vector3.zero;
+    public static Quaternion InitialElevatorSpawnRotation = Quaternion.identity;
+    public static bool HasElevatorSpawn = false;
+
     private bool doorsShouldOpen = false;
+
+    private void Awake()
+    {
+        HasElevatorSpawn = false;
+    }
 
     void Start()
     {
@@ -34,16 +43,9 @@ public class ArrivalElevatorController : MonoBehaviour
 
         if (player != null)
         {
-            // 1. Obtener la posición del suelo de la cabina usando raycast desde el centro del ascensor
             Vector3 cabinPos = transform.position;
-            RaycastHit floorHit;
-            float floorY = cabinPos.y;
-            if (Physics.Raycast(cabinPos + Vector3.up * 1.5f, Vector3.down, out floorHit, 5.0f))
-            {
-                floorY = floorHit.point.y; // Asentar directamente en la colisión física para no flotar
-            }
 
-            // 2. Resolver la dirección de las puertas de manera dinámica y robusta (por si el prefab está rotado)
+            // Resolver la dirección de salida hacia las puertas del ascensor
             Vector3 lookDir = transform.forward;
             if (leftDoor != null && rightDoor != null)
             {
@@ -56,30 +58,46 @@ public class ArrivalElevatorController : MonoBehaviour
                 }
             }
 
-            // 3. Colocar al jugador centrado y en la parte de atrás del ascensor (0.55m opuesto a la dirección de la puerta)
-            Vector3 groundedPos = cabinPos - lookDir * 0.55f;
+            // Asentar exactamente en la colisión física del suelo dentro de la cabina
+            RaycastHit floorHit;
+            float floorY = cabinPos.y;
+            if (Physics.Raycast(cabinPos + Vector3.up * 1.5f, Vector3.down, out floorHit, 4.0f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                floorY = floorHit.point.y;
+            }
+
+            // Posición centrada exactamente dentro de la cabina (detrás de las puertas)
+            Vector3 groundedPos = cabinPos - lookDir * 0.45f;
             groundedPos.y = floorY;
 
-            player.transform.position = groundedPos;
-
-            // 4. Forzar rotación mirando exactamente hacia la salida (las puertas)
-            player.transform.rotation = Quaternion.LookRotation(lookDir, Vector3.up);
-
-            // 5. Desactivar controles y Cinemachine, y resetear la rotación de la cámara usando ResetCameraRotation
-            var fpc = player.GetComponentInChildren<StarterAssets.FirstPersonController>(true);
-            if (fpc != null)
-            {
-                fpc.ResetCameraRotation(Quaternion.LookRotation(lookDir, Vector3.up).eulerAngles.y);
-                fpc.enabled = false;
-            }
+            // Guardar esta posición como el Spawn Oficial Inicial del Ascensor
+            InitialElevatorSpawnPosition = groundedPos;
+            InitialElevatorSpawnRotation = Quaternion.LookRotation(lookDir, Vector3.up);
+            HasElevatorSpawn = true;
 
             var cc = player.GetComponentInChildren<CharacterController>(true);
             if (cc != null) cc.enabled = false;
 
-            // 6. Registrar esta posición exacta de reaparición segura en el GameManager
+            player.transform.position = groundedPos;
+            player.transform.rotation = InitialElevatorSpawnRotation;
+            Physics.SyncTransforms();
+
+            // Actualizar la posición guardada con la posición REAL del jugador ya colocado en el suelo
+            InitialElevatorSpawnPosition = player.transform.position;
+            Debug.Log($"[ArrivalElevator] Posición de spawn guardada: {InitialElevatorSpawnPosition}, floorY={floorY}, cabinPos={cabinPos}");
+
+            // Desactivar controles y Cinemachine, y resetear la rotación de la cámara
+            var fpc = player.GetComponentInChildren<StarterAssets.FirstPersonController>(true);
+            if (fpc != null)
+            {
+                fpc.ResetCameraRotation(InitialElevatorSpawnRotation.eulerAngles.y);
+                fpc.enabled = false;
+            }
+
+            // Registrar esta posición exacta de reaparición en GameManager
             if (GameManager.Instance != null)
             {
-                GameManager.Instance.RegistrarSpawnJugador(groundedPos, Quaternion.LookRotation(lookDir, Vector3.up));
+                GameManager.Instance.RegistrarSpawnJugador(groundedPos, InitialElevatorSpawnRotation);
             }
         }
 
@@ -150,9 +168,9 @@ public class ArrivalElevatorController : MonoBehaviour
             yield return null;
         }
 
-        // B. Sonido de viaje del ascensor y sacudida suave
+        // B. Sonido de viaje del ascensor y sacudida suave (3.5 segundos de viaje)
         float travelElapsed = 0f;
-        float travelDuration = 2.0f;
+        float travelDuration = 3.5f;
         Vector3 originalCamLocalPos = ((Camera.main != null) ? Camera.main.transform.localPosition : Vector3.zero);
 
         AudioClip travelClip = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Viaje");
@@ -164,7 +182,7 @@ public class ArrivalElevatorController : MonoBehaviour
             humSource = gameObject.AddComponent<AudioSource>();
             humSource.clip = travelClip;
             humSource.loop = true;
-            humSource.volume = 0.5f;
+            humSource.volume = 0.65f;
             humSource.spatialBlend = 0f;
             humSource.Play();
         }
@@ -177,7 +195,7 @@ public class ArrivalElevatorController : MonoBehaviour
 
             if (Camera.main != null)
             {
-                float shakeAmt = Mathf.Lerp(0.015f, 0f, travelElapsed / travelDuration);
+                float shakeAmt = Mathf.Lerp(0.018f, 0.002f, travelElapsed / travelDuration);
                 float x = Random.Range(-shakeAmt, shakeAmt);
                 float y = Random.Range(-shakeAmt, shakeAmt);
                 Camera.main.transform.localPosition = originalCamLocalPos + new Vector3(x, y, 0f);
@@ -194,31 +212,30 @@ public class ArrivalElevatorController : MonoBehaviour
             Destroy(humSource);
         }
 
-        // C. Sonido Ding de llegada
+        // B. Reproducir pista maestra `Ascensor_Llegar.mp3`
+        // Contiene la secuencia completa: 0-3s frenado de cabina, 3s timbre DING, 4-6s apertura de puertas del ascensor.
         AudioClip arriveClip = Resources.Load<AudioClip>("Audio/Tuneles/Ascensor_Llegar");
         if (arriveClip == null) arriveClip = Resources.Load<AudioClip>("Ascensor_Llegar");
         if (arriveClip != null)
         {
-            AudioSource.PlayClipAtPoint(arriveClip, transform.position, 0.9f);
+            AudioSource.PlayClipAtPoint(arriveClip, transform.position, 1.0f);
         }
 
-        yield return new WaitForSeconds(0.4f);
+        // Esperar 3.8s para llegar exactamente al segundo 4.0 del audio donde suenan abriéndose las puertas
+        yield return new WaitForSeconds(3.8f);
 
-        // D. Apertura suave de puertas
+        // C. Disparar el monólogo inicial en sync con la apertura de puertas del audio
+        LevelIntroData.TriggerStartMonologue("tunnels");
+
+        // D. Apertura de puertas 3D a la par con el audio de Ascensor_Llegar (deslizamiento de 2.2s)
         doorsShouldOpen = true;
 
-        AudioClip doorOpenClip = Resources.Load<AudioClip>("Audio/Hospital/hospital-opening-door");
-        if (doorOpenClip == null) doorOpenClip = Resources.Load<AudioClip>("Audio/Hospital/doorOpenSound2");
-        if (doorOpenClip != null)
-        {
-            AudioSource.PlayClipAtPoint(doorOpenClip, transform.position, 0.85f);
-        }
-
+        float syncDoorOpenDuration = 5.5f; // Deslizamiento lento, pesado y pausado (~5.5 segundos)
         float openElapsed = 0f;
-        while (openElapsed < doorOpenDuration)
+        while (openElapsed < syncDoorOpenDuration)
         {
-            openElapsed += Mathf.Min(Time.deltaTime, 0.05f);
-            float rawT = Mathf.Clamp01(openElapsed / doorOpenDuration);
+            openElapsed += Time.deltaTime;
+            float rawT = Mathf.Clamp01(openElapsed / syncDoorOpenDuration);
             float smoothT = Mathf.SmoothStep(0f, 1f, rawT);
 
             if (leftDoor != null)
@@ -255,7 +272,7 @@ public class ArrivalElevatorController : MonoBehaviour
             }
         }
 
-        // E. Restaurar control del jugador
+        // F. Restaurar control del jugador
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player == null) player = GameObject.Find("PlayerMale");
         if (player == null) player = GameObject.Find("PlayerFemale");
@@ -270,7 +287,7 @@ public class ArrivalElevatorController : MonoBehaviour
         }
 
         IsPlayerInElevator = false;
-        Debug.Log("[ArrivalElevatorController] 🔓 Colisionadores de puertas desactivados y control restaurado al 100%. El jugador ya puede salir.");
+        Debug.Log("[ArrivalElevatorController] 🔓 Secuencia de llegada en ascensor completada en perfecta sincronización.");
     }
 
     private void SetFadeAlpha(TunnelsGenerator gen, TunnelsFixedMapLogic fixedLogic, float alpha)

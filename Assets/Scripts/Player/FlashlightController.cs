@@ -206,16 +206,14 @@ public class FlashlightController : MonoBehaviour
         {
             if (isGlitchedByMonster)
             {
-                // Parpadeo rápido caótico por interferencia del monstruo
-                if (Random.value < 0.35f)
+                // Parpadeo caótico e intenso por interferencia electromagnética del monstruo
+                bool flickerOff = Random.value < 0.70f;
+                flashlightLight.intensity = flickerOff ? Random.Range(0.0f, baseIntensity * 0.10f) : Random.Range(baseIntensity * 0.5f, baseIntensity * 1.4f);
+                flashlightLight.enabled = !flickerOff || Random.value > 0.40f;
+                if (fillLight != null)
                 {
-                    flashlightLight.intensity = Random.Range(0.0f, baseIntensity * 0.15f);
-                    if (fillLight != null) fillLight.intensity = Random.Range(0.0f, 0.2f);
-                }
-                else
-                {
-                    flashlightLight.intensity = baseIntensity;
-                    if (fillLight != null) fillLight.intensity = 1.8f;
+                    fillLight.enabled = flashlightLight.enabled;
+                    fillLight.intensity = flickerOff ? 0.05f : 1.8f;
                 }
             }
             else if (playerSanity != null && playerSanity.sanity <= 45f)

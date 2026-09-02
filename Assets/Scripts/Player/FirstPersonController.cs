@@ -32,6 +32,10 @@ namespace StarterAssets
         [Tooltip("Multiplicador de velocidad al cargar algo pesado (0.7 = 70% de la velocidad normal)")]
         public float heavySpeedMultiplier = 0.7f;
 
+        [Header("Parálisis por Miedo")]
+        [Tooltip("Multiplicador de velocidad durante eventos de terror (ej. 0.35 = 35% de velocidad)")]
+        public float fearParalysisMultiplier = 1.0f;
+
         [Space(10)]
         public float JumpTimeout = 0.1f;
         public float FallTimeout = 0.15f;
@@ -247,6 +251,8 @@ namespace StarterAssets
 
         private void Update()
         {
+            if (_controller == null || !_controller.enabled || !_controller.gameObject.activeInHierarchy) return;
+
             if (isClimbing)
             {
                 HandleClimbing();
@@ -416,6 +422,9 @@ namespace StarterAssets
             {
                 targetSpeed *= heavySpeedMultiplier;
             }
+
+            // Reducir velocidad durante evento de parálisis por miedo (Slenderman Staredown)
+            targetSpeed *= fearParalysisMultiplier;
             
             // Si está corriendo pero con poca energía (menos del 30%), pierde velocidad gradualmente
             if (_input.sprint && isMoving && _currentStamina < maxStamina * 0.3f)

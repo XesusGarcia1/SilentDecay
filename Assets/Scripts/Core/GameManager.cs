@@ -133,54 +133,55 @@ public class GameManager : MonoBehaviour
     {
         if (player == null) return;
 
-        // 1. Encontrar el CharacterController en la jerarquía del jugador
+        // 1. Buscar el CharacterController (o FirstPersonController) para identificar el objeto real del jugador
         CharacterController cc = player.GetComponent<CharacterController>();
-        if (cc == null) cc = player.GetComponentInParent<CharacterController>();
-        if (cc == null) cc = player.GetComponentInChildren<CharacterController>();
+        if (cc == null) cc = player.GetComponentInChildren<CharacterController>(true);
+        if (cc == null) cc = player.GetComponentInParent<CharacterController>(true);
 
-        // 2. Desactivar temporalmente el CharacterController para evitar conflictos al teletransportar
-        if (cc != null)
+        Transform targetTransform = (cc != null) ? cc.transform : player.transform;
+
+        // 2. Desactivar CharacterController temporalmente antes de la teletransportación
+        if (cc != null) cc.enabled = false;
+
+        // 3. Determinar posición y rotación de destino
+        Vector3 targetPos;
+        Quaternion targetRot;
+
+        if (ArrivalElevatorController.HasElevatorSpawn)
         {
-            cc.enabled = false;
+            targetPos = ArrivalElevatorController.InitialElevatorSpawnPosition;
+            targetRot = ArrivalElevatorController.InitialElevatorSpawnRotation;
+            Debug.Log($"[GameManager] Reapareciendo usando spawn exacto del ascensor: pos={targetPos}");
         }
-
-        // 3. Determinar posición y rotación seguras de destino
-        Vector3 targetPos = hasSpawnPoint ? playerSpawnPosition : (player.transform.position.y < -5f ? Vector3.up * 0.5f : player.transform.position);
-        Quaternion targetRot = hasSpawnPoint ? playerSpawnRotation : Quaternion.identity;
-
-        // 3b. Raycast hacia abajo para colocar al jugador al ras del suelo (evitar flotar)
-        RaycastHit floorHit;
-        if (Physics.Raycast(targetPos + Vector3.up * 2.0f, Vector3.down, out floorHit, 10.0f))
+        else if (hasSpawnPoint)
         {
-            targetPos.y = floorHit.point.y;
+            targetPos = playerSpawnPosition;
+            targetRot = playerSpawnRotation;
+            Debug.Log($"[GameManager] Reapareciendo usando spawn registrado: pos={targetPos}");
         }
-        
-        Debug.Log($"[GameManager] ReaparecerJugador invocado para: '{player.name}'. hasSpawnPoint: {hasSpawnPoint}, playerSpawnPosition (registrado): {playerSpawnPosition}, Destino Final (targetPos): {targetPos}");
-
-        // 4. Encontrar la raíz del personaje (sin subir a la escena o generadores)
-        Transform current = player.transform;
-        Transform playerRoot = current;
-        while (current.parent != null)
+        else
         {
-            string pName = current.parent.name.ToLower();
-            if (pName.Contains("generator") || pName.Contains("map") || pName.Contains("tunnels") || pName.Contains("hospital") || pName.Contains("scene") || pName.Contains("manager"))
+            targetPos = targetTransform.position.y < -5f ? Vector3.up * 0.5f : targetTransform.position;
+            targetRot = Quaternion.identity;
+
+            RaycastHit floorHit;
+            if (Physics.Raycast(targetPos + Vector3.up * 0.5f, Vector3.down, out floorHit, 5.0f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
             {
-                break;
+                targetPos.y = floorHit.point.y;
             }
-            current = current.parent;
-            playerRoot = current;
+            Debug.Log($"[GameManager] Reapareciendo con fallback Raycast: pos={targetPos}");
         }
 
-        // 5. Mover directamente la RAÍZ (PlayerMale) y el HIJO (PlayerCapsule) a la posición exacta de spawn
-        playerRoot.position = targetPos;
-        playerRoot.rotation = targetRot;
+        // 4. Mover directamente el objeto exacto que posee el CharacterController
+        targetTransform.position = targetPos;
+        targetTransform.rotation = targetRot;
 
-        player.transform.localPosition = Vector3.zero;
-        player.transform.localRotation = Quaternion.identity;
+        // 5. Forzar actualización inmediata en el motor de físicas
+        Physics.SyncTransforms();
 
-        // 6. Detener físicas/fuerzas residuales de Rigidbody y forzar su posición en el motor de físicas
-        Rigidbody rb = player.GetComponent<Rigidbody>();
-        if (rb == null) rb = player.GetComponentInParent<Rigidbody>();
+        // 6. Resetear Rigidbody si existe
+        Rigidbody rb = targetTransform.GetComponent<Rigidbody>();
+        if (rb == null) rb = targetTransform.GetComponentInChildren<Rigidbody>();
         if (rb != null)
         {
             rb.position = targetPos;
@@ -189,22 +190,22 @@ public class GameManager : MonoBehaviour
             rb.angularVelocity = Vector3.zero;
         }
 
-        // 7. Resetear rotación de la cámara (pitch y yaw) del FirstPersonController
-        var fpc = player.GetComponent<StarterAssets.FirstPersonController>();
-        if (fpc == null) fpc = player.GetComponentInChildren<StarterAssets.FirstPersonController>();
-        if (fpc != null)
-        {
-            fpc.ResetCameraRotation(targetRot.eulerAngles.y);
-        }
-
-        // 8. Sincronizar transformadas y reactivar CharacterController
-        Physics.SyncTransforms();
+        // 7. Reactivar CharacterController
         if (cc != null)
         {
             cc.enabled = true;
             Physics.SyncTransforms();
         }
 
-        Debug.Log($"[GameManager] Jugador reaparecido con éxito en {targetPos}. (Raíz: {playerRoot.name})");
+        // 8. Resetear rotación de cámara
+        var fpc = targetTransform.GetComponent<StarterAssets.FirstPersonController>();
+        if (fpc == null) fpc = targetTransform.GetComponentInChildren<StarterAssets.FirstPersonController>();
+        if (fpc == null) fpc = targetTransform.GetComponentInParent<StarterAssets.FirstPersonController>();
+        if (fpc != null)
+        {
+            fpc.ResetCameraRotation(targetRot.eulerAngles.y);
+        }
+
+        Debug.Log($"[GameManager] Jugador reaparecido exitosamente en {targetPos}. ObjetoObjetivo='{targetTransform.name}', CC={cc != null}, HasElevatorSpawn={ArrivalElevatorController.HasElevatorSpawn}");
     }
 }

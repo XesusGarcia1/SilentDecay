@@ -106,6 +106,19 @@ public class PhenomenonAIController : MonoBehaviour
     private float spectralTimer = 0f;
     private bool isSpectrallyInvisible = false;
 
+    // --- VARIABLES DE TELETRANSPORTE SEGÚN DIFICULTAD (SLENDERMAN NERF) ---
+    private float lookAwayWarpCooldown = 10.0f;
+    private float minChaseWarpInterval = 11.0f;
+    private float maxChaseWarpInterval = 16.0f;
+    private float warpTargetDistance = 11.0f;
+
+    [Header("Evento de Parálisis por Terror (Slenderman Staredown)")]
+    public bool isParalysisEventActive = false;
+    private float paralysisTimer = 0f;
+    private float paralysisStepTimer = 0f;
+    private float paralysisCooldownTimer = 0f;
+    private StarterAssets.FirstPersonController cachedFPC;
+
     [Header("Sonidos de Jumpscare (Sting)")]
     private AudioClip jumpscareStingBassClip;
     private AudioClip jumpscareStingNormalClip;
@@ -270,43 +283,58 @@ public class PhenomenonAIController : MonoBehaviour
         jumpscareStingStrongClip = Resources.Load<AudioClip>("Audio/Monstruos/Phenomenon/jumpscareStingStrong");
         if (jumpscareStingStrongClip == null) jumpscareStingStrongClip = Resources.Load<AudioClip>("jumpscareStingStrong");
 
-        // Inicializar dificultad de PlayerPrefs
+        // Inicializar dificultad de PlayerPrefs (Configuración pura Slenderman: Cero caminata física, solo teletransporte)
         string savedDifficulty = PlayerPrefs.GetString("SelectedDifficulty", "NORMAL");
         if (savedDifficulty == "FACIL")
         {
-            patrolSpeed = 2.2f;
-            investigateSpeed = 1.8f;
-            chaseSpeed = 4.0f;
+            patrolSpeed = 0f;
+            investigateSpeed = 0f;
+            chaseSpeed = 0f;
             difficultySpeedMultiplier = 0.75f;
             activeWarpChance = 0.15f;
             activeLookDamageRate = 4.0f;
             nextScratchScareDelay = Random.Range(55f, 90f);
             grabAttackDamage = 50f;
             darknessInstantKillDamage = 50f;
+
+            lookAwayWarpCooldown = 14.0f;
+            minChaseWarpInterval = 16.0f;
+            maxChaseWarpInterval = 24.0f;
+            warpTargetDistance = 13.0f;
         }
         else if (savedDifficulty == "DIFICIL")
         {
-            patrolSpeed = 3.8f;
-            investigateSpeed = 3.0f;
-            chaseSpeed = 6.5f;
+            patrolSpeed = 0f;
+            investigateSpeed = 0f;
+            chaseSpeed = 0f;
             difficultySpeedMultiplier = 1.25f;
             activeWarpChance = 0.55f;
             activeLookDamageRate = 12.0f;
             nextScratchScareDelay = Random.Range(20f, 40f);
             grabAttackDamage = 50f;
             darknessInstantKillDamage = 50f;
+
+            lookAwayWarpCooldown = 6.0f;
+            minChaseWarpInterval = 7.0f;
+            maxChaseWarpInterval = 11.0f;
+            warpTargetDistance = 8.5f;
         }
         else // NORMAL
         {
-            patrolSpeed = 3.0f;
-            investigateSpeed = 2.4f;
-            chaseSpeed = 5.0f;
+            patrolSpeed = 0f;
+            investigateSpeed = 0f;
+            chaseSpeed = 0f;
             difficultySpeedMultiplier = 1.0f;
             activeWarpChance = 0.30f;
             activeLookDamageRate = 8.0f;
             nextScratchScareDelay = Random.Range(35f, 65f);
             grabAttackDamage = 50f;
             darknessInstantKillDamage = 50f;
+
+            lookAwayWarpCooldown = 10.0f;
+            minChaseWarpInterval = 11.0f;
+            maxChaseWarpInterval = 16.0f;
+            warpTargetDistance = 11.0f;
         }
 
         // Iniciar patrulla y configurar el período de gracia inicial físicamente
@@ -400,15 +428,28 @@ public class PhenomenonAIController : MonoBehaviour
             childAnim.applyRootMotion = false;
         }
 
-        // --- ROTAR INSTANTÁNEAMENTE AL MONSTRUO HACIA EL JUGADOR TRAS EL WARP ---
-        // Esto previene que tras teletransportarse aparezca dándole la espalda al jugador.
-        if (player != null)
+        FacePlayerImmediately();
+    }
+
+    /// <summary>
+    /// Forzar orientación cara a cara instantánea e ineludible hacia la posición del jugador.
+    /// </summary>
+    public void FacePlayerImmediately()
+    {
+        if (player == null) return;
+
+        Vector3 direction = (player.position - transform.position).normalized;
+        direction.y = 0f;
+        if (direction != Vector3.zero)
         {
-            Vector3 direction = (player.position - transform.position).normalized;
-            direction.y = 0f;
-            if (direction != Vector3.zero)
+            Quaternion targetRot = Quaternion.LookRotation(direction);
+            transform.rotation = targetRot;
+
+            // Asegurar que la malla 3D/Animator hija esté 100% alineada con la rotación raíz
+            Animator childAnim = cachedChildAnimator != null ? cachedChildAnimator : GetComponentInChildren<Animator>();
+            if (childAnim != null && childAnim.transform != transform && hasStoredInitialTransforms)
             {
-                transform.rotation = Quaternion.LookRotation(direction);
+                childAnim.transform.localRotation = initialChildLocalRotation;
             }
         }
     }
@@ -526,6 +567,15 @@ public class PhenomenonAIController : MonoBehaviour
 
         // Actualizar el temporizador y comportamiento del evento de pánico/tensión
         UpdatePanicEventSystem();
+
+        // Actualizar evento de parálisis de miedo (Slenderman Staredown) cuando el jugador mira al monstruo cara a cara
+        UpdateParalysisStaredownEvent();
+
+        // FORZAR ORIENTACIÓN CONTINUA: El monstruo SIEMPRE mira cara a cara al jugador (cero desvíos o espaldas)
+        if (currentState != PhenomenonState.Attack)
+        {
+            FacePlayerImmediately();
+        }
 
         // --- AMBIENTE DE CACERÍA DINÁMICO (TERROR ATMOSFÉRICO) ---
         if (!TunnelsPowerOutageManager.isGlobalPowerOutage)
@@ -941,56 +991,15 @@ public class PhenomenonAIController : MonoBehaviour
                     return;
                 }
 
-                // 4. Mecánica de la Estatua: Se congela completamente si el jugador lo mira directamente (a más del rango de ataque)
-                // Eliminamos la necesidad de la linterna (IsShinedByFlashlight()) para que funcione consistentemente tipo Slenderman
-                if (isPlayerLooking && distanceToPlayer > activeAttackRange)
+                // 4. Mecánica Pura Slenderman: El monstruo NUNCA camina físicamente en pies.
+                // Permanece 100% estático (estatua) y solo se desplaza mediante teletransporte cuando el jugador aparta la vista.
+                SetAgentStopped(true);
+                if (agent != null && agent.isOnNavMesh)
                 {
-                    SetAgentStopped(true);
                     agent.velocity = Vector3.zero;
                     agent.speed = 0f;
-                    anim.SetWalking(false);
-                    return;
                 }
-                else
-                {
-                    SetAgentStopped(false);
-                }
-
-                float baseSpeed = chaseSpeed;
-                float walkAnimSpeed = 1.4f;
-
-                if (isPanicEventActive)
-                {
-                    // Cacería: Velocidad de acecho (10.5 m/s)
-                    baseSpeed = 10.5f;
-                    walkAnimSpeed = 3.2f;
-                    if (dragAudioSource != null) dragAudioSource.volume = 1.0f;
-                }
-                else
-                {
-                    // Modo normal: Carrera rápida (5.5 m/s)
-                    baseSpeed = 5.5f;
-                    walkAnimSpeed = 2.0f;
-                    if (dragAudioSource != null) dragAudioSource.volume = 0.9f;
-                }
-
-                // Mecánica de "Repulsión por Luz": Ralentiza su velocidad cuando se acerca a un foco de luz encendido (solo fuera de cacería)
-                float speedMultiplier = 1.0f;
-                if (!isPanicEventActive)
-                {
-                    TunnelLightFlicker closestLightToMonster = GetClosestLightToPosition(transform.position);
-                    if (closestLightToMonster != null && !closestLightToMonster.isForcedOff)
-                    {
-                        float distToLight = Vector3.Distance(transform.position, closestLightToMonster.transform.position);
-                        if (distToLight < 16f)
-                        {
-                            speedMultiplier = Mathf.Lerp(0.5f, 1.0f, distToLight / 16f);
-                        }
-                    }
-                }
-
-                agent.speed = baseSpeed * speedMultiplier * difficultySpeedMultiplier;
-                anim.SetWalkSpeed(walkAnimSpeed * speedMultiplier);
+                anim.SetWalking(false);
                 break;
 
             case PhenomenonState.ObservingLight:
@@ -3065,4 +3074,165 @@ public class PhenomenonAIController : MonoBehaviour
             Debug.Log($"[PhenomenonAIController] 🌌 Teletransportado a patrulla lejana ({Vector3.Distance(player.position, targetWarp):F1}m) para evitar campeo.");
         }
     }
+
+    #region Evento de Parálisis y Terror por Mirada Directa (Slenderman Staredown Event)
+
+    private void UpdateParalysisStaredownEvent()
+    {
+        if (player == null) return;
+
+        if (paralysisCooldownTimer > 0f)
+        {
+            paralysisCooldownTimer -= Time.deltaTime;
+        }
+
+        if (cachedFPC == null)
+        {
+            cachedFPC = player.GetComponent<StarterAssets.FirstPersonController>();
+            if (cachedFPC == null) cachedFPC = player.GetComponentInChildren<StarterAssets.FirstPersonController>();
+        }
+
+        float distToMonster = Vector3.Distance(transform.position, player.position);
+        bool isLookingDirectly = CheckIfPlayerIsLookingAtMonster() && distToMonster <= 12.0f;
+
+        // Disparar evento si el jugador mira al monstruo cara a cara dentro de 12m
+        if (!isParalysisEventActive)
+        {
+            if (isLookingDirectly && paralysisCooldownTimer <= 0f && currentState != PhenomenonState.Attack && !graceActive)
+            {
+                isParalysisEventActive = true;
+                paralysisTimer = 0f;
+                paralysisStepTimer = 0f;
+                Debug.Log("[PhenomenonAIController] 😱 ¡EVENTO DE PARÁLISIS Y TERROR ACTIVADO! El jugador mira directamente al Fenómeno.");
+            }
+        }
+
+        // Si el evento de parálisis está activo
+        if (isParalysisEventActive)
+        {
+            paralysisTimer += Time.deltaTime;
+
+            // 1. Ralentizar el movimiento del jugador (Parálisis de miedo al 35% de velocidad)
+            if (cachedFPC != null)
+            {
+                cachedFPC.fearParalysisMultiplier = Mathf.MoveTowards(cachedFPC.fearParalysisMultiplier, 0.35f, Time.deltaTime * 3.0f);
+            }
+
+            // 2. Glitch de linterna y parpadeo de todas las luces del mapa cercanas
+            FlashlightController fl = cachedPlayerFlashlight != null ? cachedPlayerFlashlight : FindObjectOfType<FlashlightController>();
+            if (fl == null)
+            {
+                fl = FindObjectOfType<FlashlightController>();
+                cachedPlayerFlashlight = fl;
+            }
+            if (fl != null)
+            {
+                fl.isGlitchedByMonster = true;
+            }
+
+            // Buscar todas las lámparas y luces cercanas en la escena (incluidas Fluorescent_Light)
+            TunnelLightFlicker[] allFlickerLights = FindObjectsOfType<TunnelLightFlicker>();
+            foreach (var l in allFlickerLights)
+            {
+                if (l != null && Vector3.Distance(l.transform.position, player.position) <= 35f)
+                {
+                    l.isPanicFlickering = true;
+                }
+            }
+
+            // Asegurar que si hay lámparas tipo Fluorescent_Light o Point Light sin script, se les añada dinámicamente
+            Light[] sceneLights = FindObjectsOfType<Light>();
+            foreach (var sceneLight in sceneLights)
+            {
+                if (sceneLight == null || sceneLight.transform.root == transform.root || (fl != null && sceneLight.transform.root == fl.transform.root)) continue;
+
+                float dist = Vector3.Distance(sceneLight.transform.position, player.position);
+                if (dist <= 35f)
+                {
+                    GameObject parentObj = sceneLight.transform.parent != null ? sceneLight.transform.parent.gameObject : sceneLight.gameObject;
+                    TunnelLightFlicker flickerComp = parentObj.GetComponent<TunnelLightFlicker>();
+                    if (flickerComp == null)
+                    {
+                        flickerComp = parentObj.AddComponent<TunnelLightFlicker>();
+                    }
+                    flickerComp.isPanicFlickering = true;
+                }
+            }
+
+            // 3. Audio de Latidos en volumen y velocidad MÁXIMA
+            if (heartbeatAudio != null && heartbeatAudio.clip != null)
+            {
+                if (!heartbeatAudio.isPlaying) heartbeatAudio.Play();
+                heartbeatAudio.volume = Mathf.MoveTowards(heartbeatAudio.volume, 1.0f, Time.deltaTime * 4.0f);
+                heartbeatAudio.pitch = Mathf.MoveTowards(heartbeatAudio.pitch, 1.6f, Time.deltaTime * 2.0f);
+            }
+
+            // 4. Pasos de teletransporte progresivo (Slenderman Creeping Steps) cada 1.8s
+            paralysisStepTimer += Time.deltaTime;
+            if (paralysisStepTimer >= 1.8f)
+            {
+                paralysisStepTimer = 0f;
+
+                float nextStepDist = Mathf.Max(2.3f, distToMonster - 2.2f);
+                Vector3 dirToPlayer = (player.position - transform.position).normalized;
+                dirToPlayer.y = 0f;
+                Vector3 stepTargetPos = player.position - dirToPlayer * nextStepDist;
+                stepTargetPos.y = player.position.y;
+
+                NavMeshHit navHit;
+                if (NavMesh.SamplePosition(stepTargetPos, out navHit, 3.5f, NavMesh.AllAreas))
+                {
+                    if (agent != null && agent.enabled)
+                    {
+                        agent.Warp(navHit.position);
+                        ResetVisualChildTransform();
+                        Debug.Log($"[PhenomenonAIController] 👣 Slenderman Creeping Step a {Vector3.Distance(navHit.position, player.position):F1}m del jugador.");
+                    }
+                }
+
+                // Si alcanzó la distancia de ataque, desencadenar el jumpscare de ataque
+                if (Vector3.Distance(transform.position, player.position) <= attackRange)
+                {
+                    EndParalysisEvent();
+                    ChangeState(PhenomenonState.Attack);
+                    return;
+                }
+            }
+
+            // 5. ESCAPE DEL JUGADOR: Si da la vuelta (aparta la mirada) Y se aleja fuera del radio de peligro (> 14.0m)
+            if (!isLookingDirectly && distToMonster > 14.0f)
+            {
+                Debug.Log("[PhenomenonAIController] 🏃 ¡El jugador logró escapar del radio del evento de parálisis!");
+                EndParalysisEvent();
+                paralysisCooldownTimer = 18.0f; // Cooldown de 18s antes de poder volver a paralizarlo
+            }
+        }
+    }
+
+    public void EndParalysisEvent()
+    {
+        isParalysisEventActive = false;
+        if (cachedFPC != null)
+        {
+            cachedFPC.fearParalysisMultiplier = 1.0f; // Restaurar 100% velocidad
+        }
+        FlashlightController fl = cachedPlayerFlashlight != null ? cachedPlayerFlashlight : FindObjectOfType<FlashlightController>();
+        if (fl == null) fl = FindObjectOfType<FlashlightController>();
+        if (fl != null)
+        {
+            fl.isGlitchedByMonster = false;
+        }
+
+        // Restablecer todas las luces de los túneles al estado normal
+        TunnelLightFlicker[] allLights = FindObjectsOfType<TunnelLightFlicker>();
+        foreach (var l in allLights)
+        {
+            if (l != null)
+            {
+                l.isPanicFlickering = false;
+            }
+        }
+    }
+
+    #endregion
 }

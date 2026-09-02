@@ -9702,6 +9702,7 @@ Transform:
   - {fileID: 1051254362}
   - {fileID: 1780220325}
   - {fileID: 786816963}
+  - {fileID: 1234087051}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &518476542
@@ -21897,7 +21898,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1234087050}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 74.513985, y: 2.065118, z: -42.722355}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -21999,7 +22000,7 @@ Transform:
   - {fileID: 1982624198}
   - {fileID: 797631046}
   - {fileID: 2129281917}
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 512338112}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1235496965
 PrefabInstance:
@@ -31814,11 +31815,13 @@ MonoBehaviour:
   terrifyScreamClip: {fileID: 8300000, guid: b167f7b1f52a9024e838774213103d43, type: 3}
   footstepSoundClip: {fileID: 8300000, guid: 863d731679f0da54f958831b0c42c0ee, type: 3}
   doorKnockClip: {fileID: 8300000, guid: 4ef41fa344b954d4c985e771b12756aa, type: 3}
+  heartbeatClip: {fileID: 0}
   ambientAudioSource: {fileID: 0}
   boneCrackAudioSource: {fileID: 0}
   chaseAudioSource: {fileID: 0}
   screamAudioSource: {fileID: 0}
   footstepAudioSource: {fileID: 0}
+  heartbeatAudioSource: {fileID: 0}
   modelYOffset: 0
   currentDifficulty: NORMAL
   silentRepositionInterval: 16
@@ -39085,4 +39088,3 @@ SceneRoots:
   - {fileID: 512338112}
   - {fileID: 546648126}
   - {fileID: 1773521615}
-  - {fileID: 1234087051}
