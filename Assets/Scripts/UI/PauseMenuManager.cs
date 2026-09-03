@@ -46,6 +46,9 @@ public class PauseMenuManager : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        // Siempre recargar preferencias de PlayerPrefs al cambiar de escena
+        CargarPreferenciasGuardadas();
+
         // Al cargar cualquier escena que NO sea el menú ni la carga, aseguramos estado limpio
         bool isMenuOrLoader = scene.name == "MainMenu" || scene.name == "LoadingScene";
         if (!isMenuOrLoader)
@@ -56,6 +59,14 @@ public class PauseMenuManager : MonoBehaviour
             MobileInput.SetCursorState(true);
             playerObj = null; // Forzar re-búsqueda del jugador en el nuevo mapa
         }
+    }
+
+    public void CargarPreferenciasGuardadas()
+    {
+        mouseSensitivity = PlayerPrefs.GetFloat("MouseSensitivity", 2.0f);
+        masterVolume = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
+        selectedQualityIndex = PlayerPrefs.GetInt("QualityLevel", 2);
+        AudioListener.volume = masterVolume;
     }
 
     private float mouseSensitivity = 2.0f;
@@ -191,6 +202,8 @@ public class PauseMenuManager : MonoBehaviour
 
     public void PauseGame()
     {
+        // Cargar preferencias más recientes guardadas desde el menú principal o partidas anteriores
+        CargarPreferenciasGuardadas();
         // Si hay una nota de lore abierta, cerrarla silenciosamente al pausar
         var activeNotes = FindObjectsOfType<LoreNoteItem>();
         foreach (var note in activeNotes)
