@@ -60,7 +60,7 @@ public class SceneLoader : MonoBehaviour
         // Seleccionar tip aleatorio localizado
         if (LocalizationManager.Instance != null)
         {
-            string tipKey = "tip_" + Random.Range(1, 9);
+            string tipKey = "tip_" + Random.Range(1, 11);
             currentTip = LocalizationManager.Instance.Get(tipKey);
         }
         else
