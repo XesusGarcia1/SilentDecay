@@ -166,6 +166,7 @@ public class IndustrialDepotGameLogic : MonoBehaviour
         if (pointStartRespawn == null)
         {
             GameObject spawnObj = GameObject.Find("PointStarRespawn");
+            if (spawnObj == null) spawnObj = GameObject.Find("StartGame");
             if (spawnObj != null)
             {
                 pointStartRespawn = spawnObj.transform;
@@ -176,28 +177,42 @@ public class IndustrialDepotGameLogic : MonoBehaviour
         {
             // 2. Encontrar al jugador
             GameObject player = GameObject.FindGameObjectWithTag("Player");
-            if (player == null) player = GameObject.Find("NestedParent_Unpack"); // Fallback a la raíz
+            if (player == null) player = GameObject.Find("NestedParent_Unpack");
+            if (player == null) player = GameObject.Find("PlayerMale");
+            if (player == null) player = GameObject.Find("PlayerFemale");
 
             if (player != null)
             {
+                Vector3 spawnPos = pointStartRespawn.position;
+                Quaternion spawnRot = pointStartRespawn.rotation;
+
+                // Raycast de seguridad: asentar exactamente sobre el suelo físico (evita caer al vacío en builds compilados)
+                RaycastHit hit;
+                if (Physics.Raycast(spawnPos + Vector3.up * 1.5f, Vector3.down, out hit, 5.0f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+                {
+                    spawnPos.y = hit.point.y + 0.05f;
+                }
+
                 // 3. Registrar el punto en el GameManager y mover al jugador allí
                 if (GameManager.Instance != null)
                 {
-                    GameManager.Instance.RegistrarSpawnJugador(pointStartRespawn.position, pointStartRespawn.rotation);
+                    GameManager.Instance.RegistrarSpawnJugador(spawnPos, spawnRot);
                     GameManager.Instance.ReaparecerJugador(player);
                 }
                 else
                 {
                     // Fallback de emergencia si no hay GameManager activo
                     CharacterController cc = player.GetComponentInChildren<CharacterController>();
+                    if (cc == null) cc = player.GetComponent<CharacterController>();
                     if (cc != null) cc.enabled = false;
                     
-                    player.transform.position = pointStartRespawn.position;
-                    player.transform.rotation = pointStartRespawn.rotation;
+                    player.transform.position = spawnPos;
+                    player.transform.rotation = spawnRot;
+                    Physics.SyncTransforms();
                     
                     if (cc != null) cc.enabled = true;
                 }
-                Debug.Log("[IndustrialDepotGameLogic]: Jugador ubicado correctamente en PointStarRespawn.");
+                Debug.Log($"[IndustrialDepotGameLogic]: Jugador ubicado correctamente en spawn: {spawnPos}.");
             }
         }
         else

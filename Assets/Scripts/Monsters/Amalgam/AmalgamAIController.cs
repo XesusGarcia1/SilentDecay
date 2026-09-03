@@ -1244,8 +1244,29 @@ namespace Monsters.Amalgam
             {
                 if (l != null && l.type != LightType.Directional)
                 {
-                    string n = l.name.ToLower();
-                    if (!n.Contains("flashlight") && !n.Contains("linterna") && !n.Contains("player"))
+                    bool isExempt = false;
+                    Transform curr = l.transform;
+                    while (curr != null)
+                    {
+                        if (curr.tag == "AmbientLight" || curr.tag == "IgnorePowerOutage")
+                        {
+                            isExempt = true;
+                            break;
+                        }
+
+                        string cName = curr.name.ToLower();
+                        if (cName.Contains("ponit") || cName.Contains("pointslight") || cName.Contains("ponitslight") ||
+                            cName.Contains("ambient") || cName.Contains("ambiente") || cName.Contains("iluminacion") ||
+                            cName.Contains("lighting") || cName.Contains("environment") || cName.Contains("entorno") ||
+                            cName.Contains("flashlight") || cName.Contains("linterna") || cName.Contains("player") || cName.Contains("generator"))
+                        {
+                            isExempt = true;
+                            break;
+                        }
+                        curr = curr.parent;
+                    }
+
+                    if (!isExempt)
                     {
                         if (Vector3.Distance(l.transform.position, center) <= 35f)
                         {

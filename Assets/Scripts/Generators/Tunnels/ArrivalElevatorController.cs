@@ -29,6 +29,18 @@ public class ArrivalElevatorController : MonoBehaviour
         HasElevatorSpawn = false;
     }
 
+    private void OnDisable()
+    {
+        HasElevatorSpawn = false;
+        IsPlayerInElevator = false;
+    }
+
+    private void OnDestroy()
+    {
+        HasElevatorSpawn = false;
+        IsPlayerInElevator = false;
+    }
+
     void Start()
     {
         IsPlayerInElevator = true;

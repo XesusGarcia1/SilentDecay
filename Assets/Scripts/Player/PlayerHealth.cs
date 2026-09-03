@@ -99,8 +99,8 @@ public class PlayerHealth : MonoBehaviour
         // Inicializar el límite según la salud inicial
         UpdateRegenLimit();
 
-        // Asegurar que el audio esté restaurado al reiniciar la partida
-        AudioListener.volume = 1f;
+        // Asegurar que el audio esté restaurado según la configuración del jugador al iniciar la partida
+        AudioListener.volume = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
         Time.timeScale = 1f;
 
         // Cargar recursos del screamer según el nivel actual
@@ -688,7 +688,7 @@ public class PlayerHealth : MonoBehaviour
                     if (GUI.Button(retryRect, retryBtnText, buttonStyle))
                     {
                         Time.timeScale = 1f;
-                        AudioListener.volume = 1f;
+                        AudioListener.volume = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
                         if (GameManager.Instance != null)
                             GameManager.Instance.InicializarVidasParaMapa(GameManager.Instance.maxVidas);
                         string targetScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
@@ -708,7 +708,7 @@ public class PlayerHealth : MonoBehaviour
                     if (GUI.Button(menuRect, menuBtnText, buttonStyle))
                     {
                         Time.timeScale = 1f;
-                        AudioListener.volume = 1f;
+                        AudioListener.volume = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
 
                         if (SilentDecay.Core.AdManager.Instance != null)
                         {
@@ -962,14 +962,15 @@ public class PlayerHealth : MonoBehaviour
             {
                 fadeOutTimer += Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(fadeOutTimer / fadeOutDuration);
+                float targetVol = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
                 blackFadeAlpha = Mathf.Lerp(1f, 0f, t);
-                AudioListener.volume = Mathf.Lerp(0f, 1f, t);
+                AudioListener.volume = Mathf.Lerp(0f, targetVol, t);
                 yield return null;
             }
             blackFadeAlpha = 0f;
 
             Time.timeScale = 1f;
-            AudioListener.volume = 1f;
+            AudioListener.volume = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
             isDead = false;
             isRespawning = false;
             respawnCoroutineStarted = false;
@@ -1017,7 +1018,7 @@ public class PlayerHealth : MonoBehaviour
         respawnCoroutineStarted = false;
         deathTimer = 0f;
         blackFadeAlpha = 0f;
-        AudioListener.volume = 1f;
+        AudioListener.volume = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
         Time.timeScale = 1f;
 
         if (playerSanity != null)

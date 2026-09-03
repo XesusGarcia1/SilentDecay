@@ -165,6 +165,9 @@ namespace StarterAssets
             _controller = GetComponent<CharacterController>();
             _input = GetComponent<StarterAssetsInputs>();
 
+            // Aplicar sensibilidad de mouse guardada en la configuración
+            RotationSpeed = PlayerPrefs.GetFloat("MouseSensitivity", 2.0f);
+
             // Optimización de Z-Buffer para eliminar Z-Fighting / parpadeo de texturas en los mapas
             if (_mainCamera == null) _mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
             if (_mainCamera != null)

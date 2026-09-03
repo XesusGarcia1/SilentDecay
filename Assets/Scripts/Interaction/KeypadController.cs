@@ -468,7 +468,13 @@ public class KeypadController : MonoBehaviour
                 }
                 
                 PowerBox pBox = FindObjectOfType<PowerBox>();
-                if (pBox != null) pBox.ShowMessage("¡ACCESO CONCEDIDO!\nOficina del Director abierta.", Color.green, 5f);
+                if (pBox != null)
+                {
+                    string msg = LocalizationManager.Instance != null 
+                        ? LocalizationManager.Instance.Get("msg_access_granted") 
+                        : "¡ACCESO CONCEDIDO!\nOficina del Director abierta.";
+                    pBox.ShowMessage(msg, Color.green, 5f);
+                }
             }
             else
             {
@@ -478,7 +484,13 @@ public class KeypadController : MonoBehaviour
                 StartCoroutine(ShowTemporaryScreenMessage("DENIED", new Color(0.5f, 0.02f, 0.02f), 2.0f)); // Rojo oscuro
 
                 PowerBox pBox = FindObjectOfType<PowerBox>();
-                if (pBox != null) pBox.ShowMessage("CÓDIGO DE ACCESO INCORRECTO", Color.red, 3f);
+                if (pBox != null)
+                {
+                    string msg = LocalizationManager.Instance != null 
+                        ? LocalizationManager.Instance.Get("msg_access_denied") 
+                        : "CÓDIGO DE ACCESO INCORRECTO";
+                    pBox.ShowMessage(msg, Color.red, 3f);
+                }
             }
         }
         else

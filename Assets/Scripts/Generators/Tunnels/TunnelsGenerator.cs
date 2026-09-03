@@ -883,22 +883,22 @@ public partial class TunnelsGenerator : MonoBehaviour
                 subStyle.normal.textColor = new Color(0.3f, 0.95f, 0.4f);
 
                 string winTitle = "¡NIVEL 2: TÚNELES COMPLETADO!";
-                string unlockSub = "🔓 ¡NIVEL 3: DEPÓSITO INDUSTRIAL DESBLOQUEADO!";
+                string unlockSub = "¡NIVEL 3: DEPÓSITO INDUSTRIAL DESBLOQUEADO!";
 
                 if (lang == LocalizationManager.Idioma.ENGLISH)
                 {
                     winTitle = "LEVEL 2: FLOODED TUNNELS COMPLETED!";
-                    unlockSub = "🔓 LEVEL 3: INDUSTRIAL DEPOT UNLOCKED!";
+                    unlockSub = "LEVEL 3: INDUSTRIAL DEPOT UNLOCKED!";
                 }
                 else if (lang == LocalizationManager.Idioma.PORTUGUES)
                 {
                     winTitle = "NÍVEL 2: TÚNEIS INUNDADOS CONCLUÍDO!";
-                    unlockSub = "🔓 NÍVEL 3: DEPÓSITO INDUSTRIAL DESBLOQUEADO!";
+                    unlockSub = "NÍVEL 3: DEPÓSITO INDUSTRIAL DESBLOQUEADO!";
                 }
                 else if (lang == LocalizationManager.Idioma.РУССКИЙ)
                 {
                     winTitle = "УРОВЕНЬ 2: ТОННЕЛИ ПРОЙДЕНЫ!";
-                    unlockSub = "🔓 УРОВЕНЬ 3: ПРОМЫШЛЕННЫЙ СКЛАД РАЗБЛОКИРОВАН!";
+                    unlockSub = "УРОВЕНЬ 3: ПРОМЫШЛЕННЫЙ СКЛАД РАЗБЛОКИРОВАН!";
                 }
 
                 GUI.Label(new Rect(0f, sHeight * 0.38f, sWidth, sHeight * 0.10f), winTitle, titleStyle);
@@ -1019,8 +1019,14 @@ public partial class TunnelsGenerator : MonoBehaviour
 
                 if (escapeState == EscapeState.Draining)
                 {
+                    string txtAlarm = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("tunnels_alarm") : "[!] ALARMA DE SISTEMA";
+                    string txtPump = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("tunnels_pump_active") : "BOMBA HIDRÁULICA ACTIVA";
+                    string txtEvac = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("tunnels_evacuating") : "EVACUANDO AGUA";
+                    string txtRemain = LocalizationManager.Instance != null ? LocalizationManager.Instance.GetFormat("tunnels_time_remaining", Mathf.CeilToInt(currentDrainageTime)) : $"{Mathf.CeilToInt(currentDrainageTime)}s RESTANTES";
+                    string txtInfest = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("tunnels_infestation") : "[!] ACTIVIDAD PARANORMAL DETECTADA: INFESTACIÓN [!]";
+
                     // LÍNEA 1: TÍTULO Y BOMBA
-                    GUI.Label(new Rect(boxX + 12f, boxY + 10f, 165f, 22f), ((Time.time % 0.8f < 0.4f) ? "[!]" : "   ") + " ALARMA DE SISTEMA", new GUIStyle(GUI.skin.label)
+                    GUI.Label(new Rect(boxX + 12f, boxY + 10f, 165f, 22f), ((Time.time % 0.8f < 0.4f) ? "[!]" : "   ") + " " + txtAlarm.Replace("[!]", "").Trim(), new GUIStyle(GUI.skin.label)
                     {
                         fontSize = 12,
                         fontStyle = FontStyle.Bold,
@@ -1028,7 +1034,7 @@ public partial class TunnelsGenerator : MonoBehaviour
                         alignment = TextAnchor.MiddleLeft
                     });
 
-                    GUI.Label(new Rect(boxX + boxWidth - 150f, boxY + 10f, 140f, 22f), "BOMBA HIDRÁULICA ACTIVA", new GUIStyle(GUI.skin.label)
+                    GUI.Label(new Rect(boxX + boxWidth - 150f, boxY + 10f, 140f, 22f), txtPump, new GUIStyle(GUI.skin.label)
                     {
                         fontSize = 9,
                         fontStyle = FontStyle.Bold,
@@ -1050,7 +1056,7 @@ public partial class TunnelsGenerator : MonoBehaviour
                     GUI.DrawTexture(new Rect(barX + barWidth - 1f, barY, 1f, barHeight), alarmBorderTex);
 
                     // LÍNEA 3: EVACUANDO AGUA Y TIEMPO RESTANTE
-                    GUI.Label(new Rect(boxX + 15f, boxY + 58f, boxWidth - 30f, 22f), "EVACUANDO AGUA" + ((Time.time % 1.2f < 0.4f) ? "." : ((Time.time % 1.2f < 0.8f) ? ".." : "...")), new GUIStyle(GUI.skin.label)
+                    GUI.Label(new Rect(boxX + 15f, boxY + 58f, boxWidth - 30f, 22f), txtEvac + ((Time.time % 1.2f < 0.4f) ? "." : ((Time.time % 1.2f < 0.8f) ? ".." : "...")), new GUIStyle(GUI.skin.label)
                     {
                         fontSize = 11,
                         fontStyle = FontStyle.Bold,
@@ -1058,7 +1064,7 @@ public partial class TunnelsGenerator : MonoBehaviour
                         alignment = TextAnchor.MiddleLeft
                     });
 
-                    GUI.Label(new Rect(boxX + 15f, boxY + 58f, boxWidth - 30f, 22f), $"{Mathf.CeilToInt(currentDrainageTime)}s RESTANTES", new GUIStyle(GUI.skin.label)
+                    GUI.Label(new Rect(boxX + 15f, boxY + 58f, boxWidth - 30f, 22f), txtRemain, new GUIStyle(GUI.skin.label)
                     {
                         fontSize = 11,
                         fontStyle = FontStyle.Bold,
@@ -1067,7 +1073,7 @@ public partial class TunnelsGenerator : MonoBehaviour
                     });
 
                     // LÍNEA 4: ADVERTENCIA INFESTACIÓN
-                    GUI.Label(new Rect(boxX + 15f, boxY + 92f, boxWidth - 30f, 25f), "[!] ACTIVIDAD PARANORMAL DETECTADA: INFESTACIÓN [!]", new GUIStyle(GUI.skin.label)
+                    GUI.Label(new Rect(boxX + 15f, boxY + 92f, boxWidth - 30f, 25f), txtInfest, new GUIStyle(GUI.skin.label)
                     {
                         fontSize = 9,
                         fontStyle = FontStyle.Bold,
@@ -1080,8 +1086,13 @@ public partial class TunnelsGenerator : MonoBehaviour
                     // ESTADO COMPLETADO: ALERTA DE EVACUACIÓN / BUSCAR SALIDA
                     bool blink = Time.time % 0.8f < 0.4f;
 
+                    string txtDrained = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("tunnels_drained") : "[!] SISTEMA DRENADO";
+                    string txtHatch = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("tunnels_hatch_open") : "ESCOTILLA ABIERTA";
+                    string txtDrainedMsg = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("tunnels_drained_msg") : "¡AGUA EVACUADA!\nBUSCA LA ESCOTILLA DE SALIDA";
+                    string txtEvacNow = LocalizationManager.Instance != null ? LocalizationManager.Instance.Get("tunnels_evacuate_now") : "[!] ¡EVACÚA INMEDIATAMENTE! [!]";
+
                     // LÍNEA 1: SISTEMA DRENADO Y ESCOTILLA ABIERTA
-                    GUI.Label(new Rect(boxX + 12f, boxY + 12f, 180f, 25f), (blink ? "[!]" : "   ") + " SISTEMA DRENADO", new GUIStyle(GUI.skin.label)
+                    GUI.Label(new Rect(boxX + 12f, boxY + 12f, 180f, 25f), (blink ? "[!]" : "   ") + " " + txtDrained.Replace("[!]", "").Trim(), new GUIStyle(GUI.skin.label)
                     {
                         fontSize = 12,
                         fontStyle = FontStyle.Bold,
@@ -1089,7 +1100,7 @@ public partial class TunnelsGenerator : MonoBehaviour
                         alignment = TextAnchor.MiddleLeft
                     });
 
-                    GUI.Label(new Rect(boxX + boxWidth - 145f, boxY + 12f, 135f, 25f), "ESCOTILLA ABIERTA", new GUIStyle(GUI.skin.label)
+                    GUI.Label(new Rect(boxX + boxWidth - 145f, boxY + 12f, 135f, 25f), txtHatch, new GUIStyle(GUI.skin.label)
                     {
                         fontSize = 10,
                         fontStyle = FontStyle.Bold,
@@ -1098,7 +1109,7 @@ public partial class TunnelsGenerator : MonoBehaviour
                     });
 
                     // MENSAJE PARPADEANTE DE INSTRUCCIÓN DE SALIDA
-                    GUI.Label(new Rect(boxX + 15f, boxY + 48f, boxWidth - 30f, 35f), "¡AGUA EVACUADA!\nBUSCA LA ESCOTILLA DE SALIDA", new GUIStyle(GUI.skin.label)
+                    GUI.Label(new Rect(boxX + 15f, boxY + 48f, boxWidth - 30f, 35f), txtDrainedMsg, new GUIStyle(GUI.skin.label)
                     {
                         fontSize = 12,
                         fontStyle = FontStyle.Bold,
@@ -1106,7 +1117,7 @@ public partial class TunnelsGenerator : MonoBehaviour
                         alignment = TextAnchor.MiddleCenter
                     });
 
-                    GUI.Label(new Rect(boxX + 15f, boxY + 92f, boxWidth - 30f, 25f), (blink ? "[!] ¡EVACÚA INMEDIATAMENTE! [!]" : "   ¡EVACÚA INMEDIATAMENTE!   "), new GUIStyle(GUI.skin.label)
+                    GUI.Label(new Rect(boxX + 15f, boxY + 92f, boxWidth - 30f, 25f), (blink ? txtEvacNow : txtEvacNow.Replace("[!]", "   ")), new GUIStyle(GUI.skin.label)
                     {
                         fontSize = 10,
                         fontStyle = FontStyle.Bold,

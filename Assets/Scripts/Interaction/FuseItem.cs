@@ -146,7 +146,10 @@ public class FuseItem : MonoBehaviour
         if (pBox != null)
         {
             pBox.fusesCount++;
-            pBox.ShowMessage($"Fusible de repuesto recogido! (Total: {pBox.fusesCount})", Color.green, 4f);
+            string msg = LocalizationManager.Instance != null 
+                ? LocalizationManager.Instance.GetFormat("msg_fuse_picked", pBox.fusesCount)
+                : $"Fusible de repuesto recogido! (Total: {pBox.fusesCount})";
+            pBox.ShowMessage(msg, Color.green, 4f);
         }
 
         if (pickupSound != null)

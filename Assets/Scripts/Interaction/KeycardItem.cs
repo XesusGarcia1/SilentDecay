@@ -130,7 +130,10 @@ public class KeycardItem : MonoBehaviour
         PowerBox pBox = FindObjectOfType<PowerBox>();
         if (pBox != null)
         {
-            pBox.ShowMessage("¡Tarjeta del Director recogida! Dirígete al Ascensor de Escape.", new Color(0.2f, 0.6f, 1f), 4f);
+            string msg = LocalizationManager.Instance != null 
+                ? LocalizationManager.Instance.Get("msg_keycard_picked_elev")
+                : "¡Tarjeta del Director recogida! Dirígete al Ascensor de Escape.";
+            pBox.ShowMessage(msg, new Color(0.2f, 0.6f, 1f), 4f);
             pBox.ForceKeycardBlackoutAndRoar();
             Debug.Log("KeycardItem: Apagón y rugido forzado dinámicamente al recoger la tarjeta.");
         }

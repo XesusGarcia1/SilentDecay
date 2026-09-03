@@ -55,10 +55,13 @@ public class GameManager : MonoBehaviour
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         hasSpawnPoint = false;
+        ArrivalElevatorController.HasElevatorSpawn = false;
 
         // SIEMPRE garantizar que el tiempo esté corriendo al cargar cualquier escena
         Time.timeScale = 1f;
-        AudioListener.volume = 1f;
+
+        // Restaurar automáticamente volumen, gráficos y sensibilidad configurados por el usuario
+        AplicarConfiguracionesGuardadas();
         
         #if UNITY_ANDROID || UNITY_IOS
         FixMobileCanvasScaling();
@@ -113,6 +116,10 @@ public class GameManager : MonoBehaviour
         playerSpawnPosition = position;
         playerSpawnRotation = rotation;
         hasSpawnPoint = true;
+        
+        // Invalidar cualquier spawn estático de ascensor residual de un mapa anterior
+        ArrivalElevatorController.HasElevatorSpawn = false;
+        
         Debug.Log($"GameManager: Registrado punto de spawn del jugador en {position}");
     }
 
@@ -207,5 +214,32 @@ public class GameManager : MonoBehaviour
         }
 
         Debug.Log($"[GameManager] Jugador reaparecido exitosamente en {targetPos}. ObjetoObjetivo='{targetTransform.name}', CC={cc != null}, HasElevatorSpawn={ArrivalElevatorController.HasElevatorSpawn}");
+    }
+
+    /// <summary>
+    /// Aplica globalmente las configuraciones de usuario guardadas en PlayerPrefs (Volumen, Calidad gráfica, Sensibilidad)
+    /// </summary>
+    public static void AplicarConfiguracionesGuardadas()
+    {
+        // 1. Aplicar Volumen General guardado
+        float savedVol = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
+        AudioListener.volume = savedVol;
+
+        // 2. Aplicar Nivel de Calidad Gráfica guardado
+        int savedQuality = PlayerPrefs.GetInt("QualityLevel", 2);
+        if (QualitySettings.GetQualityLevel() != savedQuality)
+        {
+            QualitySettings.SetQualityLevel(savedQuality, true);
+        }
+
+        // 3. Aplicar Sensibilidad de Mouse en el personaje activo
+        float savedSens = PlayerPrefs.GetFloat("MouseSensitivity", 2.0f);
+        var fpc = Object.FindFirstObjectByType<StarterAssets.FirstPersonController>();
+        if (fpc != null)
+        {
+            fpc.RotationSpeed = savedSens;
+        }
+        
+        Debug.Log($"[GameManager] Configuraciones aplicadas: Volumen={Mathf.RoundToInt(savedVol * 100)}%, CalidadIndex={savedQuality}, Sensibilidad={savedSens:F1}");
     }
 }

@@ -215,7 +215,10 @@ public class SubGenerator : MonoBehaviour
         PowerBox pBox = FindObjectOfType<PowerBox>();
         if (pBox != null)
         {
-            pBox.ShowMessage($"Subgenerador {generatorName} Encendido! (Restableciendo entrada de red)", Color.green, 4.0f);
+            string msg = LocalizationManager.Instance != null 
+                ? LocalizationManager.Instance.GetFormat("msg_subgen_active", generatorName) 
+                : $"SUBGENERADOR {generatorName} ACTIVADO!";
+            pBox.ShowMessage(msg, Color.green, 4.0f);
         }
         Debug.Log($"SubGenerator: Subgenerador {generatorName} activado.");
     }
@@ -277,7 +280,11 @@ public class SubGenerator : MonoBehaviour
             GUI.DrawTexture(new Rect(promptRect.x - 10, promptRect.y - 5, promptRect.width + 20, promptRect.height + 10), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            GUI.Label(promptRect, $"[E] Activar Subgenerador {generatorName}", promptStyle);
+            string prompt = LocalizationManager.Instance != null 
+                ? LocalizationManager.Instance.GetFormat("interact_subgen", generatorName)
+                : $"[E] Encender Subgenerador {generatorName}";
+
+            GUI.Label(promptRect, prompt, promptStyle);
         }
     }
 }
