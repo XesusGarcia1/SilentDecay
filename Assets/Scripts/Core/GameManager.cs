@@ -239,6 +239,18 @@ public class GameManager : MonoBehaviour
         {
             fpc.RotationSpeed = savedSens;
         }
+
+        // 4. Optimización automática de GPU y Shaders para dispositivos móviles (Android/iOS)
+#if UNITY_ANDROID || UNITY_IOS
+        QualitySettings.pixelLightCount = (savedQuality == 0) ? 1 : 2; // Máximo 2 luces por píxel en shaders móviles
+        QualitySettings.shadowDistance = Mathf.Min(QualitySettings.shadowDistance, 25f); // Limitar renderizado de sombras lejanas
+        if (savedQuality == 0)
+        {
+            QualitySettings.shadows = ShadowQuality.HardOnly;
+            QualitySettings.shadowResolution = ShadowResolution.Low;
+        }
+        Application.targetFrameRate = 60; // Evitar sobrecalentamiento y mantener 60 FPS estables
+#endif
         
         Debug.Log($"[GameManager] Configuraciones aplicadas: Volumen={Mathf.RoundToInt(savedVol * 100)}%, CalidadIndex={savedQuality}, Sensibilidad={savedSens:F1}");
     }

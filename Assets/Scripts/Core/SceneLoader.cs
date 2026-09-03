@@ -125,6 +125,9 @@ public class SceneLoader : MonoBehaviour
         loadProgress = 1.0f;
         canStartTransition = true;
 
+        // Warmup global de shaders para evitar tirones de compilación en móviles
+        Shader.WarmupAllShaders();
+
         yield return new WaitForSecondsRealtime(0.5f);
 
         operation.allowSceneActivation = true;
