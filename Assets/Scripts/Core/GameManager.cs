@@ -55,6 +55,7 @@ public class GameManager : MonoBehaviour
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         hasSpawnPoint = false;
+        ArrivalElevatorController.HasElevatorSpawn = false;
 
         // SIEMPRE garantizar que el tiempo esté corriendo al cargar cualquier escena
         Time.timeScale = 1f;
@@ -113,6 +114,10 @@ public class GameManager : MonoBehaviour
         playerSpawnPosition = position;
         playerSpawnRotation = rotation;
         hasSpawnPoint = true;
+        
+        // Invalidar cualquier spawn estático de ascensor residual de un mapa anterior
+        ArrivalElevatorController.HasElevatorSpawn = false;
+        
         Debug.Log($"GameManager: Registrado punto de spawn del jugador en {position}");
     }
 
