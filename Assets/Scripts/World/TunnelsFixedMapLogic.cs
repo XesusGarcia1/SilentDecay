@@ -819,22 +819,22 @@ public class TunnelsFixedMapLogic : MonoBehaviour
                 subStyle.normal.textColor = new Color(0.3f, 0.95f, 0.4f);
 
                 string winTitle = "¡NIVEL 2: TÚNELES COMPLETADO!";
-                string unlockSub = "🔓 ¡NIVEL 3: DEPÓSITO INDUSTRIAL DESBLOQUEADO!";
+                string unlockSub = "¡NIVEL 3: DEPÓSITO INDUSTRIAL DESBLOQUEADO!";
 
                 if (lang == LocalizationManager.Idioma.ENGLISH)
                 {
                     winTitle = "LEVEL 2: FLOODED TUNNELS COMPLETED!";
-                    unlockSub = "🔓 LEVEL 3: INDUSTRIAL DEPOT UNLOCKED!";
+                    unlockSub = "LEVEL 3: INDUSTRIAL DEPOT UNLOCKED!";
                 }
                 else if (lang == LocalizationManager.Idioma.PORTUGUES)
                 {
                     winTitle = "NÍVEL 2: TÚNEIS INUNDADOS CONCLUÍDO!";
-                    unlockSub = "🔓 NÍVEL 3: DEPÓSITO INDUSTRIAL DESBLOQUEADO!";
+                    unlockSub = "NÍVEL 3: DEPÓSITO INDUSTRIAL DESBLOQUEADO!";
                 }
                 else if (lang == LocalizationManager.Idioma.РУССКИЙ)
                 {
                     winTitle = "УРОВЕНЬ 2: ТОННЕЛИ ПРОЙДЕНЫ!";
-                    unlockSub = "🔓 УРОВЕНЬ 3: ПРОМЫШЛЕННЫЙ СКЛАД РАЗБЛОКИРОВАН!";
+                    unlockSub = "УРОВЕНЬ 3: ПРОМЫШЛЕННЫЙ СКЛАД РАЗБЛОКИРОВАН!";
                 }
 
                 GUI.Label(new Rect(0f, sHeight * 0.38f, sWidth, sHeight * 0.10f), winTitle, titleStyle);

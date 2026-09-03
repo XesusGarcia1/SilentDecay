@@ -103,7 +103,10 @@ namespace ModularHospital
                 PowerBox pBox = FindObjectOfType<PowerBox>();
                 if (pBox != null)
                 {
-                    pBox.ShowMessage("Tarjeta de Acceso del Director recogida!", new Color(0.2f, 0.6f, 1f), 4f);
+                    string msg = LocalizationManager.Instance != null 
+                        ? LocalizationManager.Instance.Get("msg_keycard_picked") 
+                        : "Tarjeta de Acceso del Director recogida!";
+                    pBox.ShowMessage(msg, new Color(0.2f, 0.6f, 1f), 4f);
                     pBox.ForceKeycardBlackoutAndRoar();
                 }
                 AudioClip pickupSound = Resources.Load<AudioClip>("Interruptor");

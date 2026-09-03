@@ -224,13 +224,13 @@ public class MenuScreenSettings : MonoBehaviour
 
         // ─── Brillo / Gamma (Calibración dedicada) ───────────────────────────
         float curGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
-        string calibTitle = GetLocalized("AJUSTAR BRILLO / GAMMA...", "ADJUST BRIGHTNESS / GAMMA...", "AJUSTAR BRILHO / GAMMA...", "НАСТРОЙКА ЯРКОСТИ / ГАММЫ...");
+        string calibTitle = GetLocalized("CALIBRAR GAMMA", "CALIBRATE GAMMA", "CALIBRAR GAMMA", "КАЛИБРОВКА ГАММЫ");
         
         GUIStyle calibBtnStyle = new GUIStyle(s.Button);
         calibBtnStyle.normal.textColor = Color.white;
         calibBtnStyle.hover.textColor = s.BrandRed;
 
-        if (GUILayout.Button($"🔧 {calibTitle} (Actual: {curGamma:F1}x)", calibBtnStyle, GUILayout.Height(50)))
+        if (GUILayout.Button($"{calibTitle} ({curGamma:F1}x)", calibBtnStyle, GUILayout.Height(45)))
         {
             ctx.PlayClickSound();
             tempGamma = curGamma; // Guardar valor inicial por si cancela

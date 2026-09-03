@@ -501,7 +501,7 @@ public class NotepadUIManager : MonoBehaviour
         {
             hintText = LocalizationManager.Instance != null 
                 ? LocalizationManager.Instance.Get("notepad_hint_tunnels") 
-                : "Pistas del Hospital:\n\n(Esta sección correspondía al Hospital. En los túneles no se requieren notas clave para avanzar).\n\n⚠️ Tu objetivo actual en el sector de túneles es localizar la consola de drenaje, accionar la palanca de bombeo y evacuar por la escotilla principal.";
+                : "Pistas del Hospital:\n\n(Esta sección correspondía al Hospital. En los túneles no se requieren notas clave para avanzar).\n\n[!] Tu objetivo actual en el sector de túneles es localizar la consola de drenaje, accionar la palanca de bombeo y evacuar por la escotilla principal.";
         }
         else
         {

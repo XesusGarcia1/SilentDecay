@@ -12,6 +12,7 @@ TagManager:
   - BlockedMetalicDoor
   - MetalicDoor
   - OfficeDirectorBlocked
+  - AmbientLight
   layers:
   - Default
   - TransparentFX

@@ -544,10 +544,9 @@ public class PauseMenuManager : MonoBehaviour
 
                 // Botón para calibración dedicada
                 float savedGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
-                string gammaLabel = LocalizationManager.Instance != null &&
-                    LocalizationManager.Instance.GetIdiomaActual() == LocalizationManager.Idioma.ENGLISH
-                    ? $"ADJUST BRIGHTNESS  ({savedGamma:F1}x)"
-                    : $"AJUSTAR BRILLO  ({savedGamma:F1}x)";
+                string gammaLabel = LocalizationManager.Instance != null 
+                    ? LocalizationManager.Instance.GetFormat("pause_adjust_gamma", savedGamma) 
+                    : $"CALIBRAR GAMMA ({savedGamma:F1}x)";
                 if (GUILayout.Button(gammaLabel, s.Button, GUILayout.Height(45)))
                 {
                     PlayClickSound();

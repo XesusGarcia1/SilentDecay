@@ -99,7 +99,10 @@ public class BatteryItem : MonoBehaviour
         PowerBox pBox = FindObjectOfType<PowerBox>();
         if (pBox != null)
         {
-            pBox.ShowMessage($"Pila de repuesto recogida! Batería cargada +{rechargeAmount}%", Color.green, 3.5f);
+            string msg = LocalizationManager.Instance != null 
+                ? LocalizationManager.Instance.GetFormat("msg_battery_picked", rechargeAmount)
+                : $"Pila de repuesto recogida! Batería cargada +{rechargeAmount}%";
+            pBox.ShowMessage(msg, Color.green, 3.5f);
         }
 
         AudioClip pickupSound = Resources.Load<AudioClip>("Audio/Compartido/Interruptor");

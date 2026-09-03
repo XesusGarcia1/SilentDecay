@@ -63,9 +63,9 @@ public class GameEndingManager : MonoBehaviour
         endingTitle = "";
         showFinalTitle = false;
 
-        // Garantizar que timeScale y AudioListener estén restaurados
+        // Garantizar que timeScale y AudioListener estén restaurados según la preferencia del usuario
         Time.timeScale = 1f;
-        AudioListener.volume = 1f;
+        AudioListener.volume = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
     }
 
     public static void TriggerEnding(Transform doorTransform)
@@ -170,7 +170,7 @@ public class GameEndingManager : MonoBehaviour
 
         // --- PASO 5: Volver al Menú Principal limpiamente
         Time.timeScale = 1f;
-        AudioListener.volume = 1f;
+        AudioListener.volume = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
         SceneManager.LoadScene("MainMenu");
     }
 

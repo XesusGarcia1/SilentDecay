@@ -272,7 +272,10 @@ public class PowerBox : MonoBehaviour
                 Debug.Log($"PowerBox: Rearmado gratuito exitoso ({repairsCount}/{maxFreeRepairs}).");
 
                 // Disparar monólogo/pensamiento del jugador
-                PlayerMonologueManager.ShowDialogue("Bien, el sistema eléctrico principal está restaurado. Ahora la oficina del director debería tener energía.", 5f);
+                string monologue1 = LocalizationManager.Instance != null 
+                    ? LocalizationManager.Instance.Get("monologue_power_restored")
+                    : "Bien, el sistema eléctrico principal está restaurado. Ahora la oficina del director debería tener energía.";
+                PlayerMonologueManager.ShowDialogue(monologue1, 5f);
             }
             else
             {
@@ -295,7 +298,10 @@ public class PowerBox : MonoBehaviour
                     Debug.Log($"PowerBox: Fusible consumido. Fusibles restantes: {fusesCount}.");
 
                     // Disparar monólogo/pensamiento del jugador
-                    PlayerMonologueManager.ShowDialogue("Fusible reemplazado. Volvemos a tener corriente eléctrica. Debo darme prisa antes de otra sobrecarga.", 5f);
+                    string monologue2 = LocalizationManager.Instance != null 
+                        ? LocalizationManager.Instance.Get("monologue_fuse_replaced")
+                        : "Fusible reemplazado. Volvemos a tener corriente eléctrica. Debo darme prisa antes de otra sobrecarga.";
+                    PlayerMonologueManager.ShowDialogue(monologue2, 5f);
                 }
                 else
                 {
@@ -354,14 +360,38 @@ public class PowerBox : MonoBehaviour
         }
         else
         {
-            // Auto-control de todas las luces de lámparas del mapa procedural (excluyendo linterna y luces de generadores)
+            // Auto-control de todas las luces de lámparas del mapa procedural (excluyendo linterna, luces de generadores y luces ambientales de fondo como PonitsLight)
             Light[] allLights = FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (Light l in allLights)
             {
                 if (l != null && l.type == LightType.Point)
                 {
-                    string n = l.name.ToLower();
-                    if (!n.Contains("generator") && !n.Contains("flashlight") && !n.Contains("linterna") && !n.Contains("player"))
+                    bool isExempt = false;
+
+                    // Recorrer toda la jerarquía de padres comprobando Tags y Nombres (soporta "AmbientLight", "PonitsLight", "PointsLight", etc.)
+                    Transform curr = l.transform;
+                    while (curr != null)
+                    {
+                        if (curr.tag == "AmbientLight" || curr.tag == "IgnorePowerOutage")
+                        {
+                            isExempt = true;
+                            break;
+                        }
+
+                        string cName = curr.name.ToLower();
+                        if (cName.Contains("ponit") || cName.Contains("pointslight") || cName.Contains("ponitslight") ||
+                            cName.Contains("ambient") || cName.Contains("ambiente") || cName.Contains("iluminacion") ||
+                            cName.Contains("lighting") || cName.Contains("environment") || cName.Contains("entorno") ||
+                            cName.Contains("decor") || cName.Contains("prop") ||
+                            cName.Contains("flashlight") || cName.Contains("linterna") || cName.Contains("player") || cName.Contains("generator"))
+                        {
+                            isExempt = true;
+                            break;
+                        }
+                        curr = curr.parent;
+                    }
+
+                    if (!isExempt)
                     {
                         l.enabled = !state;
                     }
@@ -556,11 +586,15 @@ public class PowerBox : MonoBehaviour
             GUI.DrawTexture(new Rect(pRect.x - 10, pRect.y - 5, pRect.width + 20, pRect.height + 10), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
+            string pbPrompt = LocalizationManager.Instance != null 
+                ? LocalizationManager.Instance.Get("interact_powerbox")
+                : "[E]  Rearmar Caja de Fusibles";
+
             pStyle.normal.textColor = Color.black;
-            GUI.Label(new Rect(pRect.x + 2, pRect.y + 2, pRect.width, pRect.height), "[E]  Rearmar Caja de Fusibles", pStyle);
+            GUI.Label(new Rect(pRect.x + 2, pRect.y + 2, pRect.width, pRect.height), pbPrompt, pStyle);
 
             pStyle.normal.textColor = isPowerOut ? new Color(1f, 0.4f, 0.4f) : new Color(0.4f, 1f, 0.5f);
-            GUI.Label(pRect, "[E]  Rearmar Caja de Fusibles", pStyle);
+            GUI.Label(pRect, pbPrompt, pStyle);
         }
         // 1. Mensaje de advertencia temporal en el centro de la pantalla
         if (showWarningTimer > 0f)

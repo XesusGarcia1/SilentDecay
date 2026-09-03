@@ -67,6 +67,11 @@ public class ElevatorController : MonoBehaviour
     private TextMesh extTM;
     private TextMesh intTM;
     private Light cabinLight;
+
+    private string Loc(string key, string fallback)
+    {
+        return LocalizationManager.Instance != null ? LocalizationManager.Instance.Get(key) : fallback;
+    }
     
     // Referencias a los renderers para controlar la emisión (encendido/apagado visual)
     private Renderer cabinLightRenderer;
@@ -652,7 +657,8 @@ public class ElevatorController : MonoBehaviour
     {
         isEscaping = true;
         Debug.Log("Elevator: Escape iniciado. Cerrando puertas...");
-        ShowScreenMsg("DESCENDIENDO AL SOTANO...", Color.cyan);
+        string msg = Loc("elev_descending", "DESCENDIENDO AL SÓTANO...");
+        ShowScreenMsg(msg, Color.cyan);
 
         // Cambiar la pantalla indicadora a una flecha de descenso ("v")
         if (extTM != null) extTM.text = "v";
@@ -861,7 +867,7 @@ public class ElevatorController : MonoBehaviour
                 subSt.normal.textColor = new Color(0.3f, 0.95f, 0.4f);
 
                 string winTitle = isEn ? "LEVEL 1: HOSPITAL COMPLETED!" : (isPt ? "NÍVEL 1: HOSPITAL CONCLUÍDO!" : (isRu ? "УРОВЕНЬ 1: БОЛЬНИЦА ПРОЙДЕНА!" : "¡NIVEL 1: HOSPITAL COMPLETADO!"));
-                string unlockSub = isEn ? "🔓 LEVEL 2: FLOODED TUNNELS UNLOCKED" : (isPt ? "🔓 NÍVEL 2: TÚNEIS INUNDADOS DESBLOQUEADO" : (isRu ? "🔓 УРОВЕНЬ 2: ТОННЕЛИ РАЗБЛОКИРОВАНЫ" : "🔓 ¡NIVEL 2: TÚNELES INUNDADOS DESBLOQUEADO!"));
+                string unlockSub = isEn ? "LEVEL 2: FLOODED TUNNELS UNLOCKED" : (isPt ? "NÍVEL 2: TÚNEIS INUNDADOS DESBLOQUEADO" : (isRu ? "УРОВЕНЬ 2: ТОННЕЛИ РАЗБЛОКИРОВАНЫ" : "¡NIVEL 2: TÚNELES INUNDADOS DESBLOQUEADO!"));
 
                 GUI.Label(new Rect(0, sHeight * 0.38f, sWidth, sHeight * 0.10f), winTitle, titleSt);
                 GUI.Label(new Rect(0, sHeight * 0.50f, sWidth, sHeight * 0.08f), unlockSub, subSt);
@@ -1017,7 +1023,9 @@ public class ElevatorController : MonoBehaviour
         {
             if (!isEscaping)
             {
-                promptText = hasPower ? "[E]  Iniciar Descenso al Sotano" : "Elevador sin Energia (Repare Fusibles)";
+                promptText = hasPower 
+                    ? Loc("elev_prompt_start", "[E]  Iniciar Descenso al Sotano") 
+                    : Loc("elev_prompt_no_power", "Elevador sin Energia (Repare Fusibles)");
                 textColor = hasPower ? Color.green : Color.red;
             }
         }
@@ -1025,18 +1033,24 @@ public class ElevatorController : MonoBehaviour
         {
             if (!keycardUsed && !bypassKeycard)
             {
-                promptText = hasKeycard ? "[E]  Insertar Tarjeta del Director" : "Panel Cerrado (Requiere Tarjeta de Acceso)";
+                promptText = hasKeycard 
+                    ? Loc("elev_prompt_insert_keycard", "[E]  Insertar Tarjeta del Director") 
+                    : Loc("elev_prompt_requires_keycard", "Panel Cerrado (Requiere Tarjeta de Acceso)");
                 textColor = hasKeycard ? new Color(0.3f, 0.75f, 1f) : Color.yellow;
             }
             else if (!isCalling && !isArrived)
             {
-                promptText = hasPower ? "[E]  Llamar al Elevador" : "Botonera sin Energia (Repare Fusibles)";
+                promptText = hasPower 
+                    ? Loc("elev_prompt_call", "[E]  Llamar al Elevador") 
+                    : Loc("elev_prompt_no_power", "Botonera sin Energia (Repare Fusibles)");
                 textColor = hasPower ? Color.cyan : Color.red;
             }
             else if (isCalling && !isArrived)
             {
                 int remaining = Mathf.CeilToInt(currentTimer);
-                promptText = hasPower ? "Elevador descendiendo... (" + remaining + "s)" : "Llamada Suspendida (Sin Energia)";
+                promptText = hasPower 
+                    ? (LocalizationManager.Instance != null ? LocalizationManager.Instance.GetFormat("elev_prompt_calling", remaining) : "Elevador descendiendo... (" + remaining + "s)") 
+                    : Loc("elev_prompt_call_suspended", "Llamada Suspendida (Sin Energia)");
                 textColor = hasPower ? Color.cyan : Color.red;
             }
         }
