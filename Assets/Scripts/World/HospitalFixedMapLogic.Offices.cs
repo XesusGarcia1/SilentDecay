@@ -407,9 +407,10 @@ public partial class HospitalFixedMapLogic
                 if (batteryTrans != null && drawerTrans != null && drawerScript != null)
                 {
                     batteryTrans.gameObject.isStatic = false;
-                    batteryTrans.SetParent(drawerTrans);
-                    batteryTrans.localPosition = new Vector3(0f, 0.05f, -0.1f);
-                    batteryTrans.localRotation = Quaternion.identity;
+                    if (batteryTrans.parent != drawerTrans)
+                    {
+                        batteryTrans.SetParent(drawerTrans, true); // Conservar posición y rotación real del editor de Unity
+                    }
 
                     BatteryItem batComp = batteryTrans.GetComponent<BatteryItem>();
                     if (batComp == null) batComp = batteryTrans.gameObject.AddComponent<BatteryItem>();

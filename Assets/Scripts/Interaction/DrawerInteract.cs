@@ -13,6 +13,7 @@ namespace ModularHospital
 
     [Header("Estado")]
     public bool isOpen = false;
+    public float lastOpenedTime { get; private set; } = -999f;
     private Vector3 closedLocalPos;
     private Vector3 openLocalPos;
     private Vector3 targetLocalPos;
@@ -52,42 +53,32 @@ namespace ModularHospital
         box.center = new Vector3(0f, 0f, 0.1f);
     }
 
-    // Busca automáticamente la tarjeta en hijos, padres o cualquier objeto de tarjeta en la escena
+    // Busca automáticamente la tarjeta ÚNICAMENTE en los hijos directos del cajón
     void TryAutoFindKeycard()
     {
-        if (keycardInside != null && keycardInside.activeInHierarchy) return;
+        if (keycardInside != null) return;
 
-        // 1. Buscar componente KeycardItem en hijos del cajón o del mueble escritorio
+        // Buscar componente KeycardItem únicamente en los hijos directos de este cajón
         KeycardItem found = GetComponentInChildren<KeycardItem>(true);
-        if (found == null && transform.parent != null)
-        {
-            found = transform.parent.GetComponentInChildren<KeycardItem>(true);
-        }
-
-        if (found != null)
+        if (found != null && found.transform.IsChildOf(transform))
         {
             keycardInside = found.gameObject;
-            return;
         }
+    }
 
-        // 2. Buscar cualquier objeto 3D en la escena cuyo nombre coincida con la tarjeta (card, tarjeta, elevator, keycard)
-        Transform[] allTrans = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        foreach (Transform t in allTrans)
+    private bool IsItemFocusedInsideDrawer()
+    {
+        if (!isOpen) return false;
+
+        GameObject curr = InteractionFocusManager.CurrentFocus;
+        if (curr == null) return false;
+
+        if (curr.GetComponent<BatteryItem>() != null || curr.GetComponentInParent<BatteryItem>() != null)
         {
-            if (t == null) continue;
-            string tName = t.name.ToLower();
-            if (tName.Contains("card") || tName.Contains("tarjeta") || tName.Contains("keycard") || tName.Contains("elevator"))
-            {
-                if (!tName.Contains("canvas") && !tName.Contains("ui") && !tName.Contains("controller") && !tName.Contains("manager") && !tName.Contains("door"))
-                {
-                    KeycardItem ki = t.GetComponent<KeycardItem>();
-                    if (ki == null) ki = t.gameObject.AddComponent<KeycardItem>();
-
-                    keycardInside = t.gameObject;
-                    break;
-                }
-            }
+            return true;
         }
+
+        return false;
     }
 
     void Update()
@@ -98,25 +89,10 @@ namespace ModularHospital
         // Auto-recuperar referencia de la tarjeta si se perdió
         if (isOpen) TryAutoFindKeycard();
 
-        Camera cam = Camera.main;
-        bool isFocused = InteractionFocusManager.IsFocused(gameObject);
-        if (!isFocused && cam != null)
+        bool isFocused = InteractionFocusManager.IsFocused(gameObject, interactDistance);
+        if (isFocused && IsItemFocusedInsideDrawer())
         {
-            float dist = Vector3.Distance(cam.transform.position, transform.position);
-            if (dist <= interactDistance)
-            {
-                Vector3 dir = (transform.position - cam.transform.position).normalized;
-                if (Vector3.Dot(cam.transform.forward, dir) > 0.2f)
-                {
-                    // Verificar que no haya pared entre la cámara y el cajón
-                    bool blocked = Physics.Raycast(
-                        cam.transform.position, dir, dist - 0.05f,
-                        ~LayerMask.GetMask("Player", "Ignore Raycast"),
-                        QueryTriggerInteraction.Ignore
-                    );
-                    if (!blocked) isFocused = true;
-                }
-            }
+            isFocused = false;
         }
 
         if (isFocused && (MobileInput.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.E) || MobileInput.ePressedDown))
@@ -169,6 +145,7 @@ namespace ModularHospital
     public void ToggleDrawer()
     {
         isOpen = !isOpen;
+        lastOpenedTime = Time.unscaledTime;
         targetLocalPos = isOpen ? openLocalPos : closedLocalPos;
 
         AudioClip clipToPlay = isOpen ? openSound : closeSound;
@@ -181,43 +158,24 @@ namespace ModularHospital
         // Auto-buscar tarjeta en hijos si la referencia está vacía
         if (isOpen && keycardInside == null) TryAutoFindKeycard();
         
-        // Revelar y posicionar la tarjeta de acceso al abrir
+        // Revelar la tarjeta de acceso al abrir
         if (keycardInside != null)
         {
             keycardInside.SetActive(isOpen);
-            if (isOpen)
-            {
-                keycardInside.transform.localPosition = new Vector3(0f, 0.02f, -0.12f);
-            }
         }
     }
 
     void OnGUI()
     {
-        Camera cam = Camera.main;
-        bool focused = InteractionFocusManager.IsFocused(gameObject);
-        if (!focused && cam != null)
+        bool focused = InteractionFocusManager.IsFocused(gameObject, interactDistance);
+        if (focused && IsItemFocusedInsideDrawer())
         {
-            float dist = Vector3.Distance(cam.transform.position, transform.position);
-            if (dist <= interactDistance)
-            {
-                Vector3 dir = (transform.position - cam.transform.position).normalized;
-                if (Vector3.Dot(cam.transform.forward, dir) > 0.2f)
-                {
-                    // Verificar que no haya pared entre la cámara y el cajón
-                    bool blocked = Physics.Raycast(
-                        cam.transform.position, dir, dist - 0.05f,
-                        ~LayerMask.GetMask("Player", "Ignore Raycast"),
-                        QueryTriggerInteraction.Ignore
-                    );
-                    if (!blocked) focused = true;
-                }
-            }
+            focused = false;
         }
         if (!focused) return;
 
-        // Auto-buscar tarjeta si no está asignada
-        if (isOpen && (keycardInside == null || !keycardInside.activeInHierarchy)) TryAutoFindKeycard();
+        // Auto-buscar tarjeta en hijos directos si el cajón se abrió y la referencia estaba vacía
+        if (isOpen && keycardInside == null) TryAutoFindKeycard();
 
         // PRIORIDAD MÁXIMA: Si el cajón está abierto y la tarjeta está dentro y activa → mostrar opción de recoger
         bool hasCard = isOpen && keycardInside != null && keycardInside.activeInHierarchy;

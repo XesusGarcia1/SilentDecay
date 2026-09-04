@@ -18,12 +18,27 @@ public class BatteryItem : MonoBehaviour
         interactDistance = 2.5f; // Distancia natural y cercana (2.5m)
         FindPlayer();
 
+        // 1. Activar forzosamente todos los objetos mallas hijos (para corregir si 'battery' estaba apagado en el Inspector)
+        Transform[] children = GetComponentsInChildren<Transform>(true);
+        foreach (Transform t in children)
+        {
+            if (t == null) continue;
+            t.gameObject.SetActive(true);
+
+            // Corregir escalas negativas (ej. Y: -4.32) que invierten mallas e invisibilizan superficies 3D
+            Vector3 s = t.localScale;
+            if (s.x < 0 || s.y < 0 || s.z < 0)
+            {
+                t.localScale = new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
+            }
+        }
+
         BoxCollider box = GetComponent<BoxCollider>();
         if (box == null)
         {
             box = gameObject.AddComponent<BoxCollider>();
-            box.isTrigger = true;
         }
+        box.isTrigger = true;
         box.size = new Vector3(0.4f, 0.4f, 0.4f);
     }
 
@@ -77,28 +92,19 @@ public class BatteryItem : MonoBehaviour
         }
 
         playerNear = false;
-        Camera cam = Camera.main;
-        if (cam != null)
+
+        // Comprobar si la pila está dentro de un cajón (únicamente si es hijo del cajón)
+        ModularHospital.DrawerInteract inDrawer = GetComponentInParent<ModularHospital.DrawerInteract>();
+        if (inDrawer != null)
         {
-            float dist = Vector3.Distance(cam.transform.position, transform.position);
-            if (dist <= interactDistance)
+            // Si el cajón está CERRADO o recién abriéndose (menos de 0.35s), jamás permitir interacción
+            if (!inDrawer.isOpen || Time.unscaledTime < inDrawer.lastOpenedTime + 0.35f)
             {
-                Vector3 dir = (transform.position - cam.transform.position).normalized;
-                if (Vector3.Dot(cam.transform.forward, dir) > 0.35f)
-                {
-                    // Verificar que no haya pared entre la cámara y la pila
-                    bool blocked = Physics.Raycast(
-                        cam.transform.position, dir, dist - 0.05f,
-                        ~LayerMask.GetMask("Player", "Ignore Raycast"),
-                        QueryTriggerInteraction.Ignore
-                    );
-                    if (!blocked && InteractionFocusManager.IsFocused(gameObject, interactDistance))
-                    {
-                        playerNear = true;
-                    }
-                }
+                return;
             }
         }
+
+        playerNear = InteractionFocusManager.IsFocused(gameObject, interactDistance);
     }
 
     void LateUpdate()
@@ -143,12 +149,22 @@ public class BatteryItem : MonoBehaviour
         bool isTarget = playerNear && InteractionFocusManager.IsFocused(gameObject, interactDistance);
         if (!isTarget) return;
 
+        ModularHospital.DrawerInteract inDrawer = GetComponentInParent<ModularHospital.DrawerInteract>();
+
+        bool isInsideDrawer = false;
+        if (inDrawer != null)
+        {
+            isInsideDrawer = true;
+            if (!inDrawer.isOpen) return; // Si el cajón está CERRADO, jamás mostrar prompt
+        }
+
         GUIStyle style = new GUIStyle();
         style.fontSize = 22;
         style.alignment = TextAnchor.MiddleCenter;
         style.fontStyle = FontStyle.Bold;
 
-        Rect rect = new Rect(Screen.width / 2 - 260, Screen.height - 120, 520, 50);
+        float posY = Screen.height - 120;
+        Rect rect = new Rect(Screen.width / 2 - 260, posY, 520, 50);
 
         GUI.color = new Color(0f, 0.1f, 0.2f, 0.75f);
         GUI.DrawTexture(new Rect(rect.x - 10, rect.y - 5, rect.width + 20, rect.height + 10), Texture2D.whiteTexture);

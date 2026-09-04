@@ -65,38 +65,19 @@ public class KeycardItem : MonoBehaviour
 
         // Si la tarjeta está dentro de un cajón y el cajón está CERRADO, no permitir interacción
         ModularHospital.DrawerInteract drawer = GetComponentInParent<ModularHospital.DrawerInteract>();
-        if (drawer == null) drawer = FindFirstObjectByType<ModularHospital.DrawerInteract>();
-
-        if (drawer != null)
+        if (drawer != null && !drawer.isOpen)
         {
-            float distToDrawer = Vector3.Distance(transform.position, drawer.transform.position);
-            if (distToDrawer <= 2.2f && !drawer.isOpen)
-            {
-                playerNear = false;
-                return;
-            }
+            playerNear = false;
+            return;
         }
 
-        float dist = Vector3.Distance(cam.transform.position, transform.position);
-        if (dist <= interactDistance)
+        playerNear = InteractionFocusManager.IsFocused(gameObject, interactDistance);
+
+        if (playerNear && (MobileInput.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.E) || MobileInput.ePressedDown))
         {
-            Vector3 dirToCard = (transform.position - cam.transform.position).normalized;
-            float dot = Vector3.Dot(cam.transform.forward, dirToCard);
-
-            if (dot > 0.35f)
-            {
-                playerNear = true;
-
-                if (MobileInput.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.E) || MobileInput.ePressedDown)
-                {
-                    MobileInput.ePressedDown = false;
-                    CollectKeycard();
-                }
-                return;
-            }
+            MobileInput.ePressedDown = false;
+            CollectKeycard();
         }
-
-        playerNear = false;
     }
 
     void CollectKeycard()

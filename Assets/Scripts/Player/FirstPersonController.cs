@@ -250,6 +250,11 @@ namespace StarterAssets
 
             // Configurar dinámicamente el canvas de inputs en móvil
             SetupMobileUI();
+
+            if (GetComponent<FirstPersonStaminaHelper>() == null)
+            {
+                gameObject.AddComponent<FirstPersonStaminaHelper>();
+            }
         }
 
         private void Update()
@@ -392,23 +397,7 @@ namespace StarterAssets
             }
             else
             {
-                if (_currentStamina < maxStamina)
-                {
-                    _currentStamina += staminaRegenRate * Time.deltaTime;
-                    if (_currentStamina > maxStamina) _currentStamina = maxStamina;
-                }
-                
-                // Permitir correr de nuevo si la stamina recuperó al menos 25%
-                if (_isExhausted && _currentStamina > maxStamina * 0.25f)
-                {
-                    _isExhausted = false;
-                }
-
-                // Si está exhausto, forzamos no correr
-                if (_isExhausted)
-                {
-                    _input.sprint = false;
-                }
+                RegenerateStamina(Time.deltaTime);
             }
 
             // Actualizar interfaz visual
@@ -652,6 +641,66 @@ namespace StarterAssets
                     _mobileSprintButtonImage.fillMethod = UnityEngine.UI.Image.FillMethod.Vertical; // O Radial360 dependiendo del diseño
                     _mobileSprintButtonImage.fillOrigin = (int)UnityEngine.UI.Image.OriginVertical.Bottom;
                     _mobileSprintButtonImage.fillAmount = 1f;
+                }
+            }
+        }
+
+        public void RegenerateStamina(float deltaTime)
+        {
+            if (_currentStamina < maxStamina)
+            {
+                _currentStamina += staminaRegenRate * deltaTime;
+                if (_currentStamina > maxStamina) _currentStamina = maxStamina;
+            }
+            
+            // Permitir correr de nuevo si la stamina recuperó al menos 25%
+            if (_isExhausted && _currentStamina > maxStamina * 0.25f)
+            {
+                _isExhausted = false;
+            }
+
+            // Si está exhausto, forzamos no correr
+            if (_isExhausted && _input != null)
+            {
+                _input.sprint = false;
+            }
+
+            if (_mobileSprintButtonImage != null)
+            {
+                _mobileSprintButtonImage.fillAmount = _currentStamina / maxStamina;
+            }
+
+            if (_breathAudioSource != null)
+            {
+                float exhaustionLevel = 1f - (_currentStamina / maxStamina);
+                if (exhaustionLevel < 0.2f) exhaustionLevel = 0f;
+                _breathAudioSource.volume = Mathf.Lerp(_breathAudioSource.volume, exhaustionLevel, deltaTime * 2f);
+            }
+        }
+    }
+
+    public class FirstPersonStaminaHelper : MonoBehaviour
+    {
+        private FirstPersonController fpc;
+
+        void Start()
+        {
+            fpc = GetComponent<FirstPersonController>();
+        }
+
+        void Update()
+        {
+            if (fpc == null) fpc = GetComponent<FirstPersonController>();
+            if (fpc == null) return;
+
+            // Si el FirstPersonController está desactivado por abrir la libreta, mapa u otra interfaz UI,
+            // pero el juego NO está pausado (Time.timeScale > 0f), continuar regenerando stamina.
+            if (!fpc.enabled && fpc.gameObject.activeInHierarchy && Time.timeScale > 0f)
+            {
+                bool isPaused = PauseMenuManager.Instance != null && PauseMenuManager.Instance.IsGamePaused;
+                if (!isPaused)
+                {
+                    fpc.RegenerateStamina(Time.deltaTime);
                 }
             }
         }

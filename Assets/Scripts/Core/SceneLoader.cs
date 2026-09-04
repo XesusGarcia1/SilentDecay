@@ -8,7 +8,7 @@ public class SceneLoader : MonoBehaviour
     private string currentTip = "";
     private float loadProgress = 0f;
     private bool canStartTransition = false;
-    private float minLoadDuration = 6.0f;
+    private float minLoadDuration = 1.5f;
 
     // === INTRO VHS ===
     private enum LoaderPhase { Intro, Loading }
@@ -125,10 +125,7 @@ public class SceneLoader : MonoBehaviour
         loadProgress = 1.0f;
         canStartTransition = true;
 
-        // Warmup global de shaders para evitar tirones de compilación en móviles
-        Shader.WarmupAllShaders();
-
-        yield return new WaitForSecondsRealtime(0.5f);
+        yield return new WaitForSecondsRealtime(0.2f);
 
         operation.allowSceneActivation = true;
     }
