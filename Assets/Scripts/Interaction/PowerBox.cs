@@ -79,8 +79,11 @@ public class PowerBox : MonoBehaviour
         TriggerPowerOutage(false);
         isInitializing = false;
 
-        // Iniciar la cuenta regresiva para el apagón automático inicial
-        StartCoroutine(InitialPowerTimerCoroutine());
+        // Iniciar la cuenta regresiva para el apagón automático inicial (solo en niveles normales)
+        if (TutorialMapLogic.Instance == null)
+        {
+            StartCoroutine(InitialPowerTimerCoroutine());
+        }
     }
 
     private System.Collections.IEnumerator InitialPowerTimerCoroutine()
@@ -334,8 +337,11 @@ public class PowerBox : MonoBehaviour
     [Header("Visual del Fusible")]
     public GameObject internalFuseMesh;
 
-    void TriggerPowerOutage(bool state)
+    public void TriggerPowerOutage(bool state)
     {
+        isPowerOut = state;
+        lastPowerState = state;
+
         // Control visual del fusible dentro de la caja de fusibles (desactivar al apagón, activar al rearmar)
         if (internalFuseMesh == null)
         {
@@ -380,9 +386,7 @@ public class PowerBox : MonoBehaviour
 
                         string cName = curr.name.ToLower();
                         if (cName.Contains("ponit") || cName.Contains("pointslight") || cName.Contains("ponitslight") ||
-                            cName.Contains("ambient") || cName.Contains("ambiente") || cName.Contains("iluminacion") ||
-                            cName.Contains("lighting") || cName.Contains("environment") || cName.Contains("entorno") ||
-                            cName.Contains("decor") || cName.Contains("prop") ||
+                            cName.Contains("ambient") || cName.Contains("ambiente") ||
                             cName.Contains("flashlight") || cName.Contains("linterna") || cName.Contains("player") || cName.Contains("generator"))
                         {
                             isExempt = true;
@@ -396,6 +400,20 @@ public class PowerBox : MonoBehaviour
                         l.enabled = !state;
                     }
                 }
+            }
+
+            float gamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
+            if (state)
+            {
+                // Apagón: Oscurecer iluminación ambiental
+                RenderSettings.ambientLight = new Color(0.02f * gamma, 0.02f * gamma, 0.03f * gamma);
+                RenderSettings.ambientIntensity = 0.1f;
+            }
+            else
+            {
+                // Restaurar: Luz normal
+                RenderSettings.ambientLight = new Color(0.35f * gamma, 0.36f * gamma, 0.38f * gamma);
+                RenderSettings.ambientIntensity = gamma;
             }
 
             // Auto-control de los materiales y emisión de las lámparas de techo (oscurecer tubos en apagón)
@@ -483,7 +501,10 @@ public class PowerBox : MonoBehaviour
                 AudioSource.PlayClipAtPoint(popClip, playPos, 1.0f);
             }
 
-            ShowMessage("¡CORTE ELÉCTRICO! Los fusibles han fallado. Activa Subgeneradores A y B para rearmar.", Color.red, 5.0f);
+            if (TutorialMapLogic.Instance == null)
+            {
+                ShowMessage("¡CORTE ELÉCTRICO! Los fusibles han fallado. Activa Subgeneradores A y B para rearmar.", Color.red, 5.0f);
+            }
             // 1. Garantizar una penumbra ambiental de emergencia visible y constante (Evita pantalla 100% negra)
             float curGamma = PlayerPrefs.GetFloat("GammaLevel", 1.0f);
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;

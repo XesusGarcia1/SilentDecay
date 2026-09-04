@@ -20,6 +20,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/IndustrialDepotMap.unity
     guid: 2f9b017c5537675468d63f75c3236a68
+  - enabled: 1
+    path: Assets/Scenes/TutorialScene.unity
+    guid: 068b8f5bca5a6ab498d8adcd5d5556ff
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

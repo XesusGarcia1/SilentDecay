@@ -2080,11 +2080,13 @@ namespace ModularHospital
 
         private void BuildKeypadAndNotes(Transform parent, int sizeX, int sizeZ, float halfW, float halfD)
         {
-            // 1. Generar la clave aleatoria de 7 dígitos
+            NotepadUIManager.ResetNotepadData();
+
+            // 1. Generar la clave aleatoria de 7 dígitos variados (dígitos del 1 al 9 para evitar repeticiones excesivas de ceros)
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             for (int i = 0; i < 7; i++)
             {
-                sb.Append(Random.Range(0, 10));
+                sb.Append(Random.Range(1, 10));
             }
             correctKeypadCode = sb.ToString();
 

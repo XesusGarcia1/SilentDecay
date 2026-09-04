@@ -35,6 +35,10 @@ public static class LevelIntroData
         {
             return LocalizationManager.Instance.Get(character == "Female" ? "intro_depot_nora" : "intro_depot_ethan");
         }
+        else if (lower.Contains("tut") || lower.Contains("tutorial"))
+        {
+            return LocalizationManager.Instance.Get("intro_tutorial");
+        }
         return null;
     }
 

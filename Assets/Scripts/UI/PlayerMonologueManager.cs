@@ -67,6 +67,15 @@ public class PlayerMonologueManager : MonoBehaviour
         }
     }
 
+    public static void HideDialogue()
+    {
+        if (Instance != null)
+        {
+            Instance.activeText = "";
+            Instance.displayTimer = 0f;
+        }
+    }
+
     private void Update()
     {
         if (displayTimer > 0f)

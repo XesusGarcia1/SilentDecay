@@ -120,7 +120,10 @@ public class NoteItem : MonoBehaviour
         PowerBox pBox = FindObjectOfType<PowerBox>();
         if (pBox != null)
         {
-            pBox.ShowMessage($"Nota de clave recogida: Dígito #{digitPosition} es {digitValue}", Color.yellow, 4.5f);
+            string msg = LocalizationManager.Instance != null 
+                ? LocalizationManager.Instance.GetFormat("tut_note_picked", digitPosition, digitValue)
+                : $"Nota de clave recogida: Dígito #{digitPosition} es {digitValue}";
+            pBox.ShowMessage(msg, Color.yellow, 4.5f);
         }
 
         BookHeadAIController bh = FindFirstObjectByType<BookHeadAIController>();
@@ -148,11 +151,15 @@ public class NoteItem : MonoBehaviour
         GUI.DrawTexture(new Rect(rect.x - 10, rect.y - 5, rect.width + 20, rect.height + 10), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
+        string prompt = LocalizationManager.Instance != null 
+            ? LocalizationManager.Instance.Get("interact_note") 
+            : "[E]  Leer Nota de Seguridad";
+
         style.normal.textColor = Color.black;
-        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), "[E]  Leer Nota de Seguridad", style);
+        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), prompt, style);
 
         style.normal.textColor = new Color(1f, 0.9f, 0.2f);
-        GUI.Label(rect, "[E]  Leer Nota de Seguridad", style);
+        GUI.Label(rect, prompt, style);
     }
 }
 

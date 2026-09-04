@@ -197,7 +197,7 @@ public class ProceduralDoorInteract : MonoBehaviour
 
         playerNear = false;
 
-        if (cachedCam == null)
+        if (cachedCam == null || !cachedCam.gameObject.activeInHierarchy)
         {
             cachedCam = Camera.main;
             if (cachedCam == null && player != null) cachedCam = player.GetComponentInChildren<Camera>();

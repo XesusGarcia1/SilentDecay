@@ -28,6 +28,9 @@ public partial class HospitalFixedMapLogic : MonoBehaviour
 
     private void Start()
     {
+        // Resetear de raíz los datos de libreta y notas para garantizar que no haya residuos del tutorial
+        NotepadUIManager.ResetNotepadData();
+
         // Asegurar que el menú de pausa (PauseMenuManager) esté presente
         if (FindFirstObjectByType<PauseMenuManager>() == null)
         {

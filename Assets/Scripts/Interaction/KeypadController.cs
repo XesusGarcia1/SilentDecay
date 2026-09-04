@@ -126,27 +126,33 @@ public class KeypadController : MonoBehaviour
             {
                 CloseKeypad();
             }
-            else if (Input.GetMouseButtonDown(0) && Time.frameCount > openedFrame)
+            else if (Input.GetMouseButtonDown(0) && Time.frameCount > openedFrame + 5)
             {
                 Vector3 mousePos = Input.mousePosition;
                 float guiMouseX = mousePos.x;
                 float guiMouseY = Screen.height - mousePos.y;
 
-                float scale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
-                #if UNITY_ANDROID || UNITY_IOS
-                scale *= 1.8f;
-                #endif
-                float w = 340f * scale;
-                float h = 460f * scale;
-
-                // Definir el área del cuadro del teclado real escalado para evitar cierres erróneos al pulsar teclas
-                Rect boxRect = new Rect(Screen.width / 2f - w / 2f, Screen.height / 2f - h / 2f, w, h);
+                Rect boxRect = GetScaledBoxRect();
                 if (!boxRect.Contains(new Vector2(guiMouseX, guiMouseY)))
                 {
                     CloseKeypad();
                 }
             }
         }
+    }
+
+    public Rect GetScaledBoxRect()
+    {
+        float scale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+        #if UNITY_ANDROID || UNITY_IOS
+        scale *= 1.25f;
+        #endif
+        float maxAllowedScale = (Screen.height * 0.78f) / 460f;
+        scale = Mathf.Min(scale, maxAllowedScale);
+
+        float w = 340f * scale;
+        float h = 460f * scale;
+        return new Rect(Screen.width / 2f - w / 2f, Screen.height / 2f - h / 2f, w, h);
     }
 
     void OpenKeypad()
@@ -298,8 +304,10 @@ public class KeypadController : MonoBehaviour
 
             float scale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
             #if UNITY_ANDROID || UNITY_IOS
-            scale *= 1.8f;
+            scale *= 1.25f;
             #endif
+            float maxAllowedScale = (Screen.height * 0.78f) / 460f;
+            scale = Mathf.Min(scale, maxAllowedScale);
 
             Vector2 center = new Vector2(Screen.width / 2f, Screen.height / 2f);
             Matrix4x4 oldMat = GUI.matrix;
@@ -373,13 +381,12 @@ public class KeypadController : MonoBehaviour
                     txtSize = 22;
                 }
 
-                GUI.DrawTexture(btnRect, targetTex);
-
-                GUIStyle bStyle = new GUIStyle();
+                GUIStyle bStyle = new GUIStyle(GUI.skin.button);
                 bStyle.fontSize = txtSize;
                 bStyle.fontStyle = FontStyle.Bold;
                 bStyle.alignment = TextAnchor.MiddleCenter;
                 bStyle.normal.textColor = textColor;
+                if (targetTex != null) bStyle.normal.background = targetTex;
 
                 if (GUI.Button(btnRect, buttons[i], bStyle))
                 {
@@ -389,13 +396,13 @@ public class KeypadController : MonoBehaviour
 
             // Botón Salir / Cerrar inferior
             Rect closeRect = new Rect(boxRect.x + (boxRect.width - 130) / 2, boxRect.y + boxRect.height - 45, 130, 32);
-            GUI.DrawTexture(closeRect, btnCloseTex);
 
-            GUIStyle cStyle = new GUIStyle();
+            GUIStyle cStyle = new GUIStyle(GUI.skin.button);
             cStyle.fontSize = 14;
             cStyle.fontStyle = FontStyle.Bold;
             cStyle.alignment = TextAnchor.MiddleCenter;
             cStyle.normal.textColor = new Color(0.80f, 0.82f, 0.85f);
+            if (btnCloseTex != null) cStyle.normal.background = btnCloseTex;
 
             if (GUI.Button(closeRect, "CANCELAR", cStyle))
             {
@@ -403,6 +410,30 @@ public class KeypadController : MonoBehaviour
             }
 
             GUI.matrix = oldMat;
+        }
+
+        // Teclado físico de PC como respaldo infalible
+        if (isOpened)
+        {
+            for (int k = 0; k <= 9; k++)
+            {
+                if (Input.GetKeyDown(KeyCode.Alpha0 + k) || Input.GetKeyDown(KeyCode.Keypad0 + k))
+                {
+                    OnButtonPressed(k.ToString());
+                }
+            }
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                OnButtonPressed("E");
+            }
+            if (Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.C))
+            {
+                OnButtonPressed("C");
+            }
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                CloseKeypad();
+            }
         }
     }
 

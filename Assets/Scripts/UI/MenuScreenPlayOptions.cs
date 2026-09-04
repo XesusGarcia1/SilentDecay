@@ -72,18 +72,29 @@ public class MenuScreenPlayOptions : MonoBehaviour
 
         GUILayout.Space(40); // Espacio entre columnas
 
+        string tutBtn = GetLocalized("  [ JUGAR TUTORIAL ]", "  [ PLAY TUTORIAL ]", "  [ JOGAR TUTORIAL ]", "  [ ПРОЙТИ ОБУЧЕНИЕ ]");
+
         // ─── COLUMNA DERECHA: Botones de Acción ───
         GUILayout.BeginVertical();
         GUILayout.FlexibleSpace();
 
         var redBtn = RedButton(s);
-        if (GUILayout.Button(startBtn, redBtn, GUILayout.Height(65)))
+        if (GUILayout.Button(startBtn, redBtn, GUILayout.Height(60)))
         {
             ctx.PlayClickSound();
             int defaultSize = (targetScene == "TunnelsMap") ? 25 : 20;
             SaveAndLoad(targetScene, defaultSize);
         }
-        GUILayout.Space(25);
+        GUILayout.Space(15);
+
+        if (GUILayout.Button(tutBtn, s.Button, GUILayout.Height(50)))
+        {
+            ctx.PlayClickSound();
+            Time.timeScale = 1f;
+            MainMenuManager.startedFromMenu = true;
+            SceneLoader.LoadScene("TutorialScene");
+        }
+        GUILayout.Space(15);
 
         if (GUILayout.Button(backBtn, s.Button, GUILayout.Height(50)))
         {

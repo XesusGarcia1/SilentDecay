@@ -155,9 +155,9 @@ public partial class HospitalFixedMapLogic
 
         ShuffleList(uniqueOffices);
 
-        // Generar clave de 7 dígitos aleatoria
+        // Generar clave de 7 dígitos aleatoria variada (dígitos 1-9)
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
-        for (int i = 0; i < 7; i++) sb.Append(Random.Range(0, 10));
+        for (int i = 0; i < 7; i++) sb.Append(Random.Range(1, 10));
         correctKeypadCode = sb.ToString();
 
         for (int i = 0; i < uniqueOffices.Count; i++)

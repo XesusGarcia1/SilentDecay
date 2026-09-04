@@ -15,7 +15,7 @@ public class BatteryItem : MonoBehaviour
     void Start()
     {
         rechargeAmount = 60f; // Cada pila recarga un 60% de energía
-        interactDistance = 3.2f; // Distancia cómoda de interacción
+        interactDistance = 2.5f; // Distancia natural y cercana (2.5m)
         FindPlayer();
 
         BoxCollider box = GetComponent<BoxCollider>();
@@ -24,6 +24,7 @@ public class BatteryItem : MonoBehaviour
             box = gameObject.AddComponent<BoxCollider>();
             box.isTrigger = true;
         }
+        box.size = new Vector3(0.4f, 0.4f, 0.4f);
     }
 
     void FindPlayer()
@@ -75,7 +76,29 @@ public class BatteryItem : MonoBehaviour
             FindPlayer();
         }
 
-        playerNear = InteractionFocusManager.IsFocused(gameObject, interactDistance);
+        playerNear = false;
+        Camera cam = Camera.main;
+        if (cam != null)
+        {
+            float dist = Vector3.Distance(cam.transform.position, transform.position);
+            if (dist <= interactDistance)
+            {
+                Vector3 dir = (transform.position - cam.transform.position).normalized;
+                if (Vector3.Dot(cam.transform.forward, dir) > 0.35f)
+                {
+                    // Verificar que no haya pared entre la cámara y la pila
+                    bool blocked = Physics.Raycast(
+                        cam.transform.position, dir, dist - 0.05f,
+                        ~LayerMask.GetMask("Player", "Ignore Raycast"),
+                        QueryTriggerInteraction.Ignore
+                    );
+                    if (!blocked && InteractionFocusManager.IsFocused(gameObject, interactDistance))
+                    {
+                        playerNear = true;
+                    }
+                }
+            }
+        }
     }
 
     void LateUpdate()

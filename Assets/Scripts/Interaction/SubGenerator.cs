@@ -118,43 +118,24 @@ public class SubGenerator : MonoBehaviour
         if (cam != null)
         {
             Vector3 genCenter = transform.position + Vector3.up * 1.0f;
-            Collider c = GetComponent<Collider>();
-            if (c != null) genCenter = c.bounds.center;
+            Renderer mr = GetComponentInChildren<Renderer>();
+            if (mr != null) genCenter = mr.bounds.center;
+            else
+            {
+                Collider c = GetComponentInChildren<Collider>();
+                if (c != null) genCenter = c.bounds.center;
+            }
 
             float dist = Vector3.Distance(cam.transform.position, genCenter);
-            float maxRange = 4.2f;
-
-            if (dist <= maxRange)
+            if (dist <= 6.0f)
             {
-                // 1. Raycast de mirilla central directo
-                if (InteractionFocusManager.IsFocused(gameObject, maxRange))
+                Vector3 dirToGen = (genCenter - cam.transform.position).normalized;
+                float lookDot = Vector3.Dot(cam.transform.forward, dirToGen);
+                
+                // Activar si está enfocado o a menos de 4.8m en el campo visual del jugador
+                if (dist <= 4.8f && (lookDot > 0.05f || InteractionFocusManager.IsFocused(gameObject, 5.0f)))
                 {
                     playerNear = true;
-                }
-                else
-                {
-                    // 2. Comprobar todos los colliders hijos (a cualquier nivel)
-                    Collider[] childCols = GetComponentsInChildren<Collider>();
-                    foreach (var childCol in childCols)
-                    {
-                        if (childCol != null && InteractionFocusManager.IsFocused(childCol.gameObject, maxRange))
-                        {
-                            playerNear = true;
-                            break;
-                        }
-                    }
-
-                    // 3. Fallback infalible de proximidad y ángulo:
-                    // Si el jugador está a menos de 3.2 metros y mirando en dirección general al generador
-                    if (!playerNear && dist <= 3.2f)
-                    {
-                        Vector3 dirToGen = (genCenter - cam.transform.position).normalized;
-                        float lookDot = Vector3.Dot(cam.transform.forward, dirToGen);
-                        if (lookDot > 0.35f) // Ángulo amplio (~70°)
-                        {
-                            playerNear = true;
-                        }
-                    }
                 }
             }
         }
@@ -166,6 +147,33 @@ public class SubGenerator : MonoBehaviour
         }
 
         UpdateVisuals();
+    }
+
+    private void OnGUI()
+    {
+        if (Time.timeScale == 0f || NotepadUIManager.IsOpen) return;
+
+        if (playerNear && !isOn)
+        {
+            GUIStyle pStyle = new GUIStyle();
+            pStyle.fontSize = 22;
+            pStyle.alignment = TextAnchor.MiddleCenter;
+            pStyle.fontStyle = FontStyle.Bold;
+
+            Rect pRect = new Rect(Screen.width / 2 - 240, Screen.height - 120, 480, 50);
+
+            GUI.color = new Color(0f, 0.1f, 0.2f, 0.75f);
+            GUI.DrawTexture(new Rect(pRect.x - 10, pRect.y - 5, pRect.width + 20, pRect.height + 10), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+
+            string promptText = $"[E]  Encender Subgenerador {generatorName}";
+
+            pStyle.normal.textColor = Color.black;
+            GUI.Label(new Rect(pRect.x + 2, pRect.y + 2, pRect.width, pRect.height), promptText, pStyle);
+
+            pStyle.normal.textColor = new Color(1f, 0.85f, 0.2f);
+            GUI.Label(pRect, promptText, pStyle);
+        }
     }
 
     void ActivateGenerator()
@@ -262,29 +270,6 @@ public class SubGenerator : MonoBehaviour
             statusLight.color = isOn ? new Color(0.1f, 1.0f, 0.2f) : new Color(1.0f, 0.05f, 0.05f);
             statusLight.intensity = isOn ? 7.5f : 4.5f;
             statusLight.range = 8.0f;
-        }
-    }
-
-    void OnGUI()
-    {
-        if (playerNear && !isOn)
-        {
-            GUIStyle promptStyle = new GUIStyle();
-            promptStyle.fontSize = 20;
-            promptStyle.alignment = TextAnchor.MiddleCenter;
-            promptStyle.fontStyle = FontStyle.Bold;
-            promptStyle.normal.textColor = Color.white;
-
-            Rect promptRect = new Rect(Screen.width / 2 - 200, Screen.height - 120, 400, 40);
-            GUI.color = new Color(0f, 0.1f, 0.2f, 0.75f);
-            GUI.DrawTexture(new Rect(promptRect.x - 10, promptRect.y - 5, promptRect.width + 20, promptRect.height + 10), Texture2D.whiteTexture);
-            GUI.color = Color.white;
-
-            string prompt = LocalizationManager.Instance != null 
-                ? LocalizationManager.Instance.GetFormat("interact_subgen", generatorName)
-                : $"[E] Encender Subgenerador {generatorName}";
-
-            GUI.Label(promptRect, prompt, promptStyle);
         }
     }
 }
