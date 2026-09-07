@@ -21,6 +21,61 @@ public class InteractionFocusManager : MonoBehaviour
         return 5;
     }
 
+    private static bool IsBlockedByWall(Vector3 camPos, GameObject obj, Vector3 targetPoint, int layerMask)
+    {
+        if (obj == null) return true;
+
+        // 1. Probar raycast hacia el punto de impacto exacto en la superficie del objeto
+        Vector3 dirToHit = (targetPoint - camPos).normalized;
+        float distToHit = Vector3.Distance(camPos, targetPoint);
+        if (distToHit > 0.05f)
+        {
+            RaycastHit wallHit;
+            if (Physics.Raycast(camPos, dirToHit, out wallHit, distToHit - 0.05f, layerMask, QueryTriggerInteraction.Ignore))
+            {
+                if (wallHit.collider != null)
+                {
+                    GameObject obstacle = wallHit.collider.gameObject;
+                    if (obstacle != obj && !obstacle.transform.IsChildOf(obj.transform) && !obj.transform.IsChildOf(obstacle.transform))
+                    {
+                        if (obj.GetComponent<ProceduralDoorInteract>() == null && obj.GetComponentInParent<ProceduralDoorInteract>() == null)
+                        {
+                            return true; // Pared o colisionador sólido intermedio
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Probar raycast hacia el centro físico real del objeto (transform.position o bounds.center)
+        Vector3 objCenter = obj.transform.position;
+        Collider objCol = obj.GetComponent<Collider>();
+        if (objCol != null) objCenter = objCol.bounds.center;
+
+        Vector3 dirToCenter = (objCenter - camPos).normalized;
+        float distToCenter = Vector3.Distance(camPos, objCenter);
+        if (distToCenter > 0.1f)
+        {
+            RaycastHit wallHitCenter;
+            if (Physics.Raycast(camPos, dirToCenter, out wallHitCenter, distToCenter - 0.05f, layerMask, QueryTriggerInteraction.Ignore))
+            {
+                if (wallHitCenter.collider != null)
+                {
+                    GameObject obstacle = wallHitCenter.collider.gameObject;
+                    if (obstacle != obj && !obstacle.transform.IsChildOf(obj.transform) && !obj.transform.IsChildOf(obstacle.transform))
+                    {
+                        if (obj.GetComponent<ProceduralDoorInteract>() == null && obj.GetComponentInParent<ProceduralDoorInteract>() == null)
+                        {
+                            return true; // Pared interpuesta bloqueando el cuerpo del objeto
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     void Awake()
     {
         if (instance == null)
@@ -51,15 +106,23 @@ public class InteractionFocusManager : MonoBehaviour
 
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
-        // Elegir el objeto de mayor prioridad dentro del rayo
+        // Elegir el objeto de mayor prioridad dentro del rayo que NO esté bloqueado por una pared
         int bestPriority = 99;
         GameObject bestObj = null;
         float bestDist = 999f;
+
+        Vector3 camPos = cam.transform.position;
 
         foreach (var hit in hits)
         {
             if (hit.collider == null) continue;
             GameObject go = hit.collider.gameObject;
+
+            if (IsBlockedByWall(camPos, go, hit.point, layerMask))
+            {
+                continue; // Ignorar objetos bloqueados por muros
+            }
+
             int p = GetPriority(go);
             if (p < bestPriority)
             {
@@ -91,7 +154,7 @@ public class InteractionFocusManager : MonoBehaviour
             instance = managerObj.AddComponent<InteractionFocusManager>();
         }
 
-        // Descarte rápido por distancia
+        // Descarte rápido por distancia física
         float distToPlayer = Vector3.Distance(cam.transform.position, obj.transform.position);
         if (distToPlayer > maxDist * 3.0f) return false;
 
@@ -103,12 +166,22 @@ public class InteractionFocusManager : MonoBehaviour
 
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
-        // Determinar la prioridad más alta (número más bajo) entre todos los objetos en el rayo
+        Vector3 camPos = cam.transform.position;
+
+        // Determinar la prioridad más alta (número más bajo) entre todos los objetos sin pared interpuesta
         int highestPriorityInPath = 99;
+
         foreach (var hit in hits)
         {
             if (hit.collider == null) continue;
-            int p = GetPriority(hit.collider.gameObject);
+            GameObject hitGo = hit.collider.gameObject;
+
+            if (IsBlockedByWall(camPos, hitGo, hit.point, layerMask))
+            {
+                continue; // Ignorar objetos tapados por paredes
+            }
+
+            int p = GetPriority(hitGo);
             if (p < highestPriorityInPath) highestPriorityInPath = p;
         }
 
@@ -136,6 +209,12 @@ public class InteractionFocusManager : MonoBehaviour
 
             if (matches)
             {
+                // Verificar obstáculo sólido para el objeto objetivo
+                if (IsBlockedByWall(camPos, obj, hit.point, layerMask))
+                {
+                    continue; // Bloqueado por pared o colisionador físico
+                }
+
                 int p = GetPriority(hitGo);
                 if (p < objBestPriority)
                 {
@@ -148,31 +227,8 @@ public class InteractionFocusManager : MonoBehaviour
 
         if (!found) return false;
 
-        // Si hay un objeto de mayor prioridad en el rayo que NO pertenece a obj, denegar.
+        // Si hay un objeto de mayor prioridad en el rayo que NO pertenece a obj y no está tapado, denegar.
         if (objBestPriority > highestPriorityInPath) return false;
-
-        // Verificación de paredes físicas (solo raycast sólido, sin triggers)
-        Vector3 camPos = cam.transform.position;
-        Vector3 dirToHit = (bestMatchHit.point - camPos).normalized;
-        float distToHit = Vector3.Distance(camPos, bestMatchHit.point);
-
-        RaycastHit wallHit;
-        if (Physics.Raycast(camPos, dirToHit, out wallHit, distToHit - 0.05f, layerMask, QueryTriggerInteraction.Ignore))
-        {
-            if (wallHit.collider != null)
-            {
-                GameObject obstacle = wallHit.collider.gameObject;
-                if (obstacle != obj && !obstacle.transform.IsChildOf(obj.transform) && !obj.transform.IsChildOf(obstacle.transform))
-                {
-                    if (obj.GetComponent<ProceduralDoorInteract>() != null || obj.GetComponentInParent<ProceduralDoorInteract>() != null)
-                        return true;
-
-                    string oName = obstacle.name.ToLower();
-                    if (oName.Contains("wall") || oName.Contains("pared") || oName.Contains("solid") || oName.Contains("pillar") || oName.Contains("column") || oName.Contains("bloque"))
-                        return false;
-                }
-            }
-        }
 
         return true;
     }

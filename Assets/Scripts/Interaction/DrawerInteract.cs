@@ -42,15 +42,15 @@ namespace ModularHospital
         if (openSound == null) openSound = Resources.Load<AudioClip>("Audio/Hospital/OpenDrawer");
         if (closeSound == null) closeSound = Resources.Load<AudioClip>("Audio/Hospital/CloseDrawer");
 
-        // Configurar BoxCollider de interacción como TRIGGER para jamás bloquear el paso del jugador
+        // Configurar BoxCollider de interacción como TRIGGER ajustado al frente del mueble
         BoxCollider box = GetComponent<BoxCollider>();
         if (box == null)
         {
             box = gameObject.AddComponent<BoxCollider>();
         }
         box.isTrigger = true;
-        box.size = new Vector3(0.8f, 0.6f, 0.8f);
-        box.center = new Vector3(0f, 0f, 0.1f);
+        box.size = new Vector3(0.5f, 0.4f, 0.4f);
+        box.center = new Vector3(0f, 0f, 0.15f);
     }
 
     // Busca automáticamente la tarjeta ÚNICAMENTE en los hijos directos del cajón
@@ -90,6 +90,18 @@ namespace ModularHospital
         if (isOpen) TryAutoFindKeycard();
 
         bool isFocused = InteractionFocusManager.IsFocused(gameObject, interactDistance);
+
+        // Verificar orientación: el jugador debe estar mirando hacia el frente del cajón (no desde atrás del mueble/pared)
+        Camera cam = Camera.main;
+        if (isFocused && cam != null)
+        {
+            float facingDot = Vector3.Dot(cam.transform.forward, transform.forward);
+            if (facingDot > 0.15f)
+            {
+                isFocused = false; // El jugador está mirando la parte trasera del mueble/pared
+            }
+        }
+
         if (isFocused && IsItemFocusedInsideDrawer())
         {
             isFocused = false;
@@ -168,6 +180,15 @@ namespace ModularHospital
     void OnGUI()
     {
         bool focused = InteractionFocusManager.IsFocused(gameObject, interactDistance);
+        Camera cam = Camera.main;
+        if (focused && cam != null)
+        {
+            float facingDot = Vector3.Dot(cam.transform.forward, transform.forward);
+            if (facingDot > 0.15f)
+            {
+                focused = false;
+            }
+        }
         if (focused && IsItemFocusedInsideDrawer())
         {
             focused = false;
