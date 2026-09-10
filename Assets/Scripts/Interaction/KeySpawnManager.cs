@@ -105,6 +105,26 @@ public class KeySpawnManager : MonoBehaviour
                     continue;
                 }
 
+                string groupID = IdentifyKeyGroup(key);
+
+                // Configuración para 'R_17_key_Reception': 
+                // NO debe aparecer en Reception, MannequinCourtyardMap ni IndustrialZone.
+                // SOLO debe aparecer en la zona Backrooms.
+                if (groupID == "R_17_key_Reception")
+                {
+                    bool inReception = IsUnderParent(key.transform, "Reception");
+                    bool inMannequin = IsUnderParent(key.transform, "Mannequin");
+                    bool inIndustrial = IsUnderParent(key.transform, "IndustrialZone");
+                    bool inBackrooms = IsUnderParent(key.transform, "Backrooms");
+
+                    if (inReception || inMannequin || inIndustrial || !inBackrooms)
+                    {
+                        key.gameObject.SetActive(false);
+                        Debug.Log($"[KeySpawnManager] Excluida posición de 'R_17_key_Reception' en '{key.gameObject.name}'. Motivo -> Reception:{inReception} | Mannequin:{inMannequin} | Industrial:{inIndustrial} | Backrooms:{inBackrooms}");
+                        continue;
+                    }
+                }
+
                 sceneKeys.Add(key);
             }
         }
@@ -239,6 +259,24 @@ public class KeySpawnManager : MonoBehaviour
         while (current != null)
         {
             if (current.name.Contains("KeysPruebas") || current.name.Contains("KeysPrueba"))
+            {
+                return true;
+            }
+            current = current.parent;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Comprueba si cualquiera de sus ancestros en la jerarquía contiene un nombre de zona específico.
+    /// (No comprueba el nombre del objeto en sí, solo de sus padres).
+    /// </summary>
+    private bool IsUnderParent(Transform t, string searchName)
+    {
+        Transform current = t.parent;
+        while (current != null)
+        {
+            if (current.name.IndexOf(searchName, System.StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return true;
             }
