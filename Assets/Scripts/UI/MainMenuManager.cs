@@ -88,6 +88,7 @@ public class MainMenuManager : MonoBehaviour
     // ─────────────────────────────────────────────────────────────────────────
     void Awake()
     {
+        CheckSaveDataVersion();
         DevTestSettings.SyncFromMainMenu(this);
     }
 
@@ -317,6 +318,28 @@ public class MainMenuManager : MonoBehaviour
             screenMain?.DrawSocialButtons();
 
         GUI.matrix = svMat;
+    }
+
+    /// <summary>
+    /// Comprueba la versión de datos guardados en el dispositivo (Móvil y PC).
+    /// Si el usuario viene de versiones de prueba/beta previas (SaveDataVersion < 1),
+    /// limpia automáticamente los mapas completados una única vez para el lanzamiento oficial 1.0,
+    /// conservando intactos sus ajustes de usuario (volumen, calidad, sensibilidad, idioma).
+    /// En futuras actualizaciones no volverá a borrar nada porque SaveDataVersion ya será 1.
+    /// </summary>
+    private void CheckSaveDataVersion()
+    {
+        const int TARGET_SAVE_VERSION = 1;
+        int currentSaveVersion = PlayerPrefs.GetInt("SaveDataVersion", 0);
+
+        if (currentSaveVersion < TARGET_SAVE_VERSION)
+        {
+            Debug.Log($"[MainMenuManager] Versión de guardado anterior detectada ({currentSaveVersion}). Limpiando progreso de beta para el lanzamiento final...");
+            ResetCampaignProgress();
+            PlayerPrefs.SetInt("SaveDataVersion", TARGET_SAVE_VERSION);
+            PlayerPrefs.Save();
+            Debug.Log($"[MainMenuManager] SaveDataVersion actualizada a {TARGET_SAVE_VERSION}. Progreso de campaña listo para lanzamiento oficial.");
+        }
     }
 
     [ContextMenu("Resetear Progreso de Campaña")]
