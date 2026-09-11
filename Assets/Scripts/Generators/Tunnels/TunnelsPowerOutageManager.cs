@@ -15,6 +15,11 @@ public class TunnelsPowerOutageManager : MonoBehaviour
     private AudioClip outageStartClip;
     private AudioClip outageEndClip;
 
+    private void Awake()
+    {
+        isGlobalPowerOutage = false;
+    }
+
     private void Start()
     {
         // Forzar la activación de niebla volumétrica y luz ambiental de Unity en el mapa de túneles

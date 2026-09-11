@@ -103,6 +103,8 @@ interact_door_close,Cerrar Puerta,Close Door,Fechar Porta,Закрыть две�
 interact_door_locked,Puerta Bloqueada,Door Locked,Porta Trancada,Дверь заперта
 interact_use_key,Usar Llave,Use Key,Usar Chave,Использовать ключ
 monologue_found_guide,Una guía de supervivencia... esto me mostrará cómo encontrar las llaves y salir.,A survival guide... this will show me how to find the keys and get out.,Um guia de sobrevivência... isso me mostrará como encontrar as chaves e sair.,"Руководство по выживанию... оно покажет мне, как найти ключи и выбраться."
+monologue_door_key,"Esta puerta está cerrada con llave. Necesito encontrar la llave para abrirla.","This door is locked. I need to find the key to open it.","Esta porta está trancada. Preciso encontrar a chave para abri-la.","Эта дверь заперта. Мне нужно найти ключ, чтобы открыть ее."
+monologue_door_code,"Esta puerta está bloqueada. Necesito el código de seguridad para abrirla.","This door is locked. I need the security code to open it.","Esta porta está bloqueada. Preciso do código de segurança para abri-la.","Эта дверь заблокирована. Мне нужен код безопасности, чтобы открыть ее."
 pause_title,PARTIDA EN PAUSA,GAME PAUSED,JOGO PAUSADO,ИГРА НА ПАУЗЕ
 pause_subtitle,• TRANSMISIÓN SUSPENDIDA  |  VHS,• TRANSMISSION SUSPENDED  |  VHS,• TRANSMISSÃO SUSPENSA  |  VHS,• ПЕРЕДАЧА ПРИОСТАНОВЛЕНА  |  VHS
 pause_resume,  REANUDAR PARTIDA,  RESUME GAME,  RETOMAR PARTIDA,  ВОЗОБНОВИТЬ ИГРУ

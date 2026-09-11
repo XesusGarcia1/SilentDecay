@@ -4,7 +4,7 @@ public class GuideMapUI : MonoBehaviour
 {
     public static GuideMapUI Instance { get; private set; }
 
-    public static bool hasGuideMap = true;
+    public static bool hasGuideMap = false;
     public static bool isOpen = false;
     private static float openTime = 0f;
 
@@ -17,7 +17,7 @@ public class GuideMapUI : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
-        hasGuideMap = true;
+        hasGuideMap = false;
         isOpen = false;
         openTime = 0f;
     }
@@ -65,9 +65,8 @@ public class GuideMapUI : MonoBehaviour
 
     private Texture2D GetMapIconTexture()
     {
-        if (mapIconTexture != null) return mapIconTexture;
-        mapIconTexture = mapTexture; // Usar la textura de la guía como icono miniatura
-        return mapIconTexture;
+        if (mapTexture == null) LoadMapTexture();
+        return mapTexture;
     }
 
     private bool ShouldSuppressMapUI()
@@ -296,5 +295,69 @@ public class GuideMapUI : MonoBehaviour
 
             return;
         }
+
+        // Si el jugador ya recogió la guía y no está abierta, dibujar el botón táctil en el lado izquierdo
+        if (hasGuideMap)
+        {
+            DrawHUDButton();
+        }
+    }
+
+    private void DrawHUDButton()
+    {
+        // Aplicar escalado de HUD según preferencias del jugador
+        float hudScale = PlayerPrefs.GetFloat("HUDScale", 1.25f);
+        Matrix4x4 oldHudMat = GUI.matrix;
+        if (hudScale != 1.0f)
+        {
+            Vector2 pivot = new Vector2(25, 25);
+            GUIUtility.ScaleAroundPivot(new Vector2(hudScale, hudScale), pivot);
+        }
+
+        float btnSize = 46f;
+        float yPos = 170f;
+        Rect iconRect = new Rect(25f, yPos, btnSize, btnSize);
+
+        // 1. Fondo semitransparente oscuro unificado
+        GUI.color = new Color(0f, 0f, 0f, 0.65f);
+        GUI.DrawTexture(iconRect, Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        // 2. Borde dorado fino para el botón de la Guía
+        GUI.color = new Color(0.95f, 0.8f, 0.25f, 0.6f);
+        GUI.DrawTexture(new Rect(iconRect.x - 1, iconRect.y - 1, iconRect.width + 2, 1), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(iconRect.x - 1, iconRect.y + iconRect.height, iconRect.width + 2, 1), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(iconRect.x - 1, iconRect.y - 1, 1, iconRect.height + 2), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(iconRect.x + iconRect.width, iconRect.y - 1, 1, iconRect.height + 2), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        // Botón transparente para hacer clic con mouse o tocar en móviles
+        GUIStyle iconStyle = new GUIStyle(GUI.skin.button);
+        iconStyle.normal.background = null;
+        iconStyle.hover.background = null;
+        iconStyle.active.background = null;
+
+        if (GUI.Button(iconRect, GUIContent.none, iconStyle))
+        {
+            OpenMap();
+        }
+
+        // 3. Renderizar icono del Mapa
+        Texture2D iconTex = GetMapIconTexture();
+        if (iconTex != null)
+        {
+            GUI.DrawTexture(new Rect(iconRect.x + 4, iconRect.y + 4, iconRect.width - 8, iconRect.height - 8), iconTex, ScaleMode.ScaleToFit, true);
+        }
+        else
+        {
+            GUIStyle mapLabelStyle = new GUIStyle(GUI.skin.label);
+            mapLabelStyle.alignment = TextAnchor.MiddleCenter;
+            mapLabelStyle.fontStyle = FontStyle.Bold;
+            mapLabelStyle.fontSize = 14;
+            mapLabelStyle.normal.textColor = Color.white;
+            GUI.Label(iconRect, "MAP", mapLabelStyle);
+        }
+
+        GUI.matrix = oldHudMat;
     }
 }

@@ -332,9 +332,30 @@ public class ProceduralDoorInteract : MonoBehaviour
                     if (lockSound != null) audioSource.PlayOneShot(lockSound, 1.0f);
                 }
 
-                PlayerMonologueManager.ShowDialogue("Esta puerta está bloqueada. Necesito el código de seguridad para abrirla.", 3.5f);
+                string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                bool isHospital = sceneName.Contains("Hospital") || FindObjectOfType<ModularHospital.ModularHospitalGenerator>() != null;
+
+                string lockDialogue;
+                string pBoxMsg;
+
+                if (isHospital)
+                {
+                    lockDialogue = LocalizationManager.Instance != null 
+                        ? LocalizationManager.Instance.Get("monologue_door_code") 
+                        : "Esta puerta está bloqueada. Necesito el código de seguridad para abrirla.";
+                    pBoxMsg = "PUERTA BLOQUEADA: Requiere Código de Seguridad";
+                }
+                else
+                {
+                    lockDialogue = LocalizationManager.Instance != null 
+                        ? LocalizationManager.Instance.Get("monologue_door_key") 
+                        : "Esta puerta está cerrada con llave. Necesito encontrar la llave para abrirla.";
+                    pBoxMsg = "PUERTA BLOQUEADA: Requiere Llave";
+                }
+
+                PlayerMonologueManager.ShowDialogue(lockDialogue, 3.5f);
                 PowerBox pBox = FindObjectOfType<PowerBox>();
-                if (pBox != null) pBox.ShowMessage("PUERTA BLOQUEADA: Requiere Código de Seguridad", Color.red, 3.0f);
+                if (pBox != null) pBox.ShowMessage(pBoxMsg, Color.red, 3.0f);
 
                 return;
             }
