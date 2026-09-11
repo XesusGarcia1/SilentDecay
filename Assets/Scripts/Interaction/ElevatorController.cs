@@ -148,6 +148,14 @@ public class ElevatorController : MonoBehaviour
             doorsOpen = true;
             currentDoorProgress = 1.0f;
         }
+        else
+        {
+            hasKeycard = false;
+            keycardUsed = false;
+            isArrived = false;
+            doorsOpen = false;
+            currentDoorProgress = 0.0f;
+        }
 
         // Resolver referencias de puertas si no estan asignadas (busqueda profunda de jerarquia)
         if (leftDoor == null || rightDoor == null)

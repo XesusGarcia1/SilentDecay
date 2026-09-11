@@ -71,6 +71,10 @@ public partial class HospitalFixedMapLogic
         {
             ElevatorController.hasKeycard = true;
         }
+        else
+        {
+            ElevatorController.hasKeycard = false;
+        }
 
         Debug.Log($"[FixedHospital] Se detectaron {validElevators.Count} ascensores en el mapa. ELEVADOR REAL DE ESCAPE SELECCIONADO: {realElevator.name} en {realElevator.transform.position}. Se ocultaron los otros {validElevators.Count - 1}.");
 

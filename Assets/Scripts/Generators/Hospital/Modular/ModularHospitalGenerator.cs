@@ -1432,7 +1432,8 @@ namespace ModularHospital
             ctrl.bypassKeycard = bypassKeycard;
             ctrl.nextSceneName = "TunnelsMap";
             ctrl.doorSpeed = 0.22f;
-            if (startWithKeycard) ElevatorController.hasKeycard = true;
+            if (startWithKeycard || bypassKeycard) ElevatorController.hasKeycard = true;
+            else ElevatorController.hasKeycard = false;
 
             // ELIMINAR CUALQUIER PARED Y BLOQUE MACIZO QUE BLOQUEE LA ENTRADA DEL ELEVADOR
             Vector3 doorFacing = rot * Vector3.forward;
