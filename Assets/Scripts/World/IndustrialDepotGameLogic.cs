@@ -10,6 +10,17 @@ public class IndustrialDepotGameLogic : MonoBehaviour
     [Tooltip("El punto donde el jugador aparecerá al iniciar y cuando muera.")]
     public Transform pointStartRespawn;
 
+    private void Awake()
+    {
+        // Limpiar inventario previo de llaves y piezas al iniciar o reiniciar el depósito
+        if (MetalKeyItem.collectedKeys != null) MetalKeyItem.collectedKeys.Clear();
+        MetalKeyItem.hasMetalKey = false;
+        if (LadderPartItem.collectedParts != null) LadderPartItem.collectedParts.Clear();
+        LadderPartItem.isCarryingPart = false;
+        GuideMapUI.hasGuideMap = false;
+        GuideMapUI.isOpen = false;
+    }
+
     private void Start()
     {
         // Nota: PauseMenuManager viaja desde el MainMenu como Singleton persistente
