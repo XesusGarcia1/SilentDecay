@@ -1787,6 +1787,8 @@ MonoBehaviour:
   logoHeight: 250
   unlockAllMapsDebug: 0
   resetCampaignProgress: 0
+  isDemoBuild: 1
+  fullGameStoreURL: https://xevorastudio.itch.io/silent-decay
   testModeEnableAll: 0
   testStartWithKeycard: 0
   testBypassKeycard: 0
@@ -1799,6 +1801,8 @@ MonoBehaviour:
   btnHoverTexture: {fileID: 2800000, guid: 0fd7996d22f61ab42b9e74c05f882842, type: 3}
   instagramURL: https://www.instagram.com/lxesusgarcial
   facebookURL: https://www.facebook.com/lXesusGarcial
+  youtubeStudioURL: https://www.youtube.com/@Xevora-Studios/videos
+  youtubeArtistURL: https://www.youtube.com/@Xesus_Garcia
   youtubeURL: https://www.youtube.com/@Xesus_Garcia
   menuMusic: {fileID: 8300000, guid: e975e6b85b3ee874c90aa36076ad0e06, type: 3}
   menuAudioSource: {fileID: 0}

@@ -724,10 +724,17 @@ public class ElevatorController : MonoBehaviour
         Time.timeScale = 0f;
         MobileInput.SetCursorState(false);
 
-        // Guardar progreso: Nivel 1 completado, desbloquea Nivel 2 (Túneles)
-        PlayerPrefs.SetInt("Campaign_HospitalCompleted", 1);
-        PlayerPrefs.Save();
-        Debug.Log("[ElevatorController] 🏆 ¡Nivel 1 (Hospital) completado! Nivel 2 (Túneles) desbloqueado.");
+        // Guardar progreso: Nivel 1 completado, desbloquea Nivel 2 (Túneles) si no es versión Demo
+        if (!DevTestSettings.isDemoBuild)
+        {
+            PlayerPrefs.SetInt("Campaign_HospitalCompleted", 1);
+            PlayerPrefs.Save();
+            Debug.Log("[ElevatorController] 🏆 ¡Nivel 1 (Hospital) completado! Nivel 2 (Túneles) desbloqueado.");
+        }
+        else
+        {
+            Debug.Log("[ElevatorController] 🏆 ¡Versión Demo completada exitosamente! Mostrando agradecimiento.");
+        }
 
         // Secuencia cinemática de victoria
         hospitalVictoryStep = 1;
@@ -871,14 +878,29 @@ public class ElevatorController : MonoBehaviour
                 GUIStyle subSt = new GUIStyle(GUI.skin.label);
                 subSt.alignment = TextAnchor.MiddleCenter;
                 subSt.fontStyle = FontStyle.Bold;
-                subSt.fontSize = Mathf.RoundToInt(sHeight * 0.038f);
+                subSt.fontSize = Mathf.RoundToInt(sHeight * 0.035f);
                 subSt.normal.textColor = new Color(0.3f, 0.95f, 0.4f);
 
-                string winTitle = isEn ? "LEVEL 1: HOSPITAL COMPLETED!" : (isPt ? "NÍVEL 1: HOSPITAL CONCLUÍDO!" : (isRu ? "УРОВЕНЬ 1: БОЛЬНИЦА ПРОЙДЕНА!" : "¡NIVEL 1: HOSPITAL COMPLETADO!"));
-                string unlockSub = isEn ? "LEVEL 2: FLOODED TUNNELS UNLOCKED" : (isPt ? "NÍVEL 2: TÚNEIS INUNDADOS DESBLOQUEADO" : (isRu ? "УРОВЕНЬ 2: ТОННЕЛИ РАЗБЛОКИРОВАНЫ" : "¡NIVEL 2: TÚNELES INUNDADOS DESBLOQUEADO!"));
+                string winTitle;
+                string unlockSub;
 
-                GUI.Label(new Rect(0, sHeight * 0.38f, sWidth, sHeight * 0.10f), winTitle, titleSt);
-                GUI.Label(new Rect(0, sHeight * 0.50f, sWidth, sHeight * 0.08f), unlockSub, subSt);
+                if (DevTestSettings.isDemoBuild)
+                {
+                    winTitle = isEn ? "★ DEMO COMPLETED! ★" : (isPt ? "★ DEMO CONCLUÍDA! ★" : (isRu ? "★ ДЕМО-ВЕРСИЯ ПРОЙДЕНА! ★" : "¡★ DEMO COMPLETADA! ★"));
+                    unlockSub = isEn 
+                        ? "THANK YOU FOR PLAYING SILENT DECAY DEMO!\nGET THE FULL GAME TO UNLOCK CHAPTERS 2 & 3" 
+                        : (isPt ? "OBRIGADO POR JOGAR A DEMO DE SILENT DECAY!\nADQUIRA A VERSÃO COMPLETA PARA OS CAPÍTULOS 2 E 3" 
+                        : (isRu ? "СПАСИБО ЗА ИГРУ В ДЕМО SILENT DECAY!\nПОЛУЧИТЕ ПОЛНУЮ ВЕРСИЮ ДЛЯ ГЛАВ 2 И 3" 
+                        : "¡GRACIAS POR JUGAR LA DEMO DE SILENT DECAY!\nADQUIERE LA VERSIÓN COMPLETA PARA CONTINUAR EN LOS CAPÍTULOS 2 Y 3"));
+                }
+                else
+                {
+                    winTitle = isEn ? "LEVEL 1: HOSPITAL COMPLETED!" : (isPt ? "NÍVEL 1: HOSPITAL CONCLUÍDO!" : (isRu ? "УРОВЕНЬ 1: БОЛЬНИЦА ПРОЙДЕНА!" : "¡NIVEL 1: HOSPITAL COMPLETADO!"));
+                    unlockSub = isEn ? "LEVEL 2: FLOODED TUNNELS UNLOCKED" : (isPt ? "NÍVEL 2: TÚNEIS INUNDADOS DESBLOQUEADO" : (isRu ? "УРОВЕНЬ 2: ТОННЕЛИ РАЗБЛОКИРОВАНЫ" : "¡NIVEL 2: TÚNELES INUNDADOS DESBLOQUEADO!"));
+                }
+
+                GUI.Label(new Rect(0, sHeight * 0.35f, sWidth, sHeight * 0.10f), winTitle, titleSt);
+                GUI.Label(new Rect(0, sHeight * 0.48f, sWidth, sHeight * 0.14f), unlockSub, subSt);
             }
             else if (hospitalVictoryStep == 2)
             {

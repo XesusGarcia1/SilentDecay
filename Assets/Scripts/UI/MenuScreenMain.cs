@@ -58,22 +58,48 @@ public class MenuScreenMain : MonoBehaviour
     public void DrawSocialButtons()
     {
         float socialX = 1810f;
-        float startY  = 400f;
+        float startY  = 330f;
         float btnSize = 80f;
-        float spacing = 20f;
+        float spacing = 22f;
 
-        DrawSocialBtn(texInstagram, socialX, startY,                       ctx.instagramURL);
-        DrawSocialBtn(texFacebook,  socialX, startY + btnSize + spacing,   ctx.facebookURL);
-        DrawSocialBtn(texYoutube,   socialX, startY + (btnSize+spacing)*2, ctx.youtubeURL);
+        DrawSocialBtn(texInstagram, socialX, startY,                         ctx.instagramURL);
+        DrawSocialBtn(texFacebook,  socialX, startY + btnSize + spacing,     ctx.facebookURL);
+        
+        string studioUrl = !string.IsNullOrEmpty(ctx.youtubeStudioURL) ? ctx.youtubeStudioURL : "https://www.youtube.com/@Xevora-Studios/videos";
+        string artistUrl = !string.IsNullOrEmpty(ctx.youtubeArtistURL) ? ctx.youtubeArtistURL : (!string.IsNullOrEmpty(ctx.youtubeURL) ? ctx.youtubeURL : "https://www.youtube.com/@Xesus_Garcia");
+
+        DrawSocialBtn(texYoutube,   socialX, startY + (btnSize+spacing)*2,   studioUrl, Loc("social_studio", "STUDIO"));
+        DrawSocialBtn(texYoutube,   socialX, startY + (btnSize+spacing)*3,   artistUrl, Loc("social_artist", "ARTIST"));
     }
 
-    void DrawSocialBtn(Texture2D tex, float x, float y, string url)
+    void DrawSocialBtn(Texture2D tex, float x, float y, string url, string badge = "")
     {
         if (tex == null) return;
-        if (GUI.Button(new Rect(x, y, 80f, 80f), tex, GUIStyle.none))
+        Rect r = new Rect(x, y, 80f, 80f);
+        if (GUI.Button(r, tex, GUIStyle.none))
         {
             ctx.PlayClickSound();
             Application.OpenURL(url);
+        }
+
+        if (!string.IsNullOrEmpty(badge))
+        {
+            GUIStyle badgeStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 10,
+                fontStyle = FontStyle.Bold
+            };
+            badgeStyle.normal.textColor = new Color(1f, 0.9f, 0.45f, 0.95f);
+
+            Rect badgeRect = new Rect(x - 5f, y + 62f, 90f, 16f);
+
+            Color prevColor = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.75f);
+            GUI.Box(badgeRect, GUIContent.none);
+            GUI.color = prevColor;
+
+            GUI.Label(badgeRect, badge, badgeStyle);
         }
     }
 

@@ -175,7 +175,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
     // ─── Nivel 2: Túneles Subterráneos ────────────────────────────────────────
     private void DrawTunnelsCard(MenuStyles s)
     {
-        bool isUnlocked = (ctx != null && ctx.unlockAllMapsDebug) || PlayerPrefs.GetInt("Campaign_HospitalCompleted", 0) == 1;
+        bool isUnlocked = (ctx != null && !ctx.isDemoBuild) && ((ctx != null && ctx.unlockAllMapsDebug) || PlayerPrefs.GetInt("Campaign_HospitalCompleted", 0) == 1);
 
         string lvlTitle = GetLocalized("NIVEL 2: TÚNELES INUNDADOS", "LEVEL 2: FLOODED TUNNELS", "NÍVEL 2: TÚNEIS INUNDADOS", "УРОВЕНЬ 2: ЗАТОПЛЕННЫЕ ТОННЕЛИ");
         string lvlDesc  = GetLocalized(
@@ -186,7 +186,9 @@ public class MenuScreenLevelSelect : MonoBehaviour
         );
         string diffBadge = GetLocalized("DIFICULTAD: NORMAL / DIFÍCIL", "DIFFICULTY: NORMAL / HARD", "DIFICULDADE: NORMAL / DIFÍCIL", "СЛОЖНОСТЬ: НОРМАЛЬНО / СЛОЖНО");
         string playBtnText = GetLocalized("JUGAR CAPÍTULO 2", "PLAY CHAPTER 2", "JOGAR CAPÍTULO 2", "ИГРАТЬ ГЛАВУ 2");
-        string lockReqText = GetLocalized("COMPLETA EL HOSPITAL (NIVEL 1) PARA DESBLOQUEAR", "COMPLETE HOSPITAL (LEVEL 1) TO UNLOCK", "COMPLETE O HOSPITAL (NÍVEL 1) PARA DESBLOQUEAR", "ПРОЙДИТЕ БОЛЬНИЦУ (УРОВЕНЬ 1) ДЛЯ РАЗБЛОКИРОВКИ");
+        string lockReqText = (ctx != null && ctx.isDemoBuild)
+            ? GetLocalized("🔒 DISPONIBLE EN LA VERSIÓN COMPLETA", "🔒 AVAILABLE IN FULL VERSION", "🔒 DISPONÍVEL NA VERSÃO COMPLETA", "🔒 ДОСТУПНО В ПОЛНОЙ ВЕРСИИ")
+            : GetLocalized("COMPLETA EL HOSPITAL (NIVEL 1) PARA DESBLOQUEAR", "COMPLETE HOSPITAL (LEVEL 1) TO UNLOCK", "COMPLETE O HOSPITAL (NÍVEL 1) PARA DESBLOQUEAR", "ПРОЙДИТЕ БОЛЬНИЦУ (УРОВЕНЬ 1) ДЛЯ РАЗБЛОКИРОВКИ");
 
         if (isUnlocked)
         {
@@ -205,7 +207,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
     // ─── Nivel 3: Depósito Industrial ─────────────────────────────────────────
     private void DrawDepotCard(MenuStyles s)
     {
-        bool isUnlocked = (ctx != null && ctx.unlockAllMapsDebug) || PlayerPrefs.GetInt("Campaign_TunnelsCompleted", 0) == 1;
+        bool isUnlocked = (ctx != null && !ctx.isDemoBuild) && ((ctx != null && ctx.unlockAllMapsDebug) || PlayerPrefs.GetInt("Campaign_TunnelsCompleted", 0) == 1);
 
         string lvlTitle = GetLocalized("NIVEL 3: DEPÓSITO INDUSTRIAL", "LEVEL 3: INDUSTRIAL DEPOT", "NÍVEL 3: DEPÓSITO INDUSTRIAL", "УРОВЕНЬ 3: ПРОМЫШЛЕННЫЙ СКЛАД");
         string lvlDesc  = GetLocalized(
@@ -216,7 +218,9 @@ public class MenuScreenLevelSelect : MonoBehaviour
         );
         string diffBadge = GetLocalized("DIFICULTAD: ⚠ DIFÍCIL / EXPERTO", "DIFFICULTY: ⚠ HARD / EXPERT", "DIFICULDADE: ⚠ DIFÍCIL / EXPERT", "СЛОЖНОСТЬ: ⚠ СЛОЖНО / ЭКСПЕРТ");
         string playBtnText = GetLocalized("JUGAR CAPÍTULO 3", "PLAY CHAPTER 3", "JOGAR CAPÍTULO 3", "ИГРАТЬ ГЛАВУ 3");
-        string lockReqText = GetLocalized("COMPLETA LOS TÚNELES (NIVEL 2) PARA DESBLOQUEAR", "COMPLETE TUNNELS (LEVEL 2) TO UNLOCK", "COMPLETE OS TÚNEIS (NÍVEL 2) PARA DESBLOQUEAR", "ПРОЙДИТЕ ТОННЕЛИ (УРОВЕНЬ 2) ДЛЯ РАЗБЛОКИРОВКИ");
+        string lockReqText = (ctx != null && ctx.isDemoBuild)
+            ? GetLocalized("🔒 DISPONIBLE EN LA VERSIÓN COMPLETA", "🔒 AVAILABLE IN FULL VERSION", "🔒 DISPONÍVEL NA VERSÃO COMPLETA", "🔒 ДОСТУПНО В ПОЛНОЙ ВЕРСИИ")
+            : GetLocalized("COMPLETA LOS TÚNELES (NIVEL 2) PARA DESBLOQUEAR", "COMPLETE TUNNELS (LEVEL 2) TO UNLOCK", "COMPLETE OS TÚNEIS (NÍVEL 2) PARA DESBLOQUEAR", "ПРОЙДИТЕ ТОННЕЛИ (УРОВЕНЬ 2) ДЛЯ РАЗБЛОКИРОВКИ");
 
         if (isUnlocked)
         {
@@ -353,7 +357,28 @@ public class MenuScreenLevelSelect : MonoBehaviour
 
         // Barra de requerimiento de desbloqueo
         GUILayout.BeginHorizontal(lockBanner, GUILayout.Height(50));
-        GUILayout.Label(lockReason, lockText);
+        if (ctx != null && ctx.isDemoBuild)
+        {
+            GUIStyle buyBtnStyle = new GUIStyle(s.Button);
+            buyBtnStyle.fontSize = 15;
+            buyBtnStyle.fontStyle = FontStyle.Bold;
+            buyBtnStyle.normal.textColor = new Color(1f, 0.85f, 0.3f);
+            buyBtnStyle.hover.textColor = Color.white;
+
+            string buyText = GetLocalized("🛒 ADQUIRIR VERSIÓN COMPLETA", "🛒 GET FULL VERSION", "🛒 ADQUIRIR VERSÃO COMPLETA", "🛒 ПОЛУЧИТЬ ПОЛНУЮ ВЕРСИЮ");
+            if (GUILayout.Button(buyText, buyBtnStyle, GUILayout.ExpandWidth(true), GUILayout.Height(46)))
+            {
+                ctx.PlayClickSound();
+                if (!string.IsNullOrEmpty(ctx.fullGameStoreURL))
+                {
+                    Application.OpenURL(ctx.fullGameStoreURL);
+                }
+            }
+        }
+        else
+        {
+            GUILayout.Label(lockReason, lockText);
+        }
         GUILayout.EndHorizontal();
 
         GUILayout.EndVertical();

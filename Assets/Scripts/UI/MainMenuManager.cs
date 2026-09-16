@@ -28,6 +28,12 @@ public class MainMenuManager : MonoBehaviour
     [Tooltip("Marcar esta casilla en el Inspector borra el progreso guardado de campaña (PlayerPrefs) para probar como un jugador nuevo")]
     public bool resetCampaignProgress = false;
 
+    [Header("Configuración Versión Demo (PC / Pruebas)")]
+    [Tooltip("Si es true, el juego se compila como Versión Demo: solo el Nivel 1 (Hospital) es jugable, los demás niveles quedan bloqueados y al terminar el Hospital muestra la pantalla de victoria Demo")]
+    public bool isDemoBuild = false;
+    [Tooltip("Enlace a la tienda para adquirir el juego completo")]
+    public string fullGameStoreURL = "https://xevorastudio.itch.io/silent-decay";
+
     [Header("Modo de Pruebas Global (Developer Test Mode)")]
     [Tooltip("Activa todas las ayudas globales: Inicia con tarjeta, burla tarjeta, burla energía en Hospital; auto-activa generadores en Túneles; y entrega todas las llaves, repara escaleras y da mapa en Depósito")]
     public bool testModeEnableAll = false;
@@ -57,9 +63,13 @@ public class MainMenuManager : MonoBehaviour
     public Texture2D btnHoverTexture;
 
     [Header("Redes Sociales")]
-    public string instagramURL = "https://www.instagram.com/lxesusgarcial";
-    public string facebookURL  = "https://www.facebook.com/lXesusGarcial";
-    public string youtubeURL   = "https://www.youtube.com/@Xesus_Garcia";
+    public string instagramURL     = "https://www.instagram.com/lxesusgarcial";
+    public string facebookURL      = "https://www.facebook.com/lXesusGarcial";
+    [Tooltip("Canal Oficial de YouTube del Estudio / Juegos")]
+    public string youtubeStudioURL = "https://www.youtube.com/@Xevora-Studios";
+    [Tooltip("Canal Oficial de YouTube del Artista")]
+    public string youtubeArtistURL = "https://www.youtube.com/@Xesus_Garcia";
+    [HideInInspector] public string youtubeURL = "https://www.youtube.com/@Xevora-Studios";
 
     [Header("Sonidos de Menú")]
     public AudioClip menuMusic;
@@ -361,6 +371,9 @@ public class MainMenuManager : MonoBehaviour
 /// </summary>
 public static class DevTestSettings
 {
+    public static bool isDemoBuild = false;
+    public static string storeURL = "https://xevorastudio.itch.io/silent-decay";
+
     public static bool testModeEnableAll = false;
     public static bool startWithKeycard = false;
     public static bool bypassKeycard = false;
@@ -373,6 +386,9 @@ public static class DevTestSettings
     public static void SyncFromMainMenu(MainMenuManager m)
     {
         if (m == null) return;
+        isDemoBuild = m.isDemoBuild;
+        storeURL = m.fullGameStoreURL;
+
         testModeEnableAll = m.testModeEnableAll;
         startWithKeycard = m.testModeEnableAll || m.testStartWithKeycard;
         bypassKeycard = m.testModeEnableAll || m.testBypassKeycard;
