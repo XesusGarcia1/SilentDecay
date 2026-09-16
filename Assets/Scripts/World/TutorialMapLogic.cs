@@ -541,7 +541,7 @@ public class TutorialMapLogic : MonoBehaviour
         markerStyle.fontStyle = FontStyle.Bold;
         markerStyle.normal.textColor = Color.yellow;
 
-        string objTitle = Loc("tut_obj_title", "✦ OBJETIVO ✦");
+        string objTitle = Loc("tut_obj_title", "[ OBJETIVO ]");
 
         // Marcadores de Subgeneradores en Paso 1 (Apagón)
         if (currentStep == 1)

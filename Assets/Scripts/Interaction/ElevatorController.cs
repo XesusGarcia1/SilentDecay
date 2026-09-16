@@ -886,7 +886,7 @@ public class ElevatorController : MonoBehaviour
 
                 if (DevTestSettings.isDemoBuild)
                 {
-                    winTitle = isEn ? "★ DEMO COMPLETED! ★" : (isPt ? "★ DEMO CONCLUÍDA! ★" : (isRu ? "★ ДЕМО-ВЕРСИЯ ПРОЙДЕНА! ★" : "¡★ DEMO COMPLETADA! ★"));
+                    winTitle = isEn ? "DEMO COMPLETED!" : (isPt ? "DEMO CONCLUÍDA!" : (isRu ? "ДЕМО-ВЕРСИЯ ПРОЙДЕНА!" : "¡DEMO COMPLETADA!"));
                     unlockSub = isEn 
                         ? "THANK YOU FOR PLAYING SILENT DECAY DEMO!\nGET THE FULL GAME TO UNLOCK CHAPTERS 2 & 3" 
                         : (isPt ? "OBRIGADO POR JOGAR A DEMO DE SILENT DECAY!\nADQUIRA A VERSÃO COMPLETA PARA OS CAPÍTULOS 2 E 3" 

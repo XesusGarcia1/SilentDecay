@@ -184,10 +184,10 @@ public class MenuScreenLevelSelect : MonoBehaviour
             "Passagens subterrâneas sob o hospital. Ative os 3 subgeradores, drene as bombas de água e fuja pela escotilha.",
             "Подземные туннели под больницей. Найдите и включите 3 субгенератора, откачайте воду и эвакуируйтесь через люк."
         );
-        string diffBadge = GetLocalized("DIFICULTAD: NORMAL / DIFÍCIL", "DIFFICULTY: NORMAL / HARD", "DIFICULDADE: NORMAL / DIFÍCIL", "СЛОЖНОСТЬ: НОРМАЛЬНО / СЛОЖНО");
+        string diffBadge = GetLocalized("DIFICULTAD: DIFÍCIL / EXPERTO", "DIFFICULTY: HARD / EXPERT", "DIFICULDADE: DIFÍCIL / EXPERTO", "СЛОЖНОСТЬ: СЛОЖНО / ЭКСПЕРТ");
         string playBtnText = GetLocalized("JUGAR CAPÍTULO 2", "PLAY CHAPTER 2", "JOGAR CAPÍTULO 2", "ИГРАТЬ ГЛАВУ 2");
         string lockReqText = (ctx != null && ctx.isDemoBuild)
-            ? GetLocalized("🔒 DISPONIBLE EN LA VERSIÓN COMPLETA", "🔒 AVAILABLE IN FULL VERSION", "🔒 DISPONÍVEL NA VERSÃO COMPLETA", "🔒 ДОСТУПНО В ПОЛНОЙ ВЕРСИИ")
+            ? GetLocalized("DISPONIBLE EN LA VERSIÓN COMPLETA", "AVAILABLE IN FULL VERSION", "DISPONÍVEL NA VERSÃO COMPLETA", "ДОСТУПНО В ПОЛНОЙ ВЕРСИИ")
             : GetLocalized("COMPLETA EL HOSPITAL (NIVEL 1) PARA DESBLOQUEAR", "COMPLETE HOSPITAL (LEVEL 1) TO UNLOCK", "COMPLETE O HOSPITAL (NÍVEL 1) PARA DESBLOQUEAR", "ПРОЙДИТЕ БОЛЬНИЦУ (УРОВЕНЬ 1) ДЛЯ РАЗБЛОКИРОВКИ");
 
         if (isUnlocked)
@@ -216,10 +216,10 @@ public class MenuScreenLevelSelect : MonoBehaviour
             "Depósito de carga pesada e máquinas enferrujadas. Um labirinto de contêineres cercado por entidades na escuridão.",
             "Склад тяжелых грузов и ржавых машин. Лабиринт контейнеров, где во тьме рыщут враждебные сущности."
         );
-        string diffBadge = GetLocalized("DIFICULTAD: ⚠ DIFÍCIL / EXPERTO", "DIFFICULTY: ⚠ HARD / EXPERT", "DIFICULDADE: ⚠ DIFÍCIL / EXPERT", "СЛОЖНОСТЬ: ⚠ СЛОЖНО / ЭКСПЕРТ");
+        string diffBadge = GetLocalized("DIFICULTAD: DIFÍCIL / EXPERTO", "DIFFICULTY: HARD / EXPERT", "DIFICULDADE: DIFÍCIL / EXPERT", "СЛОЖНОСТЬ: СЛОЖНО / ЭКСПЕРТ");
         string playBtnText = GetLocalized("JUGAR CAPÍTULO 3", "PLAY CHAPTER 3", "JOGAR CAPÍTULO 3", "ИГРАТЬ ГЛАВУ 3");
         string lockReqText = (ctx != null && ctx.isDemoBuild)
-            ? GetLocalized("🔒 DISPONIBLE EN LA VERSIÓN COMPLETA", "🔒 AVAILABLE IN FULL VERSION", "🔒 DISPONÍVEL NA VERSÃO COMPLETA", "🔒 ДОСТУПНО В ПОЛНОЙ ВЕРСИИ")
+            ? GetLocalized("DISPONIBLE EN LA VERSIÓN COMPLETA", "AVAILABLE IN FULL VERSION", "DISPONÍVEL NA VERSÃO COMPLETA", "ДОСТУПНО В ПОЛНОЙ ВЕРСИИ")
             : GetLocalized("COMPLETA LOS TÚNELES (NIVEL 2) PARA DESBLOQUEAR", "COMPLETE TUNNELS (LEVEL 2) TO UNLOCK", "COMPLETE OS TÚNEIS (NÍVEL 2) PARA DESBLOQUEAR", "ПРОЙДИТЕ ТОННЕЛИ (УРОВЕНЬ 2) ДЛЯ РАЗБЛОКИРОВКИ");
 
         if (isUnlocked)
@@ -245,7 +245,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
             "Florestas noturnas densas cercadas por névoa impenetrável. Novos perigos aguardam na próxima atualização.",
             "Густые ночные леса, окутанные непроглядным туманом. Новые опасности ждут в следующем обновлении."
         );
-        string lockReqText = GetLocalized("🔒 PRÓXIMAMENTE EN PRÓXIMA ACTUALIZACIÓN", "🔒 COMING SOON IN FUTURE UPDATE", "🔒 EM BREVE NA PRÓXIMA ATUALIZAÇÃO", "🔒 СКОРО В СЛЕДУЮЩЕМ ОБНОВЛЕНИИ");
+        string lockReqText = GetLocalized("PRÓXIMAMENTE EN PRÓXIMA ACTUALIZACIÓN", "COMING SOON IN FUTURE UPDATE", "EM BREVE NA PRÓXIMA ATUALIZAÇÃO", "СКОРО В СЛЕДУЮЩЕМ ОБНОВЛЕНИИ");
 
         RenderLockedCard(s, null, lvlTitle, lvlDesc, lockReqText);
     }
@@ -365,7 +365,7 @@ public class MenuScreenLevelSelect : MonoBehaviour
             buyBtnStyle.normal.textColor = new Color(1f, 0.85f, 0.3f);
             buyBtnStyle.hover.textColor = Color.white;
 
-            string buyText = GetLocalized("🛒 ADQUIRIR VERSIÓN COMPLETA", "🛒 GET FULL VERSION", "🛒 ADQUIRIR VERSÃO COMPLETA", "🛒 ПОЛУЧИТЬ ПОЛНУЮ ВЕРСИЮ");
+            string buyText = GetLocalized("[ ADQUIRIR VERSIÓN COMPLETA ]", "[ GET FULL VERSION ]", "[ ADQUIRIR VERSÃO COMPLETA ]", "[ ПОЛУЧИТЬ ПОЛНУЮ ВЕРСИЮ ]");
             if (GUILayout.Button(buyText, buyBtnStyle, GUILayout.ExpandWidth(true), GUILayout.Height(46)))
             {
                 ctx.PlayClickSound();
